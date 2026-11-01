@@ -25,7 +25,7 @@ function TelegramIcon({ size = 20, className = '' }) {
   );
 }
 
-export default function AliceSupportWidget({ onOpenLookup, telegramUrl, contacts = {} }) {
+export default function AliceSupportWidget({ onOpenLookup, telegramUrl, contacts = {}, hasBottomBar = false }) {
   const cleanTelegramUrl = telegramUrl || contacts.telegramUrl || 'https://t.me/Yur1Uchiha';
   const cleanTelegramUsername = contacts.telegramUsername || '@Yur1Uchiha';
 
@@ -100,7 +100,7 @@ export default function AliceSupportWidget({ onOpenLookup, telegramUrl, contacts
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end">
+    <div className={`fixed ${hasBottomBar ? 'bottom-20 sm:bottom-24 lg:bottom-5' : 'bottom-5'} right-3 sm:right-5 z-40 flex flex-col items-end transition-all duration-300`}>
       {/* Floating Launcher Pill */}
       {!isOpen && (
         <button

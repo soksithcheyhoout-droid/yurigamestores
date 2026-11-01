@@ -680,7 +680,7 @@ export default function GameDetailPage({
   };
 
   return (
-    <div className="w-full bg-[#F4F4F6] text-[#1E293B] min-h-screen pb-20">
+    <div className="w-full bg-[#F4F4F6] text-[#1E293B] min-h-screen pb-32 lg:pb-20">
 
       {/* Product breadcrumb and back bar */}
       <div className="w-full bg-white border-b border-[#222432] sticky top-0 z-30 shadow-xs">
@@ -1482,16 +1482,16 @@ export default function GameDetailPage({
           </div>
         )}
 
-        {/* 5. Mobile Sticky Bottom Checkout Bar (Instant 1-Tap Buy Now) */}
+        {/* 5. Mobile Sticky Bottom Checkout Bar (Instant 1-Tap Buy / Pay Now) */}
         {stage === 'form' && (
-          <div className="block lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#222432] px-4 py-2.5 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+          <div className="block lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0e1017]/95 border-t border-[#222432] px-4 py-3 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
-              <div>
-                <div className="text-[10px] text-slate-500 uppercase font-bold leading-none">Total Payable</div>
-                <div className="text-lg font-black text-[#E3062F] font-mono leading-tight mt-0.5">
+              <div className="min-w-0 pr-1">
+                <div className="text-[10px] text-slate-400 uppercase font-black tracking-wider leading-none">Total Payable</div>
+                <div className="text-xl font-black text-[#E3062F] font-mono leading-tight mt-0.5">
                   {formatPrice(totalPrice, currentRegion)}
                 </div>
-                <div className="text-[10px] text-slate-400 truncate max-w-[130px]">
+                <div className="text-[11px] text-slate-400 truncate max-w-[130px]">
                   {selectedPkg?.name || 'Selected'} × {quantity}
                 </div>
               </div>
@@ -1500,20 +1500,21 @@ export default function GameDetailPage({
                 type="button"
                 onClick={handleProceedToPayment}
                 disabled={!providerOrderingEnabled || !isAccountVerified}
-                className={`flex-1 max-w-[200px] py-2.5 px-3 text-xs font-black flex items-center justify-center gap-1.5 shadow-md active:scale-95 border-0 rounded-lg transition-all ${!isAccountVerified
-                    ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
+                className={`flex-1 max-w-[210px] py-3 px-4 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg active:scale-95 border-0 rounded-xl transition-all ${
+                  !isAccountVerified
+                    ? 'bg-slate-800 text-slate-400 border border-slate-700/80 cursor-not-allowed shadow-none'
                     : 'seagm-btn-orange cursor-pointer'
-                  }`}
+                }`}
               >
                 {!isAccountVerified ? (
                   <>
-                    <Lock size={13} />
-                    <span>Verify Account First</span>
+                    <Lock size={13} className="shrink-0" />
+                    <span className="truncate">Verify Account</span>
                   </>
                 ) : (
                   <>
-                    <Zap size={13} />
-                    <span>{providerOrderingEnabled ? 'Buy Now' : 'Ordering locked'}</span>
+                    <Zap size={14} className="shrink-0" />
+                    <span className="truncate">{providerOrderingEnabled ? 'Pay Now' : 'Locked'}</span>
                   </>
                 )}
               </button>

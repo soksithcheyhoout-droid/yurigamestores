@@ -322,7 +322,11 @@ export default function App() {
       )}
 
       <Footer contacts={siteConfig?.contacts} />
-      <AliceSupportWidget onOpenLookup={() => setIsLookupOpen(true)} contacts={siteConfig?.contacts} />
+      <AliceSupportWidget
+        onOpenLookup={() => setIsLookupOpen(true)}
+        contacts={siteConfig?.contacts}
+        hasBottomBar={Boolean(selectedGame)}
+      />
 
       <ErrorBoundary>
         {isLookupOpen && (

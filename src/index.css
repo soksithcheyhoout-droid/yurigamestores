@@ -1,0 +1,1991 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* ==========================================================================
+   YURIGAME STORE — RED, BLACK & SILVER GAMING COMMERCE SYSTEM
+   Derived from the official YuriGame Store logo in /logo/IMG_1949.PNG
+   ========================================================================== */
+
+:root {
+  /* Brand canvas and surfaces */
+  --bg-main: #090A0E;
+  --bg-surface: #15161B;
+  --bg-surface-subtle: #1A1B21;
+  --bg-surface-hover: #22242C;
+  --bg-header-top: #101116;
+
+  /* YuriGame signature colors */
+  --color-primary: #E3062F;
+  --color-primary-hover: #FF234C;
+  --color-primary-light: #2A1018;
+  --color-primary-subtle: #521225;
+  --color-ink: #111217;
+  --color-ink-soft: #23252C;
+  --color-silver: #D6D8DE;
+  
+  /* Legacy action tokens now map to YuriGame red */
+  --color-orange: #E3062F;
+  --color-orange-hover: #FF234C;
+  --color-orange-light: #2A1018;
+
+  --color-red: #F20D3A;
+  --color-red-light: #2A1018;
+  --color-red-border: #6B1930;
+
+  /* Typography colors */
+  --text-main: #E3E4E8;
+  --text-heading: #F8F8FA;
+  --text-secondary: #A7ABB5;
+  --text-muted: #757A86;
+
+  /* Borders and dividers */
+  --border-subtle: #2A2C34;
+  --border-card: #30323B;
+  --border-focus: #F20D3A;
+
+  /* Shadows */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.24), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 14px 32px -8px rgba(227, 6, 47, 0.22), 0 8px 16px -4px rgba(0, 0, 0, 0.34);
+  --shadow-dropdown: 0 16px 38px rgba(0, 0, 0, 0.42);
+
+  /* Fonts - Authentic Hariki TopUp Esports & Gaming System */
+  --font-main: 'Kantumruy Pro', 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Rajdhani', 'Kantumruy Pro', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+@layer base {
+  *, ::before, ::after {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: auto;
+    font-size: 16px;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-family: var(--font-main);
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: var(--font-main);
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-heading {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  /* Enable native touch scrolling and isolate modal scroll */
+  [data-lenis-prevent],
+  [role="dialog"] .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+}
+
+/* ==========================================================================
+   SEAGM REUSABLE UTILITIES & COMPONENTS
+   ========================================================================== */
+
+/* SEAGM Container */
+.seagm-container {
+  width: 100%;
+  max-width: 1240px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+@media (min-width: 768px) {
+  .seagm-container {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+/* SEAGM White Card */
+.seagm-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.seagm-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+/* SEAGM Buttons */
+.seagm-btn-teal {
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 8px;
+  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.seagm-btn-teal:hover {
+  background-color: var(--color-primary-hover);
+  box-shadow: 0 4px 12px rgba(227, 6, 47, 0.25);
+  transform: translateY(-1px);
+}
+
+.seagm-btn-orange {
+  background-color: var(--color-orange);
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: 8px;
+  padding: 10px 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(227, 6, 47, 0.25);
+}
+
+.seagm-btn-orange:hover {
+  background-color: var(--color-orange-hover);
+  box-shadow: 0 6px 18px rgba(227, 6, 47, 0.35);
+  transform: translateY(-1px);
+}
+
+.seagm-btn-outline {
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.seagm-btn-outline:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-light);
+}
+
+/* SEAGM Badges */
+.seagm-badge-promo {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background-color: var(--color-red-light);
+  color: var(--color-red);
+  border: 1px solid var(--color-red-border);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 6px;
+  line-height: 1.2;
+}
+
+.seagm-badge-instant {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 7px;
+  line-height: 1.2;
+}
+
+.seagm-badge-popular {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background-color: var(--color-orange-light);
+  color: var(--color-orange);
+  border: 1px solid #6B1930;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* SEAGM Section Title */
+.seagm-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-heading);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: -0.01em;
+}
+
+.seagm-section-title::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 20px;
+  background: var(--color-primary);
+  border-radius: 2px;
+}
+
+/* SEAGM Input Form */
+.seagm-input {
+  width: 100%;
+  height: 42px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: var(--text-main);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.seagm-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(227, 6, 47, 0.12);
+}
+
+.seagm-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* SEAGM Coupon Card (ticket notch effect) */
+.seagm-coupon {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid #6B1930;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.seagm-coupon:hover {
+  border-color: var(--color-orange);
+  box-shadow: 0 6px 16px rgba(227, 6, 47, 0.12);
+}
+
+.seagm-coupon-left {
+  background: linear-gradient(135deg, #E3062F 0%, #B80D2E 100%);
+  color: #FFFFFF;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d0e12;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3a3c46;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #e3062f;
+}
+
+/* ==========================================================================
+   ONE-LINE INFINITE MOVING MARQUEE (PERFECT RESPONSIVE & HARDWARE ACCELERATED)
+   ========================================================================== */
+@keyframes infinite-marquee-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-infinite-marquee {
+  display: flex;
+  width: max-content;
+  animation: infinite-marquee-scroll 75s linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+.animate-infinite-marquee:hover,
+.pause-on-hover:hover .animate-infinite-marquee {
+  animation-play-state: paused;
+}
+
+.mask-edge-fade {
+  mask-image: linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%);
+}
+
+@media (min-width: 640px) {
+  .mask-edge-fade {
+    mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+  }
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Authentic ABA PayWay / KHQR Circular Progress Loader */
+.aba-loader-spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3.5px solid #E5E7EB;
+  border-top-color: #00A3DA;
+  border-right-color: #00A3DA;
+  animation: aba-spin 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+@keyframes aba-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
+
+/* YuriGame storefront refinements */
+:root {
+  --bg-main: #090a0e;
+  --color-primary: #e3062f;
+  --color-primary-hover: #ff234c;
+  --color-orange: #e3062f;
+  --color-orange-hover: #ff234c;
+  --font-main: Inter, "Noto Sans Khmer", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-heading: Inter, "Noto Sans Khmer", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background:
+    radial-gradient(circle at 18% -10%, rgba(227, 6, 47, 0.12), transparent 34rem),
+    #090a0e;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(227, 6, 47, 0.24);
+  outline-offset: 2px;
+}
+
+@media (max-width: 639px) {
+  .seagm-container {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Featured game cover-flow. CSS transforms keep the 3D interaction lightweight. */
+.game-feature-slider {
+  box-shadow: 0 18px 50px rgba(7, 17, 30, 0.18);
+}
+
+.game-feature-backdrop {
+  opacity: 0.68;
+  animation: game-backdrop-enter 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes game-backdrop-enter {
+  from {
+    opacity: 0.35;
+    transform: scale(1.035);
+  }
+  to {
+    opacity: 0.68;
+    transform: scale(1);
+  }
+}
+
+.game-coverflow-stage {
+  perspective: 1100px;
+  transform-style: preserve-3d;
+  overflow: hidden;
+}
+
+.game-coverflow-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 152px;
+  aspect-ratio: 4 / 5;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  transition:
+    transform 620ms cubic-bezier(0.2, 0.75, 0.2, 1),
+    opacity 420ms ease,
+    filter 420ms ease;
+  will-change: transform, opacity;
+}
+
+.game-coverflow-card-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: inherit;
+  background: #111a27;
+  box-shadow: 0 22px 45px rgba(0, 0, 0, 0.38);
+  backface-visibility: hidden;
+}
+
+.game-coverflow-card-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.game-coverflow-card-face > img {
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  object-fit: cover;
+  user-select: none;
+}
+
+.game-coverflow-card-meta {
+  display: flex;
+  min-height: 48px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 7px 9px 8px;
+  border-top: 2px solid var(--slide-accent);
+  background: rgba(7, 17, 30, 0.96);
+  text-align: left;
+}
+
+.game-coverflow-card-meta strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-coverflow-card-meta span {
+  margin-top: 3px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 8px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-coverflow-card[data-offset="0"] {
+  opacity: 1;
+  filter: brightness(1);
+  transform: translate(-50%, -50%) translate3d(0, 0, 80px) rotateY(0deg) scale(1);
+}
+
+.game-coverflow-card[data-offset="-1"] {
+  opacity: 0.86;
+  filter: brightness(0.72);
+  transform: translate(-50%, -50%) translate3d(-126px, 4px, -50px) rotateY(30deg) scale(0.84);
+}
+
+.game-coverflow-card[data-offset="1"] {
+  opacity: 0.86;
+  filter: brightness(0.72);
+  transform: translate(-50%, -50%) translate3d(126px, 4px, -50px) rotateY(-30deg) scale(0.84);
+}
+
+.game-coverflow-card[data-offset="-2"] {
+  opacity: 0.36;
+  filter: brightness(0.48);
+  transform: translate(-50%, -50%) translate3d(-216px, 9px, -150px) rotateY(42deg) scale(0.68);
+}
+
+.game-coverflow-card[data-offset="2"] {
+  opacity: 0.36;
+  filter: brightness(0.48);
+  transform: translate(-50%, -50%) translate3d(216px, 9px, -150px) rotateY(-42deg) scale(0.68);
+}
+
+.game-coverflow-card:not([data-offset="-2"]):not([data-offset="-1"]):not([data-offset="0"]):not([data-offset="1"]):not([data-offset="2"]) {
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%) translate3d(0, 0, -240px) scale(0.52);
+}
+
+.game-coverflow-card[data-offset="0"]:hover .game-coverflow-card-face {
+  border-color: var(--slide-accent);
+}
+
+.game-coverflow-card:focus-visible {
+  outline-color: var(--slide-accent);
+  outline-offset: 4px;
+}
+
+@media (min-width: 640px) {
+  .game-coverflow-card {
+    width: 174px;
+  }
+
+  .game-coverflow-card[data-offset="-1"] {
+    transform: translate(-50%, -50%) translate3d(-148px, 4px, -50px) rotateY(30deg) scale(0.84);
+  }
+
+  .game-coverflow-card[data-offset="1"] {
+    transform: translate(-50%, -50%) translate3d(148px, 4px, -50px) rotateY(-30deg) scale(0.84);
+  }
+
+  .game-coverflow-card[data-offset="-2"] {
+    transform: translate(-50%, -50%) translate3d(-252px, 9px, -150px) rotateY(42deg) scale(0.68);
+  }
+
+  .game-coverflow-card[data-offset="2"] {
+    transform: translate(-50%, -50%) translate3d(252px, 9px, -150px) rotateY(-42deg) scale(0.68);
+  }
+}
+
+@media (min-width: 1024px) {
+  .game-coverflow-card {
+    width: 184px;
+  }
+
+  .game-coverflow-card[data-offset="-1"] {
+    transform: translate(-50%, -50%) translate3d(-158px, 4px, -50px) rotateY(30deg) scale(0.84);
+  }
+
+  .game-coverflow-card[data-offset="1"] {
+    transform: translate(-50%, -50%) translate3d(158px, 4px, -50px) rotateY(-30deg) scale(0.84);
+  }
+
+  .game-coverflow-card[data-offset="-2"] {
+    transform: translate(-50%, -50%) translate3d(-270px, 9px, -150px) rotateY(42deg) scale(0.68);
+  }
+
+  .game-coverflow-card[data-offset="2"] {
+    transform: translate(-50%, -50%) translate3d(270px, 9px, -150px) rotateY(-42deg) scale(0.68);
+  }
+}
+
+/* ========================================================================== 
+   TOPBAR PROMOTION CAROUSEL — YURIGAME BRAND SYSTEM
+   ========================================================================== */
+.topbar-promo-section {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid #2a2c34;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(227, 6, 47, 0.16), transparent 32rem),
+    radial-gradient(circle at 88% 90%, rgba(227, 6, 47, 0.08), transparent 24rem),
+    #090a0e;
+  padding: 12px 0 11px;
+}
+
+.topbar-promo-section::before,
+.topbar-promo-section::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.topbar-promo-section::before {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #111217 0 28%, #e3062f 28% 100%);
+  opacity: 0.96;
+}
+
+.topbar-promo-section::after {
+  top: 26px;
+  right: -72px;
+  width: 220px;
+  height: 220px;
+  border: 1px solid rgba(227, 6, 47, 0.12);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 28px rgba(227, 6, 47, 0.035),
+    0 0 0 58px rgba(255, 255, 255, 0.012);
+}
+
+.topbar-promo-carousel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #30323b;
+  border-radius: 18px;
+  background: rgba(17, 18, 23, 0.96);
+  box-shadow: 0 18px 44px -20px rgba(0, 0, 0, 0.72);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.topbar-promo-stage {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  aspect-ratio: 2.45 / 1;
+  min-height: 140px;
+  padding: 0;
+  touch-action: pan-y;
+}
+
+@media (min-width: 640px) {
+  .topbar-promo-stage {
+    aspect-ratio: 2.6 / 1;
+    min-height: 190px;
+    padding: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .topbar-promo-stage {
+    aspect-ratio: 2.75 / 1;
+    max-height: 420px;
+    padding: 0;
+  }
+}
+
+.topbar-promo-card {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 13px;
+  background: #090a0e;
+  box-shadow:
+    0 16px 30px -14px rgba(0, 0, 0, 0.78),
+    0 2px 5px rgba(0, 0, 0, 0.28);
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.topbar-promo-media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #0b1320;
+  backface-visibility: hidden;
+}
+
+.topbar-promo-media[data-direction="next"] {
+  animation: topbar-promo-forward 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.topbar-promo-media[data-direction="previous"] {
+  animation: topbar-promo-backward 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.topbar-promo-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  backface-visibility: hidden;
+  transform: scale(1.002);
+  transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.topbar-promo-image-finish {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(227, 6, 47, 0.09), transparent 25%, transparent 75%, rgba(17, 18, 23, 0.09)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 32%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.topbar-promo-hit-area {
+  position: absolute;
+  z-index: 12;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.topbar-promo-hit-area:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: -6px;
+  box-shadow: inset 0 0 0 8px rgba(227, 6, 47, 0.72);
+}
+
+.topbar-promo-arrow {
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  border-radius: 10px;
+  background: rgba(17, 18, 23, 0.92);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(17, 18, 23, 0.26);
+  opacity: 0;
+  transform: translateY(-50%) scale(0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition:
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.2, 0.75, 0.2, 1),
+    background-color 180ms ease;
+}
+
+.topbar-promo-arrow:hover {
+  border-color: #ffffff;
+  background: #e3062f;
+  box-shadow: 0 8px 20px rgba(227, 6, 47, 0.3);
+}
+
+.topbar-promo-arrow-left {
+  left: 14px;
+}
+
+.topbar-promo-arrow-right {
+  right: 14px;
+}
+
+.topbar-promo-carousel:hover .topbar-promo-arrow,
+.topbar-promo-carousel:focus-within .topbar-promo-arrow {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.topbar-promo-navigation {
+  position: relative;
+  display: flex;
+  min-height: 23px;
+  align-items: flex-end;
+  justify-content: center;
+  padding-top: 9px;
+}
+
+.topbar-promo-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.topbar-promo-dot {
+  display: grid;
+  width: 18px;
+  height: 14px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.topbar-promo-dot span {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #4b4e59;
+  transition:
+    width 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.topbar-promo-dot[data-active="true"] {
+  width: 38px;
+}
+
+.topbar-promo-dot[data-active="true"] span {
+  width: 30px;
+  background: linear-gradient(90deg, #111217 0 32%, #e3062f 32% 100%);
+  box-shadow: 0 3px 9px rgba(227, 6, 47, 0.24);
+}
+
+.topbar-promo-count {
+  position: absolute;
+  right: 3px;
+  bottom: 0;
+  display: none;
+  color: #8f949f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+@keyframes topbar-promo-forward {
+  from {
+    opacity: 0;
+    filter: saturate(0.8) brightness(0.9);
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    filter: saturate(1) brightness(1);
+    transform: translateX(0);
+  }
+}
+
+@keyframes topbar-promo-backward {
+  from {
+    opacity: 0;
+    filter: saturate(0.8) brightness(0.9);
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    filter: saturate(1) brightness(1);
+    transform: translateX(0);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .topbar-promo-card:hover {
+    border-color: rgba(227, 6, 47, 0.56);
+    box-shadow:
+      0 15px 30px -18px rgba(15, 23, 42, 0.48),
+      0 0 0 3px rgba(227, 6, 47, 0.07);
+  }
+
+  .topbar-promo-card:hover .topbar-promo-image {
+    transform: scale(1.006);
+  }
+}
+
+@media (min-width: 640px) {
+  .topbar-promo-section {
+    padding: 18px 0 15px;
+  }
+
+  .topbar-promo-stage {
+    aspect-ratio: 2.972 / 1;
+  }
+
+  .topbar-promo-card {
+    border-radius: 18px;
+  }
+
+  .topbar-promo-count {
+    display: inline;
+  }
+
+  .topbar-promo-arrow {
+    display: flex;
+  }
+}
+
+@media (min-width: 1024px) {
+  .topbar-promo-section {
+    padding-top: 20px;
+  }
+
+  .topbar-promo-card {
+    border-radius: 20px;
+  }
+
+  .topbar-promo-navigation {
+    padding-top: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-promo-card {
+    transform: none !important;
+  }
+
+  .topbar-promo-media {
+    animation: none !important;
+  }
+
+  .topbar-promo-image {
+    transform: none !important;
+  }
+}
+
+/* YuriGame identity rail and flat brand accents. */
+.topbar-promo-brandbar {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 11px;
+  border-bottom: 1px solid #292b33;
+  background:
+    linear-gradient(90deg, rgba(227, 6, 47, 0.09), transparent 38%),
+    #13141a;
+}
+
+.topbar-promo-brand-lockup {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-promo-brand-divider {
+  width: 1px;
+  height: 16px;
+  flex: 0 0 auto;
+  background: #353741;
+}
+
+.topbar-promo-brand-label {
+  overflow: hidden;
+  color: #ff5575;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.topbar-promo-assurance {
+  display: none;
+  align-items: center;
+  gap: 7px;
+}
+
+.topbar-promo-assurance span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #aeb1bb;
+  font-size: 9px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.topbar-promo-assurance span + span {
+  padding-left: 8px;
+  border-left: 1px solid #343640;
+  color: #ff5575;
+}
+
+.topbar-promo-assurance svg {
+  color: #bd0d2e;
+}
+
+.topbar-promo-brand-corner {
+  position: absolute;
+  z-index: 8;
+  top: 0;
+  right: 8px;
+  display: flex;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 0 0 0 3px;
+  pointer-events: none;
+}
+
+.topbar-promo-brand-corner span:first-child {
+  width: 42px;
+  background: #e3062f;
+}
+
+.topbar-promo-brand-corner span:last-child {
+  width: 18px;
+  background: #111217;
+}
+
+.topbar-promo-navigation-label {
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  display: none;
+  color: #8f949f;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  line-height: 14px;
+  text-transform: uppercase;
+}
+
+@media (min-width: 640px) {
+  .topbar-promo-brandbar {
+    min-height: 42px;
+    padding: 7px 14px;
+  }
+
+  .topbar-promo-brand-label {
+    font-size: 9px;
+  }
+
+  .topbar-promo-assurance {
+    display: flex;
+  }
+
+  .topbar-promo-navigation-label {
+    display: block;
+  }
+
+  .topbar-promo-brand-corner {
+    right: 8px;
+    height: 4px;
+  }
+
+  .topbar-promo-brand-corner span:first-child {
+    width: 62px;
+  }
+
+  .topbar-promo-brand-corner span:last-child {
+    width: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .topbar-promo-brandbar {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .topbar-promo-assurance span {
+    font-size: 10px;
+  }
+
+  .topbar-promo-navigation-label {
+    left: 18px;
+  }
+}
+
+/* YuriGame artwork integration for campaign slides. */
+.topbar-promo-watermark {
+  position: absolute;
+  z-index: 9;
+  top: 7px;
+  right: 15px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 6px 3px 4px;
+  border: 1px solid rgba(227, 6, 47, 0.42);
+  border-radius: 10px;
+  background: rgba(10, 11, 15, 0.9);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.yurigame-brand-slide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(105px, 0.85fr);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 77% 42%, rgba(227, 6, 47, 0.24), transparent 32%),
+    linear-gradient(112deg, #090a0d 0%, #171820 58%, #310914 100%);
+  color: #ffffff;
+}
+
+.yurigame-brand-slide::before,
+.yurigame-brand-slide::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.yurigame-brand-slide::before {
+  inset: 0;
+  background:
+    linear-gradient(120deg, transparent 0 46%, rgba(255, 255, 255, 0.05) 46.2% 46.6%, transparent 46.8%),
+    repeating-linear-gradient(90deg, transparent 0 58px, rgba(255, 255, 255, 0.025) 59px 60px);
+}
+
+.yurigame-brand-slide::after {
+  right: -8%;
+  bottom: -72%;
+  width: 54%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(227, 6, 47, 0.36);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 28px rgba(227, 6, 47, 0.06),
+    0 0 0 56px rgba(255, 255, 255, 0.025);
+}
+
+.yurigame-brand-slide-copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 7% 4% 7% 7%;
+}
+
+.yurigame-brand-slide-kicker {
+  display: inline-flex;
+  align-items: center;
+  border-left: 3px solid #e3062f;
+  padding-left: 7px;
+  color: #d6d8de;
+  font-size: clamp(6px, 0.86vw, 11px);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.yurigame-brand-slide-copy strong {
+  margin-top: 4%;
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-size: clamp(18px, 3.8vw, 50px);
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.yurigame-brand-slide-copy strong em {
+  color: #ff244c;
+  font-style: normal;
+  text-shadow: 0 5px 22px rgba(227, 6, 47, 0.26);
+}
+
+.yurigame-brand-slide-note {
+  margin-top: 3.5%;
+  color: #aeb1b9;
+  font-size: clamp(7px, 0.94vw, 12px);
+  font-weight: 600;
+}
+
+.yurigame-brand-slide-cta {
+  display: inline-flex;
+  margin-top: 4%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: #e3062f;
+  padding: clamp(4px, 0.65vw, 8px) clamp(9px, 1.2vw, 16px);
+  color: #ffffff;
+  box-shadow: 0 7px 20px rgba(227, 6, 47, 0.24);
+  font-size: clamp(7px, 0.94vw, 12px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.yurigame-brand-slide-logo {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5% 8% 5% 0;
+}
+
+.yurigame-brand-slide-logo img {
+  display: block;
+  width: min(82%, 330px);
+  max-height: 88%;
+  border: 1px solid rgba(227, 6, 47, 0.32);
+  border-radius: clamp(10px, 1.6vw, 20px);
+  background: radial-gradient(circle at 50% 42%, rgba(227, 6, 47, 0.1), rgba(8, 9, 12, 0.66) 72%);
+  box-shadow:
+    0 18px 55px rgba(0, 0, 0, 0.5),
+    0 0 0 5px rgba(227, 6, 47, 0.07);
+  object-fit: contain;
+}
+
+@media (max-width: 639px) {
+  .topbar-promo-watermark {
+    top: 5px;
+    right: 13px;
+    padding: 2px 5px 2px 3px;
+    border-radius: 8px;
+    transform: scale(0.78);
+    transform-origin: top right;
+  }
+
+  .yurigame-brand-slide {
+    grid-template-columns: minmax(0, 1.25fr) minmax(92px, 0.75fr);
+  }
+
+  .yurigame-brand-slide-note {
+    display: none;
+  }
+
+  .yurigame-brand-slide-copy strong {
+    margin-top: 6px;
+  }
+
+  .yurigame-brand-slide-cta {
+    margin-top: 8px;
+  }
+
+  .yurigame-brand-slide-logo {
+    padding-right: 7%;
+  }
+}
+
+/* ========================================================================== 
+   YURIGAME DARK STOREFRONT THEME
+   Black canvas, charcoal surfaces, silver type, and lacquer-red accents.
+   ========================================================================== */
+.yurigame-theme {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 4%, rgba(227, 6, 47, 0.11), transparent 28rem),
+    radial-gradient(circle at 92% 32%, rgba(227, 6, 47, 0.05), transparent 30rem),
+    #090a0e;
+  color: #e2e3e7;
+}
+
+.yurigame-theme::before {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.014) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 75%);
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 75%);
+}
+
+/* Keep Bakong KHQR Card 100% pure white, crisp and high-contrast so text, price, and QR code are instantly visible and scannable */
+.yurigame-theme .khqr-card-white,
+.yurigame-theme .khqr-card-white .bg-white,
+.khqr-card-white {
+  background-color: #ffffff !important;
+  color: #081b37 !important;
+}
+
+.yurigame-theme .khqr-card-white * {
+  color-scheme: light;
+}
+
+.yurigame-theme .khqr-card-white .khqr-merchant-name {
+  color: #1e293b !important;
+}
+
+.yurigame-theme .khqr-card-white .khqr-price-text {
+  color: #081b37 !important;
+}
+
+.yurigame-theme .khqr-card-white .khqr-price-sub {
+  color: #64748b !important;
+}
+
+/* Dark surfaces */
+.yurigame-theme .bg-white:not(.khqr-card-white):not(.khqr-card-white *),
+.yurigame-theme [class~="bg-white"]:not(.khqr-card-white):not(.khqr-card-white *) {
+  background-color: #15161b;
+}
+
+.yurigame-theme [class*="bg-white/"] {
+  background-color: rgba(21, 22, 27, 0.88);
+}
+
+.yurigame-theme [class~="bg-slate-50"],
+.yurigame-theme [class~="bg-slate-100"],
+.yurigame-theme [class~="bg-[#F8FAFC]"],
+.yurigame-theme [class~="bg-[#F1F5F9]"],
+.yurigame-theme [class~="bg-[#f8fafb]"] {
+  background-color: #1a1b21;
+}
+
+.yurigame-theme [class~="bg-slate-200"],
+.yurigame-theme [class*="bg-slate-200/"] {
+  background-color: #24262e;
+}
+
+.yurigame-theme [class~="bg-[#F4F4F6]"] {
+  background-color: #0d0e12;
+}
+
+.yurigame-theme [class*="bg-[#FFF0F3]"],
+.yurigame-theme [class~="bg-[#fff0f3]"],
+.yurigame-theme [class~="bg-[#fff1f4]"] {
+  background-color: #2a1018;
+}
+
+.yurigame-theme [class~="bg-[#FFF1F0]"],
+.yurigame-theme .bg-red-50,
+.yurigame-theme .bg-rose-50 {
+  background-color: #2d1119;
+}
+
+.yurigame-theme .bg-orange-50 {
+  background-color: #2b1811;
+}
+
+.yurigame-theme .bg-emerald-50 {
+  background-color: #10251e;
+}
+
+.yurigame-theme .bg-blue-50,
+.yurigame-theme [class~="bg-[#E0F2FE]"] {
+  background-color: #111d29;
+}
+
+/* Silver text hierarchy */
+.yurigame-theme .text-slate-950,
+.yurigame-theme .text-slate-900,
+.yurigame-theme [class~="text-[#0F172A]"] {
+  color: #f8f8fa;
+}
+
+.yurigame-theme .text-slate-800,
+.yurigame-theme [class~="text-[#1E293B]"],
+.yurigame-theme [class~="text-[#334155]"] {
+  color: #e2e3e7;
+}
+
+.yurigame-theme .text-slate-700,
+.yurigame-theme .text-slate-600,
+.yurigame-theme [class~="text-[#475569]"] {
+  color: #b4b7c0;
+}
+
+.yurigame-theme .text-slate-500,
+.yurigame-theme [class~="text-[#64748B]"] {
+  color: #969ba7;
+}
+
+.yurigame-theme .text-slate-400,
+.yurigame-theme [class~="text-[#94A3B8]"] {
+  color: #717784;
+}
+
+.yurigame-theme [class~="text-[#bd0d2e]"],
+.yurigame-theme [class~="text-[#BD0D2E]"] {
+  color: #ff5575;
+}
+
+/* Dark borders and dividers */
+.yurigame-theme .border-slate-100,
+.yurigame-theme [class~="border-[#F1F5F9]"] {
+  border-color: #25272e;
+}
+
+.yurigame-theme .border-slate-200,
+.yurigame-theme .border-slate-300,
+.yurigame-theme [class~="border-[#E2E8F0]"],
+.yurigame-theme [class~="border-[#E5E7EB]"],
+.yurigame-theme [class~="border-[#CBD5E1]"] {
+  border-color: #30323b;
+}
+
+.yurigame-theme [class*="border-slate-200/"],
+.yurigame-theme [class*="border-slate-300/"] {
+  border-color: rgba(78, 81, 93, 0.55);
+}
+
+.yurigame-theme [class~="border-[#e3e3e7]"] {
+  border-color: #25272e;
+}
+
+.yurigame-theme [class~="border-[#f0a7b6]"],
+.yurigame-theme [class~="border-[#f3a5b5]"] {
+  border-color: rgba(227, 6, 47, 0.44);
+}
+
+/* Sections */
+.yurigame-theme #catalog {
+  border-color: #262830;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(227, 6, 47, 0.055), transparent 24rem),
+    #0d0e12;
+}
+
+.yurigame-theme #deals,
+.yurigame-theme #coupons,
+.yurigame-theme #faq {
+  background:
+    linear-gradient(135deg, rgba(227, 6, 47, 0.035), transparent 30%),
+    #121318;
+}
+
+.yurigame-theme #news {
+  background: #0d0e12;
+}
+
+.yurigame-theme #trust {
+  border-block: 1px solid #2c1820;
+  background:
+    radial-gradient(circle at 82% 25%, rgba(227, 6, 47, 0.14), transparent 28rem),
+    linear-gradient(135deg, #08090c, #151017 60%, #090a0e);
+}
+
+.yurigame-theme #footer {
+  border-color: #272930;
+  background:
+    radial-gradient(circle at 80% 100%, rgba(227, 6, 47, 0.08), transparent 26rem),
+    #0a0b0f;
+}
+
+/* Cards, controls, and hover states */
+.yurigame-theme .seagm-card {
+  background: #15161b;
+  border-color: #30323b;
+}
+
+.yurigame-theme .seagm-btn-outline {
+  background: #1a1b21;
+  border-color: #353741;
+  color: #d8dae0;
+}
+
+.yurigame-theme .seagm-btn-outline:hover {
+  border-color: #e3062f;
+  background: #2a1018;
+  color: #ff6b87;
+}
+
+.yurigame-theme .seagm-input,
+.yurigame-theme input[type="text"],
+.yurigame-theme input[type="search"],
+.yurigame-theme input[type="number"],
+.yurigame-theme input[type="email"],
+.yurigame-theme input[type="tel"],
+.yurigame-theme select,
+.yurigame-theme textarea {
+  border-color: #343640;
+  background-color: #111217;
+  color: #f3f3f5;
+}
+
+.yurigame-theme .seagm-input:focus,
+.yurigame-theme input:focus,
+.yurigame-theme select:focus,
+.yurigame-theme textarea:focus {
+  border-color: #e3062f;
+  box-shadow: 0 0 0 3px rgba(227, 6, 47, 0.15);
+}
+
+.yurigame-theme input::placeholder,
+.yurigame-theme textarea::placeholder {
+  color: #666b76;
+}
+
+.yurigame-theme option {
+  background: #15161b;
+  color: #f3f3f5;
+}
+
+.yurigame-theme [class~="hover:bg-white"]:hover,
+.yurigame-theme [class~="hover:bg-[#F8FAFC]"]:hover,
+.yurigame-theme [class~="hover:bg-[#F1F5F9]"]:hover,
+.yurigame-theme [class~="hover:bg-slate-50"]:hover,
+.yurigame-theme [class~="hover:bg-slate-100"]:hover,
+.yurigame-theme [class~="hover:bg-slate-200"]:hover {
+  background-color: #22242c;
+}
+
+.yurigame-theme [class~="hover:text-slate-900"]:hover,
+.yurigame-theme [class~="hover:text-[#0F172A]"]:hover {
+  color: #ffffff;
+}
+
+/* Navbar */
+.yurigame-navbar {
+  color: #d8dae0;
+}
+
+.yurigame-navbar input {
+  border-color: #30323b;
+  background: #15161b;
+  color: #f5f5f7;
+}
+
+.yurigame-navbar input:focus {
+  border-color: #e3062f;
+  background: #111217;
+}
+
+.yurigame-navbar [class~="bg-slate-100"] {
+  background: #1b1c22;
+}
+
+.yurigame-navbar [class~="bg-[#fff1f4]"] {
+  background: #2a1018;
+}
+
+/* Dark modal treatments */
+.yurigame-theme [role="dialog"],
+.yurigame-theme [aria-modal="true"] {
+  color: #e3e4e8;
+}
+
+.yurigame-theme [role="dialog"] > [class*="border-b"],
+.yurigame-theme [aria-modal="true"] > [class*="border-b"] {
+  background-color: #17181e;
+}
+
+.yurigame-theme [class~="bg-gradient-to-r"][class~="from-emerald-50"] {
+  background: linear-gradient(90deg, #10251e, #15161b);
+}
+
+.yurigame-theme .text-emerald-700,
+.yurigame-theme .text-emerald-600 {
+  color: #49d59b;
+}
+
+.yurigame-theme .border-emerald-200 {
+  border-color: #205c46;
+}
+
+.yurigame-theme .text-orange-700,
+.yurigame-theme [class~="text-[#C2410C]"] {
+  color: #ff9873;
+}
+
+.yurigame-theme .border-orange-200 {
+  border-color: #6b3827;
+}
+
+/* Keep the supplied YuriGame artwork and payment marks crisp. */
+.yurigame-theme img[src*="/assets/brand/"],
+.yurigame-theme img[src*="/assets/payments/"] {
+  color-scheme: light;
+}
+
+.yurigame-theme .topbar-promo-watermark {
+  background: rgba(10, 11, 15, 0.9);
+}
+
+@media (max-width: 639px) {
+  .yurigame-theme::before {
+    background-size: 28px 28px;
+    opacity: 0.62;
+  }
+}
+
+.topbar-promo-loading {
+  position: absolute;
+  z-index: 11;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9, 10, 14, 0.68);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+/* Enforce ample padding for search input in Track Order modal so search icon never overlaps text */
+.order-lookup-input,
+.yurigame-theme .order-lookup-input,
+.yurigame-theme input.order-lookup-input {
+  padding-left: 48px !important;
+}
+
+/* RoS Processing Cyber Glitch Banner & Glowing Scanline Effects */
+@keyframes cyber-glitch-border {
+  0% {
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.3), inset 0 0 10px rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(245, 158, 11, 0.65), 0 0 10px rgba(234, 88, 12, 0.4), inset 0 0 18px rgba(245, 158, 11, 0.2);
+    border-color: rgba(245, 158, 11, 0.95);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.3), inset 0 0 10px rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.5);
+  }
+}
+
+/* Soft gentle pulse for order processing badges */
+@keyframes order-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+.order-badge-pulse {
+  animation: order-badge-pulse 2.5s infinite ease-in-out;
+}
+
+/* ========================================================================== 
+   PROFESSIONAL FULL-ART PROMOTION CAROUSEL
+   Keeps every banner fully visible while using a soft backdrop to fill space.
+   ========================================================================== */
+.topbar-promo-section {
+  padding: 18px 0;
+  border-bottom-color: #232630;
+  background:
+    radial-gradient(circle at 16% -20%, rgba(227, 6, 47, 0.13), transparent 30rem),
+    radial-gradient(circle at 88% 120%, rgba(53, 66, 92, 0.16), transparent 30rem),
+    #08090d;
+}
+
+.topbar-promo-section::after {
+  display: none;
+}
+
+.topbar-promo-carousel {
+  border-color: #2b2e39;
+  border-radius: 22px;
+  background: #101117;
+  box-shadow:
+    0 24px 64px -34px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 0 42px rgba(227, 6, 47, 0.045);
+}
+
+.topbar-promo-brandbar {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-bottom-color: #292c36;
+  background:
+    linear-gradient(90deg, rgba(227, 6, 47, 0.085), transparent 31%),
+    #111218;
+}
+
+.topbar-promo-stage {
+  aspect-ratio: 16 / 6;
+  min-height: 142px;
+  max-height: none;
+  background: #06070a;
+}
+
+.topbar-promo-card {
+  border: 0;
+  border-radius: 0;
+  background: #06070a;
+  box-shadow: none;
+}
+
+.topbar-promo-media {
+  background: #06070a;
+}
+
+.topbar-promo-backdrop {
+  position: absolute;
+  z-index: 0;
+  inset: -26px;
+  display: block;
+  width: calc(100% + 52px);
+  height: calc(100% + 52px);
+  object-fit: cover;
+  opacity: 0.62;
+  filter: blur(24px) brightness(0.43) saturate(1.2);
+  transform: scale(1.08);
+  pointer-events: none;
+}
+
+.topbar-promo-image-frame {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.topbar-promo-image {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  background: transparent;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.24));
+  transform: none;
+  transition: filter 320ms ease;
+}
+
+.topbar-promo-image-finish {
+  z-index: 3;
+  background:
+    linear-gradient(90deg, rgba(6, 7, 10, 0.38), transparent 8%, transparent 92%, rgba(6, 7, 10, 0.38)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 16%, transparent 84%, rgba(6, 7, 10, 0.15));
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 -1px rgba(255, 255, 255, 0.05);
+}
+
+.topbar-promo-card:hover .topbar-promo-image {
+  transform: none;
+  filter: drop-shadow(0 14px 32px rgba(0, 0, 0, 0.3)) saturate(1.03);
+}
+
+.topbar-promo-brand-corner {
+  display: none;
+}
+
+.topbar-promo-watermark {
+  top: 12px;
+  right: 14px;
+  padding: 4px 7px 4px 5px;
+  border-color: rgba(227, 6, 47, 0.34);
+  background: rgba(8, 9, 13, 0.82);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+}
+
+.topbar-promo-arrow {
+  width: 38px;
+  height: 38px;
+  border-color: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(8, 9, 13, 0.76);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.32),
+    inset 0 1px rgba(255, 255, 255, 0.06);
+  opacity: 0.9;
+  transform: translateY(-50%) scale(1);
+}
+
+.topbar-promo-carousel:hover .topbar-promo-arrow,
+.topbar-promo-carousel:focus-within .topbar-promo-arrow {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.topbar-promo-arrow:hover {
+  border-color: rgba(255, 73, 105, 0.8);
+  background: #e3062f;
+  box-shadow: 0 10px 28px rgba(227, 6, 47, 0.28);
+}
+
+.topbar-promo-navigation {
+  display: grid;
+  min-height: 54px;
+  grid-template-columns: minmax(0, 1fr) auto 64px;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 16px;
+  border-top: 1px solid #292c36;
+  background: #111218;
+}
+
+.topbar-promo-caption {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.topbar-promo-caption > span {
+  color: #ff4969;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.topbar-promo-caption > strong {
+  overflow: hidden;
+  color: #d9dce4;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-promo-dots {
+  align-self: center;
+  gap: 3px;
+}
+
+.topbar-promo-dot span {
+  width: 5px;
+  height: 5px;
+  background: #4b4f5c;
+}
+
+.topbar-promo-dot[data-active="true"] {
+  width: 34px;
+}
+
+.topbar-promo-dot[data-active="true"] span {
+  width: 26px;
+  background: #e3062f;
+  box-shadow: 0 0 12px rgba(227, 6, 47, 0.44);
+}
+
+.topbar-promo-count {
+  position: static;
+  display: block;
+  justify-self: end;
+  color: #858a98;
+  font-size: 9px;
+}
+
+@media (max-width: 639px) {
+  .topbar-promo-section {
+    padding: 10px 0;
+  }
+
+  .topbar-promo-carousel {
+    border-radius: 14px;
+  }
+
+  .topbar-promo-brandbar {
+    min-height: 38px;
+    padding: 7px 10px;
+  }
+
+  .topbar-promo-stage {
+    aspect-ratio: 16 / 6.6;
+    min-height: 132px;
+  }
+
+  .topbar-promo-navigation {
+    min-height: 46px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 7px 10px;
+  }
+
+  .topbar-promo-count {
+    display: none;
+  }
+
+  .topbar-promo-caption > strong {
+    font-size: 9px;
+  }
+
+  .topbar-promo-watermark {
+    top: 7px;
+    right: 8px;
+    transform: scale(0.82);
+    transform-origin: top right;
+  }
+}
+
+@media (min-width: 1024px) {
+  .topbar-promo-stage {
+    aspect-ratio: 3 / 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-promo-image,
+  .topbar-promo-backdrop {
+    transition: none !important;
+    transform: none !important;
+  }
+}

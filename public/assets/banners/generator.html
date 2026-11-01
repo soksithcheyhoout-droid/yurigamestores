@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Cinzel:wght@700;900&family=Rajdhani:wght@700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; font-family: 'Outfit', sans-serif; display: flex; flex-direction: column; gap: 20px; padding: 20px; }
+    .banner {
+      width: 1440px;
+      height: 540px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+    }
+    
+    /* 1. WUTHERING WAVES - QINGXIAO (EXACT SCREENSHOT MATCH) */
+    .wuthering {
+      background: linear-gradient(135deg, #A8CDE4 0%, #CDE3F1 40%, #E8F4FB 70%, #BEDBF0 100%);
+    }
+    .wuthering .bg-art {
+      position: absolute;
+      inset: 0;
+      background: url('/assets/games/genshin_cover_4k.jpg') center/cover;
+      opacity: 0.85;
+      mix-blend-mode: multiply;
+      filter: saturate(1.2) brightness(1.1);
+    }
+    .wuthering .char-art {
+      position: absolute;
+      left: 20%;
+      top: -10%;
+      height: 120%;
+      z-index: 2;
+      filter: drop-shadow(0 15px 30px rgba(0,50,100,0.3));
+    }
+    .wuthering .content {
+      position: absolute;
+      right: 8%;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .wuthering-title {
+      font-family: 'Cinzel', serif;
+      font-size: 76px;
+      font-weight: 900;
+      letter-spacing: 4px;
+      background: linear-gradient(180deg, #1E3A5F 0%, #3B72A4 50%, #152942 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 4px rgba(255,255,255,0.8));
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .wuthering-sub {
+      font-size: 22px;
+      font-weight: 700;
+      color: #2D557B;
+      letter-spacing: 1px;
+      margin-bottom: 24px;
+      font-style: italic;
+    }
+    .wuthering-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 40px;
+      background: linear-gradient(90deg, #1D426E 0%, #2A5F9E 50%, #1D426E 100%);
+      border: 2px solid #85B9E8;
+      border-radius: 40px;
+      color: #FFF;
+      font-weight: 900;
+      font-size: 24px;
+      letter-spacing: 2px;
+      box-shadow: 0 10px 25px rgba(26,65,110,0.35), inset 0 2px 6px rgba(255,255,255,0.4);
+    }
+    .wuthering-logo {
+      position: absolute;
+      top: 36px;
+      left: 60px;
+      z-index: 5;
+    }
+    .seagm-watermark {
+      position: absolute;
+      top: 36px;
+      right: 60px;
+      z-index: 5;
+      font-size: 26px;
+      font-weight: 900;
+      color: #1E3A5F;
+      opacity: 0.8;
+      letter-spacing: 2px;
+    }
+
+    /* 2. GANGSTAR MIRAGE CITY (SCREENSHOT 1 MATCH) */
+    .gangstar {
+      background: linear-gradient(120deg, #0D1527 0%, #1C2438 50%, #2D1A3B 100%);
+    }
+    .gangstar .bg-art {
+      position: absolute;
+      inset: 0;
+      background: url('/assets/games/pubg_cover_4k.jpg') center/cover;
+      opacity: 0.9;
+    }
+    .gangstar .content {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(10,15,25,0.85) 0%, rgba(10,15,25,0.4) 50%, rgba(10,15,25,0.8) 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 80px;
+      z-index: 3;
+    }
+    .gangstar-tag {
+      display: inline-block;
+      align-self: flex-start;
+      background: #E11D48;
+      color: #FFF;
+      font-size: 14px;
+      font-weight: 900;
+      padding: 6px 14px;
+      border-radius: 6px;
+      letter-spacing: 2px;
+      margin-bottom: 14px;
+    }
+    .gangstar-h1 {
+      font-size: 64px;
+      font-weight: 900;
+      color: #FFF;
+      text-transform: uppercase;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    }
+    .gangstar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      align-self: flex-start;
+      background: #000;
+      color: #FFF;
+      font-size: 18px;
+      font-weight: 900;
+      padding: 12px 28px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.3);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+      letter-spacing: 1px;
+    }
+
+    /* 3. MOBILE LEGENDS SPECIAL */
+    .mlbb {
+      background: linear-gradient(135deg, #1E1B4B 0%, #2E1065 50%, #0F172A 100%);
+    }
+    .mlbb .bg-art {
+      position: absolute;
+      inset: 0;
+      background: url('/assets/games/mlbb_cover_4k.jpg') center/cover;
+    }
+    .mlbb .content {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.3) 60%, rgba(15,23,42,0.8) 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 80px;
+      z-index: 3;
+    }
+    .mlbb-tag {
+      display: inline-block;
+      align-self: flex-start;
+      background: #00A896;
+      color: #FFF;
+      font-size: 14px;
+      font-weight: 900;
+      padding: 6px 14px;
+      border-radius: 6px;
+      letter-spacing: 2px;
+      margin-bottom: 14px;
+    }
+    .mlbb-h1 {
+      font-size: 60px;
+      font-weight: 900;
+      color: #FFF;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    }
+    .mlbb-btn {
+      display: inline-flex;
+      align-self: flex-start;
+      background: #FF6B00;
+      color: #FFF;
+      font-size: 18px;
+      font-weight: 900;
+      padding: 12px 32px;
+      border-radius: 8px;
+      letter-spacing: 1px;
+      box-shadow: 0 8px 24px rgba(255,107,0,0.4);
+    }
+
+    /* 4. FREE FIRE RAMPAGE REBORN */
+    .freefire {
+      background: #0F172A;
+    }
+    .freefire .bg-art {
+      position: absolute;
+      inset: 0;
+      background: url('/assets/games/ff_cover_4k.jpg') center/cover;
+    }
+    .freefire .content {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(15,23,42,0.8) 0%, transparent 60%, rgba(15,23,42,0.7) 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 80px;
+      z-index: 3;
+    }
+  </style>
+</head>
+<body>
+  <!-- BANNER 1: WUTHERING WAVES -->
+  <div id="banner-wuthering" class="banner wuthering">
+    <div class="bg-art"></div>
+    <div class="wuthering-logo">
+      <div style="font-size: 26px; font-weight: 900; color: #1E3A5F; letter-spacing: 3px; font-family: 'Cinzel', serif;">
+        WUTHERING WAVES
+      </div>
+    </div>
+    <div class="seagm-watermark">SEAGM</div>
+    <div class="content">
+      <div class="wuthering-title">QINGXIAO</div>
+      <div class="wuthering-sub">Lamplight in Mirage, Sword's Resolve in Heart</div>
+      <div class="wuthering-badge">
+        <span>✦ UP TO 14% OFF ✦</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BANNER 2: GANGSTAR MIRAGE CITY -->
+  <div id="banner-gangstar" class="banner gangstar">
+    <div class="bg-art"></div>
+    <div class="seagm-watermark" style="color: #FFF; opacity: 0.9;">SEAGM</div>
+    <div class="content">
+      <div class="gangstar-tag">NEW GAME LAUNCH</div>
+      <div class="gangstar-h1">RULE THE CHAOS<br><span style="color: #F43F5E;">IN MY WAY.</span></div>
+      <div class="gangstar-btn">AVAILABLE NOW ➔</div>
+    </div>
+  </div>
+
+  <!-- BANNER 3: MOBILE LEGENDS -->
+  <div id="banner-mlbb" class="banner mlbb">
+    <div class="bg-art"></div>
+    <div class="seagm-watermark" style="color: #FFF; opacity: 0.9;">SEAGM</div>
+    <div class="content">
+      <div class="mlbb-tag">ANNIVERSARY CELEBRATION</div>
+      <div class="mlbb-h1">MOBILE LEGENDS:<br><span style="color: #38BDF8;">BANG BANG</span></div>
+      <div class="mlbb-btn">TOP UP +25% BONUS ➔</div>
+    </div>
+  </div>
+
+  <!-- BANNER 4: FREE FIRE -->
+  <div id="banner-freefire" class="banner freefire">
+    <div class="bg-art"></div>
+    <div class="seagm-watermark" style="color: #FFF; opacity: 0.9;">SEAGM</div>
+    <div class="content">
+      <div style="align-self: flex-start; background: #FF6B00; color: #FFF; font-size: 14px; font-weight: 900; padding: 6px 14px; border-radius: 6px; letter-spacing: 2px; margin-bottom: 14px;">
+        RAMPAGE REBORN EVENT
+      </div>
+      <div style="font-size: 60px; font-weight: 900; color: #FFF; line-height: 1.05; margin-bottom: 24px; text-shadow: 0 4px 20px rgba(0,0,0,0.8);">
+        FREE FIRE DIAMONDS<br><span style="color: #FBBF24;">OFFICIAL DIRECT</span>
+      </div>
+      <div style="align-self: flex-start; background: #00A896; color: #FFF; font-size: 18px; font-weight: 900; padding: 12px 32px; border-radius: 8px; letter-spacing: 1px;">
+        INSTANT 5S TOP UP ➔
+      </div>
+    </div>
+  </div>
+</body>
+</html>

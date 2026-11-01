@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="codBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#172554"/>
+      <stop offset="50%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="26" fill="url(#codBg)"/>
+  <rect width="118" height="118" x="1" y="1" rx="25" fill="none" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.6"/>
+  <!-- Skull with Tactical Night Vision Goggles -->
+  <path d="M40 34 C40 24 50 20 60 20 C70 20 80 24 80 34 C80 44 76 56 74 66 L68 66 L68 74 L52 74 L52 66 L46 66 C44 56 40 44 40 34 Z" fill="#e2e8f0"/>
+  <!-- Goggle Lenses -->
+  <circle cx="50" cy="42" r="8" fill="#0284c7" stroke="#38bdf8" stroke-width="2"/>
+  <circle cx="70" cy="42" r="8" fill="#0284c7" stroke="#38bdf8" stroke-width="2"/>
+  <!-- Nose & Teeth -->
+  <polygon points="60,54 57,60 63,60" fill="#0f172a"/>
+  <line x1="56" y1="68" x2="56" y2="74" stroke="#0f172a" stroke-width="2"/>
+  <line x1="60" y1="68" x2="60" y2="74" stroke="#0f172a" stroke-width="2"/>
+  <line x1="64" y1="68" x2="64" y2="74" stroke="#0f172a" stroke-width="2"/>
+  <!-- Banner -->
+  <rect x="22" y="86" width="76" height="20" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
+  <text x="60" y="100" font-family="'Plus Jakarta Sans', -apple-system, sans-serif" font-weight="900" font-size="11" fill="#38bdf8" text-anchor="middle" letter-spacing="1">COD-M</text>
+</svg>

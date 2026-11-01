@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Cinzel:wght@700;900&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; font-family: 'Outfit', sans-serif; display: flex; flex-direction: column; gap: 20px; padding: 20px; }
+    .banner {
+      width: 1440px;
+      height: 480px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+    }
+    
+    /* 1. WUTHERING WAVES - QINGXIAO (EXACT USER SCREENSHOT) */
+    .wuthering {
+      background: linear-gradient(100deg, #CEE2F2 0%, #E5F0F8 35%, #F4F8FC 65%, #C9DEF0 100%);
+    }
+    .wuthering .bg-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 35% 50%, rgba(255,255,255,0.9) 0%, rgba(206,226,242,0.4) 70%);
+    }
+    .wuthering .char-art {
+      position: absolute;
+      left: 26%;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 115%;
+      z-index: 2;
+      filter: drop-shadow(0 15px 35px rgba(30,70,120,0.25));
+    }
+    .wuthering-logo {
+      position: absolute;
+      top: 36px;
+      left: 55px;
+      z-index: 5;
+      font-size: 24px;
+      font-weight: 900;
+      color: #1E3A5F;
+      letter-spacing: 3px;
+      font-family: 'Cinzel', serif;
+    }
+    .seagm-logo {
+      position: absolute;
+      top: 36px;
+      right: 55px;
+      z-index: 5;
+      font-size: 26px;
+      font-weight: 900;
+      color: #1E3A5F;
+      letter-spacing: 1.5px;
+    }
+    .wuthering .right-content {
+      position: absolute;
+      right: 9%;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .qingxiao-text {
+      font-family: 'Cinzel', serif;
+      font-size: 80px;
+      font-weight: 900;
+      letter-spacing: 4px;
+      background: linear-gradient(180deg, #2B5784 0%, #467CAE 45%, #183354 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1;
+      margin-bottom: 8px;
+      filter: drop-shadow(0 2px 5px rgba(255,255,255,0.9));
+    }
+    .qingxiao-subtitle {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: 22px;
+      font-weight: 700;
+      color: #2D5882;
+      margin-bottom: 22px;
+      letter-spacing: 0.5px;
+    }
+    .discount-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 38px;
+      background: linear-gradient(90deg, #1C4068 0%, #2A5D94 50%, #1C4068 100%);
+      border: 2px solid #84B4DF;
+      border-radius: 40px;
+      color: #FFF;
+      font-weight: 900;
+      font-size: 22px;
+      letter-spacing: 2px;
+      box-shadow: 0 10px 24px rgba(28,64,104,0.3), inset 0 2px 4px rgba(255,255,255,0.4);
+    }
+
+    /* 2. SEAGM SPEND & WIN CREDITS (EXACT LEFT BANNER IN USER SCREENSHOT) */
+    .credits-banner {
+      background: linear-gradient(135deg, #CFDCE8 0%, #E2ECF5 50%, #CBD9E6 100%);
+      position: relative;
+    }
+    .credits-banner .content {
+      position: absolute;
+      inset: 0;
+      padding: 40px 60px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      z-index: 3;
+    }
+    .credits-title {
+      font-size: 46px;
+      font-weight: 900;
+      color: #1E3A5F;
+      line-height: 1.1;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .credits-badge {
+      display: inline-block;
+      align-self: flex-start;
+      background: #FF6B00;
+      color: #FFF;
+      font-size: 24px;
+      font-weight: 900;
+      padding: 8px 24px;
+      border-radius: 8px;
+      box-shadow: 0 6px 16px rgba(255,107,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <!-- 1. WUTHERING WAVES - QINGXIAO -->
+  <div id="banner-wuthering-perfect" class="banner wuthering">
+    <div class="bg-overlay"></div>
+    <div class="wuthering-logo">WUTHERING WAVES</div>
+    <div class="seagm-logo">SEAGM</div>
+    
+    <img src="/assets/games/genshin_cover_4k.jpg" class="char-art" style="object-fit: contain;" />
+
+    <div class="right-content">
+      <div class="qingxiao-text">QINGXIAO</div>
+      <div class="qingxiao-subtitle">Lamplight in Mirage, Sword’s Resolve in Heart</div>
+      <div class="discount-pill">✦ UP TO 14% OFF ✦</div>
+    </div>
+  </div>
+
+  <!-- 2. SEAGM CREDITS BANNER (LEFT PEEK) -->
+  <div id="banner-credits" class="banner credits-banner">
+    <div class="seagm-logo">SEAGM</div>
+    <div class="content">
+      <div style="font-size: 16px; font-weight: 800; color: #475569; letter-spacing: 2px;">SPEND & WIN EVENT</div>
+      <div class="credits-title">CHANCE TO WIN<br><span style="color: #00A896;">500 SEAGM CREDITS</span></div>
+      <div class="credits-badge">x 50 VOUCHERS ➔</div>
+    </div>
+  </div>
+</body>
+</html>

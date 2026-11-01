@@ -1,0 +1,389 @@
+[
+  {
+    "ref": "YGS-161563",
+    "gameId": "roslegacy",
+    "gameName": "RoS Legacy",
+    "packageName": "200 Diamonds",
+    "quantity": 1,
+    "totalUsd": 4,
+    "totalKhr": "16,400",
+    "paymentMethod": "Bakong KHQR",
+    "playerDetails": {
+      "userId": "asdasdas",
+      "username": "asdasdas",
+      "gmail": "player@gmail.com"
+    },
+    "verifiedPlayer": "asdasdas",
+    "status": "PROCESSING",
+    "createdAt": "2026-10-29T18:46:22.943Z"
+  },
+  {
+    "ref": "YGS-829259",
+    "gameId": "roslegacy",
+    "gameName": "RoS Legacy",
+    "packageId": "sora_roslegacy_200",
+    "packageName": "200 Diamonds",
+    "quantity": 1,
+    "totalUsd": 4,
+    "totalKhr": "16,400",
+    "paymentMethod": "Bakong KHQR",
+    "playerDetails": {
+      "userId": "asdasdas",
+      "username": "asdasdas",
+      "gmail": ""
+    },
+    "verifiedPlayer": "asdasdas ()",
+    "icon": "/assets/brand/yurigame-logo.webp",
+    "status": "COMPLETED",
+    "createdAt": "2026-10-29T18:49:43.664Z",
+    "updatedAt": "2026-10-29T18:49:45.520Z",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 7
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 12
+      }
+    ],
+    "handledBy": "kaixite",
+    "handledAt": "2026-10-29T18:49:54.346Z",
+    "handledAtFormatted": "30/10/2026, 01:49:54"
+  },
+  {
+    "ref": "YGS-687089",
+    "gameId": "roslegacy",
+    "gameName": "RoS Legacy",
+    "packageId": "sora_roslegacy_400",
+    "packageName": "400 Diamonds",
+    "quantity": 1,
+    "totalUsd": 7.2,
+    "totalKhr": "29,520",
+    "paymentMethod": "Bakong KHQR",
+    "playerDetails": {
+      "userId": "chey",
+      "username": "chey",
+      "gmail": ""
+    },
+    "verifiedPlayer": "chey ()",
+    "icon": "/assets/brand/yurigame-logo.webp",
+    "status": "COMPLETED",
+    "createdAt": "2026-10-29T18:50:33.620Z",
+    "updatedAt": "2026-10-29T18:50:35.720Z",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 8
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 13
+      }
+    ],
+    "handledBy": "kaixite",
+    "handledAt": "2026-10-29T18:51:42.104Z",
+    "handledAtFormatted": "30/10/2026, 01:51:42"
+  },
+  {
+    "ref": "YGS-733579",
+    "gameId": "roslegacy",
+    "gameName": "RoS Legacy",
+    "packageId": "sora_roslegacy_200",
+    "packageName": "200 Diamonds",
+    "quantity": 1,
+    "totalUsd": 4,
+    "totalKhr": "16,400",
+    "paymentMethod": "Bakong KHQR",
+    "playerDetails": {
+      "userId": "sadasd",
+      "username": "sadasd",
+      "gmail": ""
+    },
+    "verifiedPlayer": "sadasd ()",
+    "icon": "/assets/brand/yurigame-logo.webp",
+    "status": "COMPLETED",
+    "createdAt": "2026-10-29T18:50:56.825Z",
+    "updatedAt": "2026-10-29T18:50:58.546Z",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 9
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 14
+      }
+    ],
+    "handledBy": "kaixite",
+    "handledAt": "2026-10-29T18:51:38.792Z",
+    "handledAtFormatted": "30/10/2026, 01:51:38"
+  },
+  {
+    "ref": "TEST-PWD-2699",
+    "gameId": "roslegacy",
+    "gameName": "RoS Legacy",
+    "packageName": "200 Diamonds",
+    "quantity": 1,
+    "totalUsd": 4,
+    "totalKhr": "16,400",
+    "paymentMethod": "Bakong KHQR",
+    "playerDetails": {
+      "account": "CheyProGamer",
+      "password": "SamplePassword123"
+    },
+    "verifiedPlayer": "CheyProGamer",
+    "status": "PROCESSING",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 10
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 15
+      }
+    ],
+    "updatedAt": "2026-10-29T19:03:24.941Z",
+    "createdAt": "2026-10-29T19:03:24.941Z"
+  },
+  {
+    "ref": "TEST-RBLX-8603",
+    "gameId": "robuxsend",
+    "gameName": "Roblox",
+    "packageName": "100 Robux",
+    "quantity": 1,
+    "totalUsd": 0.89,
+    "totalKhr": "3,649",
+    "paymentMethod": "Bakong KHQR (Verified)",
+    "playerDetails": {
+      "account": "Ucantusemeee",
+      "userId": "Ucantusemeee"
+    },
+    "verifiedPlayer": "Lzrn_Dori (@Ucantusemeee)",
+    "status": "PROCESSING",
+    "updatedAt": "2026-10-29T19:35:02.733Z",
+    "createdAt": "2026-10-29T19:35:00.500Z",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 14
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 19
+      }
+    ]
+  },
+  {
+    "ref": "YGS-770745",
+    "gameId": "robuxsend",
+    "gameName": "Roblox",
+    "packageId": "sora_robuxsend_10",
+    "packageName": "10 Robux",
+    "quantity": 1,
+    "totalUsd": 0.1,
+    "totalKhr": "410",
+    "paymentMethod": "Bakong KHQR",
+    "playerDetails": {
+      "account": "mengboy1",
+      "userId": "mengboy1",
+      "username": "mengboy1",
+      "password": ""
+    },
+    "verifiedPlayer": "mengboy1 (@mengboy1)",
+    "icon": "/assets/games/roblox_tile_4k.jpg",
+    "status": "PROCESSING",
+    "createdAt": "2026-10-29T19:40:51.639Z",
+    "updatedAt": "2026-10-29T19:40:53.770Z",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 15
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 20
+      }
+    ]
+  },
+  {
+    "ref": "TEST-ORDER-123",
+    "gameId": "robuxsend",
+    "gameName": "Roblox",
+    "packageId": "sora_robuxsend_100",
+    "packageName": "100 Robux",
+    "quantity": 1,
+    "totalUsd": 0.89,
+    "totalKhr": "3,649",
+    "paymentMethod": "Bakong KHQR",
+    "playerDetails": {
+      "account": "Ucantusemeee",
+      "userId": "Ucantusemeee",
+      "username": "Ucantusemeee",
+      "password": ""
+    },
+    "verifiedPlayer": "Lzrn_Dori (@Ucantusemeee)",
+    "status": "PROCESSING",
+    "createdAt": "2026-10-29T19:42:56.118Z",
+    "updatedAt": "2026-10-29T19:42:57.804Z",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 16
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 21
+      }
+    ]
+  },
+  {
+    "ref": "TEST-VERIFY-1",
+    "gameId": "robuxsend",
+    "gameName": "Roblox",
+    "packageId": "rblx_100",
+    "packageName": "100 Robux",
+    "quantity": 1,
+    "totalUsd": 1,
+    "totalKhr": "4,100",
+    "paymentMethod": "Bakong KHQR",
+    "playerDetails": {
+      "account": "TestRobloxUser",
+      "userId": "TestRobloxUser"
+    },
+    "verifiedPlayer": "TestRobloxUser",
+    "status": "PROCESSING",
+    "createdAt": "2026-10-29T19:59:29.567Z",
+    "updatedAt": "2026-10-29T19:59:31.208Z",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 17
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 22
+      }
+    ]
+  },
+  {
+    "ref": "YGS-462709",
+    "gameId": "robuxsend",
+    "gameName": "Roblox",
+    "packageId": "sora_robuxsend_10",
+    "packageName": "10 Robux",
+    "quantity": 1,
+    "totalUsd": 0.1,
+    "totalKhr": "410",
+    "paymentMethod": "Bakong KHQR",
+    "playerDetails": {
+      "account": "mengboy1",
+      "userId": "mengboy1",
+      "username": "mengboy1",
+      "password": ""
+    },
+    "verifiedPlayer": "mengboy1 (@mengboy1)",
+    "icon": "/assets/games/roblox_tile_4k.jpg",
+    "status": "PROCESSING",
+    "createdAt": "2026-10-29T20:02:35.245Z",
+    "updatedAt": "2026-10-29T20:02:37.546Z",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 18
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 23
+      }
+    ]
+  },
+  {
+    "orderRef": "YGS-440486",
+    "gameId": "robuxsend",
+    "gameName": "Roblox",
+    "packageCode": "10",
+    "packageName": "10 Robux",
+    "totalUsd": 0.1,
+    "totalKhr": "410",
+    "isManualGame": true,
+    "fieldValues": [
+      "mengboy1"
+    ],
+    "playerDetails": {
+      "account": "mengboy1",
+      "userId": "mengboy1",
+      "username": "mengboy1",
+      "gmail": ""
+    },
+    "verifiedPlayer": "mengboy1",
+    "paymentMethod": "Bakong KHQR",
+    "ref": "RBLX-407800",
+    "game": "robuxsend",
+    "code": "10",
+    "quantity": 1,
+    "status": "COMPLETED",
+    "createdAt": "2026-10-30T15:56:50.667Z",
+    "updatedAt": "2026-10-30T15:56:54.040Z",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 37
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 41
+      },
+      {
+        "chatId": "7283817695",
+        "messageId": 43
+      }
+    ],
+    "handledBy": "kaixite",
+    "handledAt": "2026-10-30T15:57:02.791Z",
+    "handledAtFormatted": "30/10/2026, 22:57:02"
+  },
+  {
+    "ref": "YGS-440486",
+    "userId": null,
+    "gameId": "sora_robuxsend",
+    "gameName": "Roblox",
+    "packageName": "10 Robux",
+    "packageId": "rblx_10",
+    "quantity": 1,
+    "totalUsd": 0.1,
+    "totalKhr": "410",
+    "paymentMethod": "Bakong KHQR",
+    "playerDetails": {
+      "roblox_username_0": "mengboy1",
+      "userId": "mengboy1",
+      "account": "mengboy1",
+      "password": ""
+    },
+    "verifiedPlayer": "mengboy1",
+    "status": "COMPLETED",
+    "serverPing": "Roblox Official Users API",
+    "icon": "/assets/games/roblox_tile_4k.jpg",
+    "timestamp": "2026-10-30T15:56:51.776Z",
+    "adminMessages": [
+      {
+        "chatId": "-1004493408552",
+        "messageId": 38
+      },
+      {
+        "chatId": "6805487598",
+        "messageId": 40
+      },
+      {
+        "chatId": "7283817695",
+        "messageId": 42
+      }
+    ],
+    "updatedAt": "2026-10-30T15:56:52.939Z",
+    "createdAt": "2026-10-30T15:56:52.939Z",
+    "handledBy": "kaixite",
+    "handledAt": "2026-10-30T15:56:58.122Z",
+    "handledAtFormatted": "30/10/2026, 22:56:58"
+  }
+]

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="pgBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0369a1"/>
+      <stop offset="50%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#075985"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="26" fill="url(#pgBg)"/>
+  <rect width="118" height="118" x="1" y="1" rx="25" fill="none" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.8"/>
+  <!-- Voxel Pixel Blaster Artwork -->
+  <g transform="translate(24, 24)">
+    <rect x="16" y="8" width="16" height="16" fill="#fde047"/>
+    <rect x="32" y="8" width="24" height="16" fill="#ef4444"/>
+    <rect x="40" y="24" width="16" height="24" fill="#3b82f6"/>
+    <rect x="20" y="24" width="16" height="16" fill="#22c55e"/>
+    <rect x="8" y="32" width="12" height="16" fill="#eab308"/>
+    <!-- Pixel Eye -->
+    <rect x="20" y="12" width="4" height="4" fill="#000000"/>
+    <rect x="28" y="12" width="4" height="4" fill="#000000"/>
+  </g>
+  <!-- Banner -->
+  <rect x="16" y="86" width="88" height="20" rx="6" fill="#075985" stroke="#38bdf8" stroke-width="1.5"/>
+  <text x="60" y="100" font-family="'Plus Jakarta Sans', -apple-system, sans-serif" font-weight="900" font-size="10" fill="#fde047" text-anchor="middle" letter-spacing="1">PIXEL GUN</text>
+</svg>

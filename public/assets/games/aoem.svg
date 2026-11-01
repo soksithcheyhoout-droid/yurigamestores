@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="aoeBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="50%" stop-color="#2e1065"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </linearGradient>
+    <linearGradient id="aoeGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="26" fill="url(#aoeBg)"/>
+  <rect width="118" height="118" x="1" y="1" rx="25" fill="none" stroke="url(#aoeGold)" stroke-width="2" stroke-opacity="0.7"/>
+  <!-- Medieval Crown & Broadsword -->
+  <path d="M60 20 L64 68 L60 74 L56 68 Z" fill="#e2e8f0"/>
+  <rect x="44" y="60" width="32" height="6" rx="2" fill="url(#aoeGold)"/>
+  <circle cx="60" cy="78" r="4" fill="url(#aoeGold)"/>
+  <!-- Crown Outline -->
+  <path d="M34 52 L42 32 L52 44 L60 26 L68 44 L78 32 L86 52 Z" fill="url(#aoeGold)" opacity="0.9"/>
+  <!-- Banner -->
+  <rect x="18" y="86" width="84" height="20" rx="6" fill="#09090b" stroke="url(#aoeGold)" stroke-width="1.5"/>
+  <text x="60" y="100" font-family="'Plus Jakarta Sans', -apple-system, sans-serif" font-weight="900" font-size="10" fill="url(#aoeGold)" text-anchor="middle" letter-spacing="1">AGE EMPIRES</text>
+</svg>

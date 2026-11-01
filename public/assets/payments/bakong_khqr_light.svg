@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 48" width="180" height="48">
+  <rect width="180" height="48" rx="8" fill="#FFF1F2" stroke="#E11D48" stroke-opacity="0.2" stroke-width="1"/>
+  <!-- Red KHQR Badge -->
+  <rect x="8" y="8" width="52" height="32" rx="6" fill="#E11D48"/>
+  <text x="34" y="29" font-family="'Outfit', 'Inter', sans-serif" font-size="13" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">KHQR</text>
+  <!-- Bakong text -->
+  <text x="68" y="30" font-family="'Outfit', 'Inter', sans-serif" font-size="16" font-weight="800" fill="#0F172A" letter-spacing="0.5">BAKONG</text>
+</svg>

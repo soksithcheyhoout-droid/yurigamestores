@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 68" width="240" height="68">
+  <defs>
+    <linearGradient id="abaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00577B" />
+      <stop offset="100%" stop-color="#003850" />
+    </linearGradient>
+    <filter id="abaShadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Outer container -->
+  <rect x="1" y="1" width="238" height="66" rx="10" fill="url(#abaGrad)" stroke="#00293C" stroke-width="1.2" />
+
+  <!-- Official ABA Red Corner Square -->
+  <rect x="216" y="1" width="23" height="22" rx="0" fill="#D32027" />
+  <rect x="216" y="1" width="11" height="22" fill="#7A0C11" opacity="0.3" />
+
+  <!-- ABA Brand Text -->
+  <g transform="translate(16, 12)">
+    <text x="0" y="38" font-family="'Outfit', 'Inter', -apple-system, sans-serif" font-size="38" font-weight="900" fill="#FFFFFF" letter-spacing="2">ABA</text>
+  </g>
+
+  <!-- PAY Pill Badge -->
+  <g transform="translate(126, 13)">
+    <rect x="0" y="0" width="80" height="42" rx="8" fill="#D32027" filter="url(#abaShadow)" />
+    <text x="40" y="29" font-family="'Outfit', 'Inter', -apple-system, sans-serif" font-size="21" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1.5">PAY</text>
+  </g>
+</svg>

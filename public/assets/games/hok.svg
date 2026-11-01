@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="hokBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4c0519"/>
+      <stop offset="50%" stop-color="#881337"/>
+      <stop offset="100%" stop-color="#2a050f"/>
+    </linearGradient>
+    <linearGradient id="goldHok" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="26" fill="url(#hokBg)"/>
+  <rect width="118" height="118" x="1" y="1" rx="25" fill="none" stroke="url(#goldHok)" stroke-width="2" stroke-opacity="0.8"/>
+  <!-- Imperial Dragon Crown -->
+  <path d="M30 68 L36 34 L48 50 L60 22 L72 50 L84 34 L90 68 Z" fill="url(#goldHok)" stroke="#fef08a" stroke-width="2"/>
+  <!-- Ruby Gem Center -->
+  <polygon points="60,42 67,52 60,62 53,52" fill="#ef4444" stroke="#ffffff" stroke-width="1"/>
+  <!-- Banner -->
+  <rect x="22" y="86" width="76" height="20" rx="6" fill="#2a050f" stroke="url(#goldHok)" stroke-width="1.5"/>
+  <text x="60" y="100" font-family="'Plus Jakarta Sans', -apple-system, sans-serif" font-weight="900" font-size="11" fill="url(#goldHok)" text-anchor="middle" letter-spacing="1">HONOR</text>
+</svg>

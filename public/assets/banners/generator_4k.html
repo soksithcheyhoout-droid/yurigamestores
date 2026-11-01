@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Cinzel:wght@700;900&family=Rajdhani:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0B0F19; font-family: 'Outfit', sans-serif; display: flex; flex-direction: column; gap: 40px; padding: 30px; }
+    
+    /* 3840 x 1292 is the exact official SEAGM banner ratio (2.9721 : 1) */
+    .banner {
+      width: 3840px;
+      height: 1292px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 40px;
+      display: flex;
+      align-items: center;
+    }
+
+    .banner-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: blur(12px) brightness(0.65);
+      transform: scale(1.08);
+      z-index: 1;
+    }
+
+    .banner-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+    }
+
+    .cheydev-watermark {
+      position: absolute;
+      top: 70px;
+      right: 120px;
+      z-index: 10;
+      font-size: 50px;
+      font-weight: 900;
+      letter-spacing: 5px;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .banner-art {
+      position: absolute;
+      right: 4%;
+      top: 54%;
+      transform: translateY(-50%);
+      height: 82%;
+      max-width: 58%;
+      object-fit: contain;
+      object-position: center;
+      z-index: 3;
+      filter: drop-shadow(0 30px 60px rgba(0,0,0,0.85));
+    }
+
+    .content-box {
+      position: absolute;
+      left: 140px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      max-width: 1500px;
+    }
+
+    .promo-tag {
+      color: #FFF;
+      font-size: 32px;
+      font-weight: 900;
+      padding: 12px 30px;
+      border-radius: 12px;
+      letter-spacing: 4px;
+      margin-bottom: 28px;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+
+    .banner-h1 {
+      font-size: 124px;
+      font-weight: 900;
+      color: #FFF;
+      line-height: 1.05;
+      margin-bottom: 44px;
+      text-transform: uppercase;
+      text-shadow: 0 8px 30px rgba(0,0,0,0.8);
+    }
+
+    .banner-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 20px;
+      background: #FF5000;
+      color: #FFF;
+      font-size: 38px;
+      font-weight: 900;
+      padding: 24px 64px;
+      border-radius: 20px;
+      letter-spacing: 2px;
+      box-shadow: 0 14px 40px rgba(255,80,0,0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BANNER 1: MOBILE LEGENDS (Full Headroom, Seamless Blend, Never Cut) -->
+  <div id="b-mlbb" class="banner" style="background: #090D1A;">
+    <div class="banner-bg" style="background-image: url('/assets/games/mlbb_cover_4k.jpg');"></div>
+    <div class="banner-overlay" style="background: linear-gradient(90deg, #090D1A 0%, rgba(9,13,26,0.92) 36%, rgba(9,13,26,0.3) 68%, transparent 100%);"></div>
+    <div class="cheydev-watermark" style="color: #FFF; opacity: 0.9;">CHEYDEV</div>
+    <img 
+      src="/assets/games/mlbb_cover_4k.jpg" 
+      class="banner-art" 
+      style="-webkit-mask-image: linear-gradient(to right, transparent 0%, black 20%); mask-image: linear-gradient(to right, transparent 0%, black 20%);" 
+    />
+    <div class="content-box">
+      <div class="promo-tag" style="background: #00A896; box-shadow: 0 8px 24px rgba(0,168,150,0.35);">ANNIVERSARY CELEBRATION</div>
+      <div class="banner-h1">MOBILE LEGENDS:<br><span style="color: #38BDF8;">BANG BANG</span></div>
+      <div class="banner-btn">TOP UP +25% BONUS ➔</div>
+    </div>
+  </div>
+
+  <!-- BANNER 2: FREE FIRE (Full Headroom, Seamless Blend, Never Cut) -->
+  <div id="b-ff" class="banner" style="background: #0D0F17;">
+    <div class="banner-bg" style="background-image: url('/assets/games/ff_cover_4k.jpg');"></div>
+    <div class="banner-overlay" style="background: linear-gradient(90deg, #0D0F17 0%, rgba(13,15,23,0.92) 36%, rgba(13,15,23,0.3) 68%, transparent 100%);"></div>
+    <div class="cheydev-watermark" style="color: #FFF; opacity: 0.9;">CHEYDEV</div>
+    <img 
+      src="/assets/games/ff_cover_4k.jpg" 
+      class="banner-art" 
+      style="-webkit-mask-image: linear-gradient(to right, transparent 0%, black 20%); mask-image: linear-gradient(to right, transparent 0%, black 20%);" 
+    />
+    <div class="content-box">
+      <div class="promo-tag" style="background: #E11D48; box-shadow: 0 8px 24px rgba(225,29,72,0.35);">RAMPAGE REBORN EVENT</div>
+      <div class="banner-h1">FREE FIRE DIAMONDS<br><span style="color: #FBBF24;">OFFICIAL DIRECT</span></div>
+      <div class="banner-btn" style="background: #00A896; box-shadow: 0 14px 40px rgba(0,168,150,0.45);">INSTANT 5S TOP UP ➔</div>
+    </div>
+  </div>
+
+  <!-- BANNER 3: GANGSTAR MIRAGE CITY / PUBG (Full Headroom, Seamless Blend, Never Cut) -->
+  <div id="b-gangstar" class="banner" style="background: #080C14;">
+    <div class="banner-bg" style="background-image: url('/assets/games/pubg_cover_4k.jpg');"></div>
+    <div class="banner-overlay" style="background: linear-gradient(90deg, #080C14 0%, rgba(8,12,20,0.92) 36%, rgba(8,12,20,0.3) 68%, transparent 100%);"></div>
+    <div class="cheydev-watermark" style="color: #FFF; opacity: 0.9;">CHEYDEV</div>
+    <img 
+      src="/assets/games/pubg_cover_4k.jpg" 
+      class="banner-art" 
+      style="-webkit-mask-image: linear-gradient(to right, transparent 0%, black 20%); mask-image: linear-gradient(to right, transparent 0%, black 20%);" 
+    />
+    <div class="content-box">
+      <div class="promo-tag" style="background: #6366F1; box-shadow: 0 8px 24px rgba(99,102,241,0.35);">NEW GAME LAUNCH</div>
+      <div class="banner-h1">RULE THE CHAOS<br><span style="color: #EC4899;">IN MY WAY.</span></div>
+      <div class="banner-btn" style="background: #0F172A; border: 3px solid rgba(255,255,255,0.3); box-shadow: 0 14px 40px rgba(0,0,0,0.5);">AVAILABLE NOW ➔</div>
+    </div>
+  </div>
+
+  <!-- BANNER 4: CHEYDEV CREDITS (Full Headroom, Never Cut) -->
+  <div id="b-credits" class="banner" style="background: linear-gradient(120deg, #CEE0EE 0%, #DFEDF6 40%, #EBF3F8 75%, #F5F7FA 100%);">
+    <div class="cheydev-watermark" style="color: #0F172A; opacity: 0.9;">CHEYDEV</div>
+    <div class="content-box">
+      <div style="font-size: 34px; font-weight: 900; color: #475569; letter-spacing: 5px; margin-bottom: 20px;">
+        EXCLUSIVE GAMER REWARDS
+      </div>
+      <div style="font-size: 114px; font-weight: 900; color: #0F172A; line-height: 1.05; margin-bottom: 40px; text-transform: uppercase;">
+        CHANCE TO WIN<br><span style="color: #00A896;">500 CHEYDEV CREDITS</span>
+      </div>
+      <div class="banner-btn" style="background: #FF5000;">
+        CLAIM x 50 VOUCHERS ➔
+      </div>
+    </div>
+    
+    <!-- Stylized 3D Voucher Stack on the right -->
+    <div style="position: absolute; right: 8%; top: 50%; transform: translateY(-50%); display: flex; gap: 40px; align-items: center; z-index: 4;">
+      <div style="width: 480px; height: 720px; background: linear-gradient(135deg, #FFFFFF 0%, #F1F5F9 100%); border-radius: 36px; border: 4px solid #CBD5E1; box-shadow: 0 35px 70px rgba(15,23,42,0.18); transform: rotate(-8deg); display: flex; flex-direction: column; justify-content: space-between; padding: 50px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 28px; font-weight: 900; color: #FF5000; letter-spacing: 3px;">CHEYDEV</span>
+          <span style="font-size: 24px; font-weight: 800; background: #00A896; color: white; padding: 6px 16px; border-radius: 999px;">x50</span>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 96px; font-weight: 900; color: #0F172A; line-height: 1;">$500</div>
+          <div style="font-size: 26px; font-weight: 800; color: #64748B; letter-spacing: 4px; margin-top: 10px;">GIFT VOUCHER</div>
+        </div>
+        <div style="border-top: 3px dashed #CBD5E1; padding-top: 25px; text-align: center; font-size: 20px; font-weight: 700; color: #94A3B8; letter-spacing: 2px;">
+          T&C APPLY • OFFICIAL REWARD
+        </div>
+      </div>
+      <div style="width: 460px; height: 680px; background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); border-radius: 36px; border: 4px solid #334155; box-shadow: 0 35px 70px rgba(15,23,42,0.25); transform: rotate(10deg); display: flex; flex-direction: column; justify-content: space-between; padding: 50px; margin-left: -120px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 28px; font-weight: 900; color: #38BDF8; letter-spacing: 3px;">CHEYDEV VIP</span>
+          <span style="font-size: 24px; font-weight: 800; background: #FF5000; color: white; padding: 6px 16px; border-radius: 999px;">EXCLUSIVE</span>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 92px; font-weight: 900; color: #FFF; line-height: 1;">CREDITS</div>
+          <div style="font-size: 24px; font-weight: 800; color: #38BDF8; letter-spacing: 4px; margin-top: 10px;">AUTO-CLAIMABLE</div>
+        </div>
+        <div style="border-top: 3px dashed #334155; padding-top: 25px; text-align: center; font-size: 20px; font-weight: 700; color: #64748B; letter-spacing: 2px;">
+          NO EXPIRY • DIRECT CODE
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

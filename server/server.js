@@ -3167,7 +3167,7 @@ if (fs.existsSync(distPath)) {
   });
 }
 
-export const httpServer = app.listen(PORT, async () => {
+export const httpServer = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 YuriGame Store API Server running at http://localhost:${PORT}`);
   await ensureDatabaseSchema();
   if (process.env.SORA_STARTUP_SYNC_DISABLED !== 'true') {

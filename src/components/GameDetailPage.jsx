@@ -1292,13 +1292,36 @@ export default function GameDetailPage({
                 </h3>
 
                 {/* Selected Item Detail */}
-                <div className="py-3 border-b border-[#1E202B] flex items-center justify-between">
-                  <div>
-                    <div className="text-[13px] font-bold text-white">{game.name}</div>
-                    <div className="text-[12px] text-slate-400">{selectedPkg?.name || 'Selected Package'} × {quantity}</div>
+                <div className="py-3 border-b border-[#1E202B] flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-bold text-white truncate">{game.name}</div>
+                    <div className="text-[12px] text-slate-400 truncate">{selectedPkg?.name || 'Selected Package'}</div>
                   </div>
-                  <div className="text-[14px] font-extrabold text-white font-mono">
-                    {formatPrice(rawSubtotal, currentRegion)}
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    {/* Desktop Sidebar Qty Stepper */}
+                    <div className="flex items-center gap-1 rounded-lg border border-[#2A2D39] bg-[#12131A] px-1.5 py-0.5">
+                      <button
+                        type="button"
+                        aria-label="Decrease quantity"
+                        disabled={quantity <= 1}
+                        onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                        className="flex h-5 w-5 items-center justify-center rounded border border-[#2A2D39] bg-[#191B24] text-[11px] font-bold text-slate-200 hover:bg-[#252838] active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer transition-colors"
+                      >-</button>
+                      <span className="min-w-[14px] text-center font-mono text-xs font-black text-white">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Increase quantity"
+                        disabled={quantity >= MAX_PURCHASE_QUANTITY}
+                        onClick={() => setQuantity((current) => Math.min(MAX_PURCHASE_QUANTITY, current + 1))}
+                        className="flex h-5 w-5 items-center justify-center rounded border-0 bg-[#E3062F] text-[11px] font-bold text-white hover:bg-[#B80D2E] active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer transition-colors"
+                      >+</button>
+                    </div>
+
+                    <div className="text-[14px] font-extrabold text-white font-mono">
+                      {formatPrice(rawSubtotal, currentRegion)}
+                    </div>
                   </div>
                 </div>
 
@@ -1484,23 +1507,51 @@ export default function GameDetailPage({
 
         {/* 5. Mobile Sticky Bottom Checkout Bar (Instant 1-Tap Buy / Pay Now) */}
         {stage === 'form' && (
-          <div className="block lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0e1017]/95 border-t border-[#222432] px-4 py-3 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
-              <div className="min-w-0 pr-1">
-                <div className="text-[10px] text-slate-400 uppercase font-black tracking-wider leading-none">Total Payable</div>
-                <div className="text-xl font-black text-[#E3062F] font-mono leading-tight mt-0.5">
+          <div className="block lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0e1017]/95 border-t border-[#222432] px-3.5 py-2.5 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-center justify-between gap-2 max-w-md mx-auto">
+              {/* Left: Total Payable */}
+              <div className="min-w-0 flex flex-col justify-center">
+                <div className="text-[9.5px] text-slate-400 uppercase font-black tracking-wider leading-none">Total Payable</div>
+                <div className="text-lg font-black text-[#E3062F] font-mono leading-tight mt-0.5 whitespace-nowrap">
                   {formatPrice(totalPrice, currentRegion)}
                 </div>
-                <div className="text-[11px] text-slate-400 truncate max-w-[130px]">
-                  {selectedPkg?.name || 'Selected'} × {quantity}
+                <div className="text-[10px] text-slate-400 truncate max-w-[95px] sm:max-w-[120px]">
+                  {selectedPkg?.name || 'Selected'}
                 </div>
               </div>
 
+              {/* Center: Mobile Sticky Bar Qty Stepper */}
+              <div className="flex items-center gap-1 rounded-lg border border-[#2A2D39] bg-[#12131A] px-1.5 py-1 shrink-0 shadow-sm">
+                <span className="text-[10px] font-bold text-slate-400 select-none">Qty:</span>
+                <button
+                  type="button"
+                  aria-label="Decrease quantity"
+                  disabled={quantity <= 1}
+                  onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                  className="flex h-5.5 w-5.5 items-center justify-center rounded border border-[#2A2D39] bg-[#191B24] text-xs font-bold text-slate-200 hover:bg-[#252838] active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer transition-colors"
+                >
+                  -
+                </button>
+                <span className="min-w-[16px] text-center font-mono text-xs font-black text-white select-none">
+                  {quantity}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Increase quantity"
+                  disabled={quantity >= MAX_PURCHASE_QUANTITY}
+                  onClick={() => setQuantity((current) => Math.min(MAX_PURCHASE_QUANTITY, current + 1))}
+                  className="flex h-5.5 w-5.5 items-center justify-center rounded border-0 bg-[#E3062F] text-xs font-bold text-white hover:bg-[#B80D2E] active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer transition-colors"
+                >
+                  +
+                </button>
+              </div>
+
+              {/* Right: Action Button */}
               <button
                 type="button"
                 onClick={handleProceedToPayment}
                 disabled={!providerOrderingEnabled || !isAccountVerified}
-                className={`flex-1 max-w-[210px] py-3 px-4 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg active:scale-95 border-0 rounded-xl transition-all ${
+                className={`flex-1 min-w-[105px] max-w-[150px] py-2.5 px-3 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg active:scale-95 border-0 rounded-xl transition-all ${
                   !isAccountVerified
                     ? 'bg-slate-800 text-slate-400 border border-slate-700/80 cursor-not-allowed shadow-none'
                     : 'seagm-btn-orange cursor-pointer'
@@ -1509,7 +1560,7 @@ export default function GameDetailPage({
                 {!isAccountVerified ? (
                   <>
                     <Lock size={13} className="shrink-0" />
-                    <span className="truncate">Verify Account</span>
+                    <span className="truncate">Verify</span>
                   </>
                 ) : (
                   <>

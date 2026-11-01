@@ -33,30 +33,6 @@ function loadPersistedRosOrders() {
   } catch (err) {
     console.warn('[RoS Persistence] Could not load persisted RoS orders:', err.message);
   }
-
-  // Ensure default seed order exists
-  if (rosOrders.size === 0) {
-    const seed = {
-      ref: 'YGS-161563',
-      gameId: 'roslegacy',
-      gameName: 'RoS Legacy',
-      packageName: '200 Diamonds',
-      quantity: 1,
-      totalUsd: 4.00,
-      totalKhr: '16,400',
-      paymentMethod: 'Bakong KHQR',
-      playerDetails: {
-        userId: 'asdasdas',
-        username: 'asdasdas',
-        gmail: 'player@gmail.com'
-      },
-      verifiedPlayer: 'asdasdas',
-      status: 'PROCESSING',
-      createdAt: new Date().toISOString(),
-    };
-    rosOrders.set(seed.ref, seed);
-    persistRosOrders();
-  }
 }
 
 let persistTimer = null;

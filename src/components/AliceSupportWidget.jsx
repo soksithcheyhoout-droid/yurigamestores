@@ -214,8 +214,8 @@ export default function AliceSupportWidget({ onOpenLookup, telegramUrl, contacts
                   )}
                   <div
                     className={`rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${msg.sender === 'user'
-                        ? 'bg-[#E3062F] text-white rounded-br-xs'
-                        : 'bg-[#181A23] text-slate-200 border border-[#252837] rounded-bl-xs'
+                      ? 'bg-[#E3062F] text-white rounded-br-xs'
+                      : 'bg-[#181A23] text-slate-200 border border-[#252837] rounded-bl-xs'
                       }`}
                   >
                     {msg.text}

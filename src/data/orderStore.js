@@ -1,77 +1,9 @@
-// Central Dynamic Order & Transaction Store for Cheydev TopUp
+// Central Dynamic Order & Transaction Store for YuriGame TopUp
 // Manages real persistent orders, MySQL synchronization, dynamic live feed generation, and player verification
 
-const STORAGE_ORDERS_KEY = 'cheydev_orders_v2';
+const STORAGE_ORDERS_KEY = 'yurigame_orders_v3';
 const STORAGE_WALLET_KEY = 'cheydev_wallet_v2';
 const STORAGE_WALLET_HIST_KEY = 'cheydev_wallet_history_v2';
-
-// Realistic initial orders for initial hydration
-const SEED_ORDERS = [
-  {
-    ref: "YGS-161563",
-    gameId: "roslegacy",
-    gameName: "RoS Legacy",
-    packageName: "200 Diamonds",
-    quantity: 1,
-    totalUsd: 4.00,
-    totalKhr: "16,400",
-    paymentMethod: "Bakong KHQR",
-    playerDetails: { userId: "asdasdas", gmail: "player@gmail.com" },
-    verifiedPlayer: "asdasdas",
-    timestamp: new Date().toISOString(),
-    status: "PROCESSING",
-    serverPing: "18ms",
-    icon: "/assets/brand/yurigame-logo.webp"
-  },
-  {
-    ref: "CD-948210",
-    gameId: "mlbb",
-    gameName: "Mobile Legends: Bang Bang",
-    packageName: "Weekly Diamond Pass",
-    quantity: 1,
-    totalUsd: 1.81,
-    totalKhr: "7,421",
-    paymentMethod: "Bakong / KHQR",
-    playerDetails: { userId: "29481903", zoneId: "2042" },
-    verifiedPlayer: "Shadow_Chey99 (Zone: 2042)",
-    timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-    status: "DELIVERED",
-    serverPing: "18ms",
-    icon: "/assets/games/mlbb_tile_4k.jpg"
-  },
-  {
-    ref: "CD-948195",
-    gameId: "pubgm",
-    gameName: "PUBG Mobile",
-    packageName: "660 UC Royale Pass",
-    quantity: 1,
-    totalUsd: 9.40,
-    totalKhr: "38,540",
-    paymentMethod: "ABA PAY Mobile",
-    playerDetails: { userId: "5123849102" },
-    verifiedPlayer: "Sniper_DaraKH",
-    timestamp: new Date(Date.now() - 7 * 60 * 1000).toISOString(),
-    status: "DELIVERED",
-    serverPing: "22ms",
-    icon: "/assets/games/pubg_tile_4k.jpg"
-  },
-  {
-    ref: "CD-948180",
-    gameId: "genshin",
-    gameName: "Genshin Impact",
-    packageName: "Blessing of Welkin Moon",
-    quantity: 1,
-    totalUsd: 4.80,
-    totalKhr: "19,680",
-    paymentMethod: "Bakong / KHQR",
-    playerDetails: { userId: "800192841", server: "Asia" },
-    verifiedPlayer: "Kaveh_Traveler (Asia)",
-    timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-    status: "DELIVERED",
-    serverPing: "24ms",
-    icon: "/assets/games/genshin_tile_4k.jpg"
-  }
-];
 
 // Check backend & MySQL database health
 export async function checkDbHealth() {
@@ -159,13 +91,6 @@ export async function fetchUserWallet(userId) {
     console.warn('Error fetching user wallet from MySQL:', err.message);
   }
   return null;
-}
-
-// Automatically initiate sync on load in browser environment
-if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    syncOrdersFromDb();
-  }, 100);
 }
 
 // Persistent unique device identifier for device-bound order tracking and privacy

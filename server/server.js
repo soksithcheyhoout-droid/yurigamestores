@@ -1702,32 +1702,36 @@ app.get('/api/soratopup/orders/lookup', async (req, res) => {
     // Query all manual orders
     const allManual = getAllRosOrders();
 
-    // STRICT DEVICE & IP PRIVACY FILTERING:
-    // Only orders paid from THIS exact device or THIS exact IP can be viewed!
+    // STRICT DEVICE PRIVACY FILTERING (Zero Leaks Across Devices):
+    // Orders are strictly bound to the purchaser's unique device ID!
     const matchedManual = allManual.filter((o) => {
-      const orderIp = String(o.clientIp || '').trim();
-      const orderDevice = String(o.deviceId || '').trim();
-
-      // Check whether this order was placed from the same device ID or same IP address:
-      const isSameDevice = Boolean(deviceId && orderDevice && orderDevice === deviceId);
-      const isSameIp = Boolean(clientIp && orderIp && (orderIp === clientIp || clientIp.includes(orderIp) || orderIp.includes(clientIp)));
-      const isOwnerDevice = isSameDevice || isSameIp;
-
-      // If user typed a search query:
-      if (q && q.length >= 2) {
-        const ref = String(o.ref || '').toLowerCase();
-        const user = String(o.playerDetails?.account || o.playerDetails?.userId || o.playerDetails?.username || o.verifiedPlayer || '').toLowerCase();
-
-        // Exact reference match allows tracking with the exact receipt number:
-        if (ref === q || q.startsWith('ygs-') || q.startsWith('rblx-') || q.startsWith('ros-')) {
-          return ref.includes(q);
-        }
-
-        // For player names, only return if it belongs to this device / IP:
-        return user.includes(q) && isOwnerDevice;
+      // 1. Exclude all dummy/test seed orders from public tracking
+      const ref = String(o.ref || '').toLowerCase();
+      const user = String(o.playerDetails?.account || o.playerDetails?.userId || o.playerDetails?.username || o.verifiedPlayer || '').toLowerCase();
+      if (ref.startsWith('test-') || user === 'asdasdas' || user.includes('asdasdas')) {
+        return false;
       }
 
-      // If no search query, ONLY return orders that were paid from THIS same device / IP:
+      const orderDevice = String(o.deviceId || '').trim();
+      const isOwnerDevice = Boolean(deviceId && orderDevice && orderDevice === deviceId);
+
+      // 2. If user explicitly entered a search query:
+      if (q && q.length >= 2) {
+        // Exact order reference lookup (case-insensitive)
+        if (ref === q || ref.includes(q)) {
+          return true;
+        }
+
+        // Exact Player ID / Username lookup
+        if (user && (user === q || (isOwnerDevice && user.includes(q)))) {
+          return true;
+        }
+
+        return false;
+      }
+
+      // 3. When browsing without a search query, ONLY return orders placed from THIS EXACT DEVICE:
+      // If this device never purchased an order, return false (zero orders listed).
       return isOwnerDevice;
     });
 

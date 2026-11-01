@@ -13,7 +13,6 @@ import {
   UserCheck,
   Star,
   ShoppingCart,
-  Printer,
   Share2,
   Lock,
   Headphones,
@@ -37,7 +36,6 @@ import { getStoredUser } from '../data/authStore';
 import { formatPrice, TRANSLATIONS } from '../data/regionStore';
 import { GAMES, findAuthorizedGame } from '../data/games';
 import { verifySoraPlayer, createSoraTopupOrder } from '../data/soraStore';
-import { printReceiptInvoice } from '../utils/printReceipt';
 
 const MAX_PURCHASE_QUANTITY = 10;
 
@@ -1831,19 +1829,11 @@ export default function GameDetailPage({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => printReceiptInvoice(completedOrder, currentRegion)}
-                className="flex-1 seagm-btn-outline py-2.5"
-              >
-                <Printer size={15} />
-                <span>Print Receipt</span>
-              </button>
+            <div className="flex">
               <button
                 type="button"
                 onClick={handleCloseTab}
-                className="flex-1 seagm-btn-teal py-2.5"
+                className="w-full seagm-btn-teal py-3 text-sm font-black uppercase tracking-wider cursor-pointer shadow-lg active:scale-95 transition-all"
               >
                 <span>{completedOrder.status === 'PROCESSING' ? 'Close Tab / Return to Store' : 'Done • Back to Store'}</span>
               </button>

@@ -1,9 +1,8 @@
 import React from 'react';
-import { CheckCircle2, Clock, AlertCircle, Printer, X, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, X, ShieldCheck } from 'lucide-react';
 import { formatPrice } from '../data/regionStore';
 import { searchSoraOrders } from '../data/soraStore';
 import { pauseLenis, resumeLenis } from '../hooks/useLenisSmoothScroll';
-import { printReceiptInvoice } from '../utils/printReceipt';
 
 export default function OrderReceiptModal({ order: initialOrder, onClose, currentRegion }) {
   const [order, setOrder] = React.useState(initialOrder);
@@ -67,10 +66,6 @@ export default function OrderReceiptModal({ order: initialOrder, onClose, curren
   const totalKhr = order.totalKhr || (Math.round(totalUsd * 4100)).toLocaleString();
   const dateObj = new Date(order.timestamp || order.createdAt || order.created_at || Date.now());
   const dateStr = isNaN(dateObj.getTime()) ? new Date().toLocaleString() : dateObj.toLocaleString();
-
-  const handlePrint = () => {
-    printReceiptInvoice(order, currentRegion);
-  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200" onClick={onClose}>
@@ -171,21 +166,13 @@ export default function OrderReceiptModal({ order: initialOrder, onClose, curren
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="flex-1 seagm-btn-outline py-2.5 text-xs"
-            >
-              <Printer size={15} />
-              <span>Print Invoice</span>
-            </button>
+          <div className="flex">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 seagm-btn-teal py-2.5 text-xs"
+              className="w-full seagm-btn-teal py-3 text-sm font-black uppercase tracking-wider cursor-pointer shadow-md active:scale-95 transition-all"
             >
-              <span>Close</span>
+              <span>Close Receipt</span>
             </button>
           </div>
         </div>

@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "node server/server.js",
     "dev": "concurrently -k -n \"VITE,API\" -c \"cyan,green\" \"vite\" \"node --watch server/server.js\"",
     "dev:vite": "vite",
     "server": "node server/server.js",

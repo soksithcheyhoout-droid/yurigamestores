@@ -155,6 +155,8 @@ export async function saveRosOrder(order) {
   const merged = {
     ...existing,
     ...order,
+    clientIp: order.clientIp || existing.clientIp || '',
+    deviceId: order.deviceId || existing.deviceId || '',
     gameId: order.gameId || existing.gameId || defaultGameId,
     gameName: order.gameName || existing.gameName || defaultGameName,
     packageName: order.packageName || existing.packageName || defaultPackage,

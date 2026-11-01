@@ -1989,3 +1989,35 @@ input:focus-visible {
     transform: none !important;
   }
 }
+
+/* ==========================================================================
+   OFFICIAL 1-PAGE PRINT & INVOICE MEDIA STYLES
+   Hides all background website elements and ensures crystal-clear printout
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  /* Hide background elements, headers, banners, widgets, modals overlay */
+  header,
+  footer,
+  nav,
+  .no-print,
+  #live-support-widget,
+  [data-lenis-prevent="false"],
+  .fixed.inset-0.bg-black\/80,
+  .fixed.inset-0.bg-slate-950\/80 {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

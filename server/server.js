@@ -1692,23 +1692,46 @@ app.post('/api/soratopup/verify-player', async (req, res) => {
   }
 });
 
-// Public Safe Order Lookup (Targeted by reference or player username with masked PII)
+// Public Safe Order Lookup (Targeted by reference or player username with masked PII, bound to paying device & IP)
 app.get('/api/soratopup/orders/lookup', async (req, res) => {
   try {
     const q = String(req.query.query || '').trim().toLowerCase();
+    const clientIp = getClientIp(req);
+    const deviceId = String(req.headers['x-device-id'] || req.query.deviceId || '').trim();
 
-    // If query is empty or less than 2 characters, DO NOT leak store orders to public/new devices!
-    if (!q || q.length < 2) {
-      return res.json({
-        success: true,
-        provider: 'soratopup',
-        count: 0,
-        orders: [],
-      });
-    }
+    // Query all manual orders
+    const allManual = getAllRosOrders();
 
-    const manualList = getAllRosOrders(q);
-    const formattedManual = manualList.map((o) => {
+    // STRICT DEVICE & IP PRIVACY FILTERING:
+    // Only orders paid from THIS exact device or THIS exact IP can be viewed!
+    const matchedManual = allManual.filter((o) => {
+      const orderIp = String(o.clientIp || '').trim();
+      const orderDevice = String(o.deviceId || '').trim();
+
+      // Check whether this order was placed from the same device ID or same IP address:
+      const isSameDevice = Boolean(deviceId && orderDevice && orderDevice === deviceId);
+      const isSameIp = Boolean(clientIp && orderIp && (orderIp === clientIp || clientIp.includes(orderIp) || orderIp.includes(clientIp)));
+      const isOwnerDevice = isSameDevice || isSameIp;
+
+      // If user typed a search query:
+      if (q && q.length >= 2) {
+        const ref = String(o.ref || '').toLowerCase();
+        const user = String(o.playerDetails?.account || o.playerDetails?.userId || o.playerDetails?.username || o.verifiedPlayer || '').toLowerCase();
+
+        // Exact reference match allows tracking with the exact receipt number:
+        if (ref === q || q.startsWith('ygs-') || q.startsWith('rblx-') || q.startsWith('ros-')) {
+          return ref.includes(q);
+        }
+
+        // For player names, only return if it belongs to this device / IP:
+        return user.includes(q) && isOwnerDevice;
+      }
+
+      // If no search query, ONLY return orders that were paid from THIS same device / IP:
+      return isOwnerDevice;
+    });
+
+    const formattedManual = matchedManual.map((o) => {
       const rawGame = String(o.gameId || o.game || o.gameName || '').toLowerCase();
       const rawPkg = String(o.packageName || '').toLowerCase();
       const isRoblox = rawGame.includes('roblox') || rawGame.includes('robux') || rawPkg.includes('robux');
@@ -1897,6 +1920,8 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
     const manualOrder = {
       ...orderDetails,
       ref: refFinal,
+      clientIp: orderDetails.clientIp || '',
+      deviceId: orderDetails.deviceId || '',
       game: isRoblox ? 'robuxsend' : 'roslegacy',
       gameId: isRoblox ? 'robuxsend' : 'roslegacy',
       gameName: isRoblox ? 'Roblox' : 'RoS Legacy',
@@ -1961,6 +1986,8 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
 
     const automatedOrder = {
       ref: finalRef,
+      clientIp: orderDetails.clientIp || '',
+      deviceId: orderDetails.deviceId || '',
       game: targetGame,
       gameId: targetGame,
       gameName: resolvedGameName,
@@ -2360,6 +2387,13 @@ app.post('/api/paylink/generate-qr', async (req, res) => {
     const { method = 'bakong', amount, currency = 'USD', orderRef, description, orderDetails } = req.body;
     let numAmount = parseFloat(amount || 0);
 
+    const clientIp = getClientIp(req);
+    const deviceId = String(req.headers['x-device-id'] || req.body?.deviceId || req.body?.orderDetails?.deviceId || '').trim();
+    if (orderDetails) {
+      orderDetails.clientIp = clientIp;
+      orderDetails.deviceId = deviceId;
+    }
+
     // CRITICAL SECURITY ENFORCEMENT: Server-Side Authoritative Price Validation
     if (orderDetails) {
       const targetGame = orderDetails.gameId || orderDetails.game || orderDetails.providerCode;
@@ -2496,6 +2530,8 @@ app.post('/api/paylink/generate-qr', async (req, res) => {
       expectedAmount: numAmount,
       currency: (currency || 'USD').toUpperCase(),
       orderDetails: orderDetails || null,
+      clientIp,
+      deviceId,
       status: 'PENDING',
       createdAt: Date.now()
     };

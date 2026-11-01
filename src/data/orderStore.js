@@ -168,6 +168,21 @@ if (typeof window !== 'undefined') {
   }, 100);
 }
 
+// Persistent unique device identifier for device-bound order tracking and privacy
+export function getOrCreateDeviceId() {
+  if (typeof localStorage === 'undefined') return 'device_' + Date.now();
+  try {
+    let id = localStorage.getItem('yurigame_device_id');
+    if (!id) {
+      id = 'dev_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
+      localStorage.setItem('yurigame_device_id', id);
+    }
+    return id;
+  } catch {
+    return 'device_' + Date.now();
+  }
+}
+
 // Load persisted orders
 export function getStoredOrders() {
   try {

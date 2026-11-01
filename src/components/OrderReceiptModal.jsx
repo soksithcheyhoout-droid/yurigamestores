@@ -3,6 +3,7 @@ import { CheckCircle2, Clock, AlertCircle, Printer, X, ShieldCheck } from 'lucid
 import { formatPrice } from '../data/regionStore';
 import { searchSoraOrders } from '../data/soraStore';
 import { pauseLenis, resumeLenis } from '../hooks/useLenisSmoothScroll';
+import { printReceiptInvoice } from '../utils/printReceipt';
 
 export default function OrderReceiptModal({ order: initialOrder, onClose, currentRegion }) {
   const [order, setOrder] = React.useState(initialOrder);
@@ -68,7 +69,7 @@ export default function OrderReceiptModal({ order: initialOrder, onClose, curren
   const dateStr = isNaN(dateObj.getTime()) ? new Date().toLocaleString() : dateObj.toLocaleString();
 
   const handlePrint = () => {
-    window.print();
+    printReceiptInvoice(order, currentRegion);
   };
 
   return (

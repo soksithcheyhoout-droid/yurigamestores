@@ -1,3 +1,5 @@
+import { getOrCreateDeviceId } from './orderStore';
+
 const REQUEST_TIMEOUT_MS = 15_000;
 const FALLBACK_GAME_IMAGE = '/assets/games/mlbb_tile_4k.jpg';
 
@@ -313,11 +315,15 @@ export function isSoraGame(game) {
 
 export async function searchSoraOrders(query = '', options = {}) {
   const q = String(query || '').trim();
-  if (!q || q.length < 2) {
-    return { success: true, count: 0, orders: [] };
-  }
-  const endpoint = `/api/soratopup/orders/lookup?query=${encodeURIComponent(q)}`;
-  return requestJson(endpoint, options);
+  const deviceId = getOrCreateDeviceId();
+  const endpoint = `/api/soratopup/orders/lookup?query=${encodeURIComponent(q)}&deviceId=${encodeURIComponent(deviceId)}`;
+  return requestJson(endpoint, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      'x-device-id': deviceId,
+    },
+  });
 }
 
 export async function fetchSoraOrder(ref, options = {}) {

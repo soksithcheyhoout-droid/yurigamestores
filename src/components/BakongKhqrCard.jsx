@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check, ChevronLeft, ExternalLink, Smartphone, RefreshCw, Download } from 'lucide-react';
 import QRCode from 'qrcode';
+import { getOrCreateDeviceId } from '../data/orderStore';
 
 // Exact Authentic ABA PayWay Loading Spinner from link.payway.com.kh/images/loading.svg
 export function AbaLoadingSpinner({ size = 20, className = "" }) {
@@ -84,16 +85,24 @@ export default function BakongKhqrCard({
       const chargeAmount = isKhr ? calculatedKhr : parsedUsd;
       const tranId = `${orderRef || `YGS_${Date.now()}`}_${selectedCurr}`;
 
+      const deviceId = getOrCreateDeviceId();
       const res = await fetch('/api/paylink/generate-qr', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': deviceId,
+        },
         body: JSON.stringify({
           method: isAba ? 'aba' : 'bakong',
           amount: chargeAmount,
           currency: selectedCurr,
           orderRef: tranId,
           description: `YuriGame TopUp ${isAba ? 'ABA' : 'Bakong'} Payment`,
-          orderDetails: orderDetails || null
+          deviceId,
+          orderDetails: {
+            ...(orderDetails || {}),
+            deviceId,
+          }
         })
       });
 

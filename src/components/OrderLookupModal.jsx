@@ -146,13 +146,6 @@ export default function OrderLookupModal({
     let active = true;
     const cleanQ = query.trim();
 
-    // If query is empty or less than 2 chars, DO NOT poll or dump stranger orders on new devices!
-    if (cleanQ.length < 2) {
-      setLiveOrders([]);
-      setIsLoadingLive(false);
-      return;
-    }
-
     const fetchLive = async (isInitial = false) => {
       if (isInitial) setIsLoadingLive(true);
       try {
@@ -170,7 +163,7 @@ export default function OrderLookupModal({
     };
 
     fetchLive(true);
-    // Dynamic real-time auto-polling every 2.5 seconds when searching:
+    // Dynamic real-time auto-polling every 2.5 seconds:
     const timer = setInterval(() => {
       fetchLive(false);
     }, 2500);
@@ -327,84 +320,101 @@ export default function OrderLookupModal({
               return (
                 <div
                   key={order.ref}
-                  className="p-3.5 sm:p-4 rounded-2xl border border-[#20222E] bg-[#14151D] hover:border-[#E3062F]/40 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm"
+                  className="p-3.5 sm:p-4 rounded-2xl border border-[#222434] bg-gradient-to-br from-[#151622] to-[#0E0F16] hover:border-[#E3062F]/50 transition-all flex flex-col gap-3 shadow-md"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <img
-                      src={gameTileIcon}
-                      alt={order.gameName}
-                      className="w-12 h-12 rounded-xl object-cover border border-[#282B3C] bg-slate-900 shrink-0"
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = getOrderGameIcon(order);
-                      }}
-                    />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[13.5px] font-bold text-white font-['Rajdhani']">
-                          {order.gameName}
-                        </span>
-                        {order.isManualAdmin ? (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                            Admin Delivery
+                  {/* Top Row: Game Icon, Titles, and Status Pill */}
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <img
+                        src={gameTileIcon}
+                        alt={order.gameName}
+                        className="w-12 h-12 rounded-xl object-cover border border-[#2C2E42] bg-slate-900 shrink-0 shadow-sm"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = getOrderGameIcon(order);
+                        }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-bold text-white font-['Rajdhani'] tracking-wide">
+                            {order.gameName}
                           </span>
-                        ) : (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-blue-500/15 text-blue-300 border border-blue-500/30">
-                            Instant API
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[12px] text-[#FF4D6D] font-bold font-['Rajdhani']">
-                        {order.packageName}
-                      </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5 truncate">
-                        Ref: <strong className="font-mono text-slate-200">{order.ref}</strong> • Player: <strong className="text-white">{order.verifiedPlayer}</strong>
-                      </div>
-                      {order.reason && (
-                        <div className="text-[10px] text-slate-400 italic mt-0.5 line-clamp-1">
-                          {order.reason}
+                          {order.isManualAdmin ? (
+                            <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                              Admin Delivery
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                              Instant API
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="text-right flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto shrink-0 border-t sm:border-0 border-[#20222E] pt-2 sm:pt-0">
-                    <div className="font-mono font-bold text-sm sm:text-base text-white">
-                      {formatPrice(order.totalUsd, currentRegion)}
+                        <div className="text-[13px] font-black text-[#FF4D6D] font-['Rajdhani'] mt-0.5 leading-tight">
+                          {order.packageName}
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-1">
+                    {/* Status Pill Badge */}
+                    <div className="shrink-0">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase font-['Rajdhani'] inline-flex items-center gap-1 ${
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase font-['Rajdhani'] inline-flex items-center gap-1.5 ${
                           isSuccess
-                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-xs'
                             : isFailed
                             ? 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
                             : isRefunded
                             ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                             : isPending
-                            ? 'bg-amber-500/15 text-amber-300 border border-amber-500/40 animate-pulse'
+                            ? 'bg-amber-500/15 text-amber-300 border border-amber-500/40 shadow-xs'
                             : 'bg-slate-700/30 text-slate-300 border border-slate-600'
                         }`}
                       >
                         {isPending && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping inline-block" />}
                         <span>{isPending ? 'Processing' : isSuccess ? 'Delivered' : isFailed ? 'Cancelled' : order.status}</span>
                       </span>
-
-                      {onViewReceipt && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onViewReceipt(order);
-                          }}
-                          className="text-[11px] font-bold text-[#E3062F] hover:text-white hover:underline cursor-pointer flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-[#E3062F]/10 transition-colors"
-                        >
-                          <span>Receipt</span>
-                          <ArrowRight size={11} />
-                        </button>
-                      )}
                     </div>
+                  </div>
+
+                  {/* Player Account & Ref Badges (NO TRUNCATE! Clean, wrap-safe chips) */}
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] pt-0.5">
+                    <span className="px-2.5 py-1 rounded-lg bg-[#181A26] border border-[#272A3C] font-mono text-slate-300 font-bold shrink-0">
+                      Ref: <span className="text-white">{order.ref}</span>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-[#181A26] border border-[#272A3C] text-slate-300 font-semibold break-all flex-1 min-w-[140px]">
+                      Player: <strong className="text-emerald-400 font-bold">{order.verifiedPlayer}</strong>
+                    </span>
+                  </div>
+
+                  {/* Admin Note / Status Reason */}
+                  {order.reason && (
+                    <div className="text-[11px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-xl leading-relaxed">
+                      💬 {order.reason}
+                    </div>
+                  )}
+
+                  {/* Bottom Row: Price & Official Receipt Action */}
+                  <div className="flex items-center justify-between pt-2 border-t border-[#1F212E] mt-0.5">
+                    <div>
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Total Paid</div>
+                      <div className="font-mono font-black text-base text-white">
+                        {formatPrice(order.totalUsd, currentRegion)}
+                      </div>
+                    </div>
+
+                    {onViewReceipt && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewReceipt(order);
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-[#E3062F] hover:bg-rose-600 text-white font-bold text-xs font-['Rajdhani'] uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                      >
+                        <span>Official Receipt</span>
+                        <ArrowRight size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

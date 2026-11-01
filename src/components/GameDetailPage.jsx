@@ -37,6 +37,7 @@ import { getStoredUser } from '../data/authStore';
 import { formatPrice, TRANSLATIONS } from '../data/regionStore';
 import { GAMES, findAuthorizedGame } from '../data/games';
 import { verifySoraPlayer, createSoraTopupOrder } from '../data/soraStore';
+import { printReceiptInvoice } from '../utils/printReceipt';
 
 const MAX_PURCHASE_QUANTITY = 10;
 
@@ -1833,7 +1834,7 @@ export default function GameDetailPage({
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => printReceiptInvoice(completedOrder, currentRegion)}
                 className="flex-1 seagm-btn-outline py-2.5"
               >
                 <Printer size={15} />

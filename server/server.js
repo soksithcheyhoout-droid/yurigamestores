@@ -2150,6 +2150,70 @@ function stopOrderPaymentWatcher(key) {
   }
 }
 
+// 🛡️ AUTHORITATIVE PAYMENT VALIDATION HELPER
+// Prevents any QR code glitches, bypasses, or underpayments ($0.02 instead of $2.00)
+function verifyTransactionPayment(data, pending, logContext = '') {
+  if (!data || !pending) return { valid: false, reason: 'missing_data' };
+
+  const isPaid = Boolean(
+    data.paid === true ||
+    data.status === 'PAID' ||
+    data.status === 'SUCCESS' ||
+    data.data?.paid === true ||
+    data.data?.status === 'PAID'
+  );
+  if (!isPaid) return { valid: false, reason: 'not_paid' };
+
+  // Extract actual received payment amount from any gateway format
+  const rawPaidAmount =
+    data.amount !== undefined ? Number(data.amount) :
+    data.data?.amount !== undefined ? Number(data.data.amount) :
+    data.transaction?.amount !== undefined ? Number(data.transaction.amount) :
+    data.payment?.amount !== undefined ? Number(data.payment.amount) :
+    data.raw?.amount !== undefined ? Number(data.raw.amount) :
+    null;
+
+  const rawPaidCurrency = String(
+    data.currency ||
+    data.data?.currency ||
+    data.transaction?.currency ||
+    data.payment?.currency ||
+    data.raw?.currency ||
+    'USD'
+  ).toUpperCase();
+
+  const expectedAmount = Number(pending.expectedAmount || 0);
+
+  // If the gateway reported an amount, strictly verify it meets the expected threshold
+  if (rawPaidAmount !== null && !isNaN(rawPaidAmount)) {
+    let isSufficient = false;
+    if (rawPaidCurrency === 'USD') {
+      // Half a cent micro-rounding tolerance max
+      isSufficient = rawPaidAmount >= (expectedAmount - 0.005);
+    } else if (rawPaidCurrency === 'KHR') {
+      const expectedKhr = Math.round(expectedAmount * 4000);
+      isSufficient = rawPaidAmount >= (expectedKhr - 100);
+    } else {
+      isSufficient = rawPaidAmount >= (expectedAmount - 0.005);
+    }
+
+    if (!isSufficient) {
+      console.error(
+        `🚨 [CRITICAL UNDERPAYMENT DETECTED ${logContext}] Expected $${expectedAmount} USD, but received only ${rawPaidAmount} ${rawPaidCurrency}! Rejecting payment & fulfillment.`
+      );
+      return {
+        valid: false,
+        reason: 'underpaid',
+        expected: expectedAmount,
+        received: rawPaidAmount,
+        currency: rawPaidCurrency
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
 function startOrderPaymentWatcher(tranId, md5) {
   const key = String(tranId || md5 || '');
   if (!key) return;
@@ -2167,7 +2231,7 @@ function startOrderPaymentWatcher(tranId, md5) {
     }
 
     const pending = pendingOrders.get(tranId) || (md5 ? pendingOrders.get(md5) : null);
-    if (!pending || pending.paid || pending.status === 'COMPLETED') {
+    if (!pending || pending.paid || pending.status === 'COMPLETED' || pending.status === 'UNDERPAID_BLOCKED') {
       stopOrderPaymentWatcher(key);
       return;
     }
@@ -2189,9 +2253,17 @@ function startOrderPaymentWatcher(tranId, md5) {
       clearTimeout(timeout);
 
       const data = await res.json().catch(() => ({}));
-      const isPaid = Boolean(data.paid || data.status === 'PAID' || data.status === 'SUCCESS');
+      const paymentCheck = verifyTransactionPayment(data, pending, `[WATCHER ${key}]`);
 
-      if (isPaid && pending && !pending.paid) {
+      if (paymentCheck.reason === 'underpaid') {
+        pending.paid = false;
+        pending.status = 'UNDERPAID_BLOCKED';
+        pending.fraudDetails = paymentCheck;
+        stopOrderPaymentWatcher(key);
+        return;
+      }
+
+      if (paymentCheck.valid && !pending.paid) {
         pending.paid = true;
         pending.bank = data.bank || pending.bank || 'BAKONG';
         pending.raw = data;
@@ -2388,69 +2460,66 @@ app.post('/api/paylink/generate-qr', async (req, res) => {
     if (!PAYLINK_API_KEY) {
       return res.status(503).json({ success: false, error: 'PayLinkAPI is not configured.' });
     }
-    const { method = 'bakong', amount, currency = 'USD', orderRef, description, orderDetails } = req.body;
-    let numAmount = parseFloat(amount || 0);
+    const { method = 'bakong', orderRef, description, orderDetails } = req.body;
 
     const clientIp = getClientIp(req);
     const deviceId = String(req.headers['x-device-id'] || req.body?.deviceId || req.body?.orderDetails?.deviceId || '').trim();
-    if (orderDetails) {
-      orderDetails.clientIp = clientIp;
-      orderDetails.deviceId = deviceId;
+
+    // 🛡️ 1. MANDATORY ORDER DETAILS VALIDATION (Anti-Bypass)
+    if (!orderDetails || typeof orderDetails !== 'object') {
+      return res.status(400).json({ success: false, error: 'Valid order details are required to generate a payment QR.' });
     }
 
-    // CRITICAL SECURITY ENFORCEMENT: Server-Side Authoritative Price Validation
-    if (orderDetails) {
-      const targetGame = orderDetails.gameId || orderDetails.game || orderDetails.providerCode;
-      const targetPackage = orderDetails.packageId || orderDetails.packageCode || orderDetails.code;
-      const providerPackageCode = orderDetails.providerPackageCode || orderDetails.packageCode || orderDetails.code;
-      const requestedQuantity = Number(orderDetails.quantity || 1);
+    orderDetails.clientIp = clientIp;
+    orderDetails.deviceId = deviceId;
 
-      if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > MAX_ORDER_QUANTITY) {
-        return res.status(400).json({
-          success: false,
-          error: `Quantity must be a whole number between 1 and ${MAX_ORDER_QUANTITY}.`,
-        });
-      }
-      const targetQuantity = requestedQuantity;
+    // 🛡️ 2. SERVER-SIDE AUTHORITATIVE PRICE VALIDATION (Anti-Glitch / Anti-Tamper)
+    // Client-sent amount is COMPLETELY IGNORED. The server calculates the exact price from catalog.
+    const targetGame = orderDetails.gameId || orderDetails.game || orderDetails.providerCode;
+    const targetPackage = orderDetails.packageId || orderDetails.packageCode || orderDetails.code;
+    const providerPackageCode = orderDetails.providerPackageCode || orderDetails.packageCode || orderDetails.code;
+    const requestedQuantity = Number(orderDetails.quantity || 1);
 
-      if (!targetGame || !targetPackage) {
-        return res.status(400).json({ success: false, error: 'Valid game and package selection required.' });
-      }
-
-      let authoritative = await getAuthoritativePackagePrice(targetGame, targetPackage, targetQuantity);
-      if (!authoritative && providerPackageCode && providerPackageCode !== targetPackage) {
-        authoritative = await getAuthoritativePackagePrice(targetGame, providerPackageCode, targetQuantity);
-      }
-      if (!authoritative) {
-        return res.status(400).json({ success: false, error: 'The selected game package is unavailable or does not exist.' });
-      }
-
-      const expectedUsd = authoritative.price;
-      const isUsd = String(currency || 'USD').toUpperCase() === 'USD';
-      const expectedAmount = isUsd ? expectedUsd : Math.round(expectedUsd * 4100);
-
-      // Validate price match within 0.05 tolerance (or 200 KHR)
-      const diff = Math.abs(numAmount - expectedAmount);
-      const maxTolerance = isUsd ? 0.05 : 250;
-      if (diff > maxTolerance) {
-        console.warn(`[SECURITY ALERT] Price mismatch detected! Client sent ${numAmount} ${currency}, expected ${expectedAmount} for ${authoritative.name}`);
-        // Enforce authoritative price to prevent tampering
-        numAmount = expectedAmount;
-      }
-
-      // Enforce verified details and translate the storefront package to its live provider SKU.
-      orderDetails.totalUsd = expectedUsd;
-      orderDetails.packageName = authoritative.name;
-      orderDetails.packageCode = authoritative.providerCode || targetPackage;
-      orderDetails.providerConnected = Boolean(authoritative.providerConnected);
+    if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > MAX_ORDER_QUANTITY) {
+      return res.status(400).json({
+        success: false,
+        error: `Quantity must be a whole number between 1 and ${MAX_ORDER_QUANTITY}.`,
+      });
     }
+    const targetQuantity = requestedQuantity;
+
+    if (!targetGame || !targetPackage) {
+      return res.status(400).json({ success: false, error: 'Valid game and package selection required.' });
+    }
+
+    let authoritative = await getAuthoritativePackagePrice(targetGame, targetPackage, targetQuantity);
+    if (!authoritative && providerPackageCode && providerPackageCode !== targetPackage) {
+      authoritative = await getAuthoritativePackagePrice(targetGame, providerPackageCode, targetQuantity);
+    }
+    if (!authoritative) {
+      return res.status(400).json({ success: false, error: 'The selected game package is unavailable or does not exist.' });
+    }
+
+    // Hard-lock the price directly to the official catalog price:
+    const expectedUsd = Number(authoritative.price.toFixed(2));
+    const numAmount = expectedUsd;
+    const currency = 'USD'; // Strictly USD
 
     if (numAmount <= 0) {
-      return res.status(400).json({ success: false, error: 'Valid amount greater than zero is required.' });
+      return res.status(400).json({ success: false, error: 'Authoritative price must be greater than zero.' });
     }
 
+    // Enforce verified details and translate the storefront package to its live provider SKU.
+    orderDetails.totalUsd = expectedUsd;
+    orderDetails.packageName = authoritative.name;
+    orderDetails.packageCode = authoritative.providerCode || targetPackage;
+    orderDetails.providerConnected = Boolean(authoritative.providerConnected);
+
     const isAba = String(method).toLowerCase().includes('aba');
-    const tranId = orderRef || `YGS_${Date.now()}`;
+    const cleanRef = String(orderRef || '').trim();
+    const tranId = (cleanRef && !pendingOrders.has(cleanRef))
+      ? cleanRef
+      : `${cleanRef || 'YGS'}_${Date.now()}`;
     const merchantId = process.env.PAYLINK_BAKONG_ACCOUNT || 'kry_lychhay@aclb';
     const merchantName = process.env.PAYLINK_STORE_NAME || 'YuriGameSt4re';
 
@@ -2677,7 +2746,24 @@ app.post('/api/paylink/check-payment', async (req, res) => {
     }
 
     const data = await checkPromise;
-    const isPaid = Boolean(data.paid || data.status === 'PAID' || data.status === 'SUCCESS');
+    const paymentCheck = verifyTransactionPayment(data, pending, `[MANUAL_CHECK ${cacheKey}]`);
+
+    if (paymentCheck.reason === 'underpaid') {
+      if (pending) {
+        pending.paid = false;
+        pending.status = 'UNDERPAID_BLOCKED';
+        pending.fraudDetails = paymentCheck;
+      }
+      stopOrderPaymentWatcher(watcherKey);
+      return res.status(400).json({
+        success: false,
+        paid: false,
+        status: 'UNDERPAID_BLOCKED',
+        error: `Payment underpaid! Expected $${paymentCheck.expected.toFixed(2)} USD, but received only $${paymentCheck.received.toFixed(2)} ${paymentCheck.currency}. Delivery refused.`
+      });
+    }
+
+    const isPaid = Boolean(paymentCheck.valid);
     let fulfillment = null;
 
     if (isPaid && pending) {

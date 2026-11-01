@@ -100,7 +100,7 @@ export default function AliceSupportWidget({ onOpenLookup, telegramUrl, contacts
   };
 
   return (
-    <div className={`fixed ${hasBottomBar ? 'bottom-20 sm:bottom-24 lg:bottom-5' : 'bottom-5'} right-3 sm:right-5 z-40 flex flex-col items-end transition-all duration-300`}>
+    <div className={`fixed ${hasBottomBar ? 'bottom-[calc(86px+env(safe-area-inset-bottom,0px))] sm:bottom-24 lg:bottom-5' : 'bottom-5'} right-3 sm:right-5 z-40 flex flex-col items-end transition-all duration-300`}>
       {/* Floating Launcher Pill */}
       {!isOpen && (
         <button

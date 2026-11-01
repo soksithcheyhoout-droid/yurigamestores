@@ -346,18 +346,6 @@ export default function Navbar({
                 </span>
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={openRegionPicker}
-              className="mt-3 flex w-full items-center justify-between rounded-xl border border-[#252735] bg-[#14151D] p-3 text-left"
-            >
-              <span className="flex items-center gap-2.5 text-[12px] font-bold text-slate-200">
-                <CountryFlag code={currentRegion?.countryCode || 'KH'} className="h-4 w-6 rounded-sm" />
-                {currentRegion?.displayLabel || 'KH / KHR'}
-              </span>
-              <span className="text-[11px] font-bold text-[#E3062F]">Change</span>
-            </button>
           </div>
         </div>
       )}

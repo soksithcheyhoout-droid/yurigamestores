@@ -50,7 +50,7 @@ export default function BakongKhqrCard({
   onBack,
 }) {
   const isAba = String(paymentMethod).toLowerCase().includes('aba');
-  const [currency, setCurrency] = useState('USD'); // 'USD' or 'KHR'
+  const currency = 'USD'; // Strictly USD only
   const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -65,13 +65,11 @@ export default function BakongKhqrCard({
 
   // Conversion calculations
   const parsedUsd = parseFloat(amountUsd || totalPrice || 0);
-  const calculatedKhr = Math.round(parsedUsd * 4100);
 
-  // 1. Fetch Live QR Code from PayLink Gateway (USD or KHR) with 0ms Memory Caching
-  const fetchLiveQr = async (selectedCurr = currency) => {
-    // ⚡ Fast-path: Check memory cache first for instant (<1ms) currency switching
-    if (qrCacheRef.current[selectedCurr]) {
-      const cached = qrCacheRef.current[selectedCurr];
+  // 1. Fetch Live QR Code from PayLink Gateway (Strictly USD) with 0ms Memory Caching
+  const fetchLiveQr = async () => {
+    if (qrCacheRef.current['USD']) {
+      const cached = qrCacheRef.current['USD'];
       setTxData(cached.txData);
       setQrDataUrl(cached.qrDataUrl);
       setLoading(false);
@@ -81,9 +79,8 @@ export default function BakongKhqrCard({
     setLoading(true);
     setError(null);
     try {
-      const isKhr = selectedCurr === 'KHR';
-      const chargeAmount = isKhr ? calculatedKhr : parsedUsd;
-      const tranId = `${orderRef || `YGS_${Date.now()}`}_${selectedCurr}`;
+      const chargeAmount = parsedUsd;
+      const tranId = orderRef || `YGS_${Date.now()}`;
 
       const deviceId = getOrCreateDeviceId();
       const res = await fetch('/api/paylink/generate-qr', {
@@ -95,7 +92,7 @@ export default function BakongKhqrCard({
         body: JSON.stringify({
           method: isAba ? 'aba' : 'bakong',
           amount: chargeAmount,
-          currency: selectedCurr,
+          currency: 'USD',
           orderRef: tranId,
           description: `YuriGame TopUp ${isAba ? 'ABA' : 'Bakong'} Payment`,
           deviceId,
@@ -129,7 +126,7 @@ export default function BakongKhqrCard({
         }
       }
 
-      qrCacheRef.current[selectedCurr] = { txData: data, qrDataUrl: localUrl };
+      qrCacheRef.current['USD'] = { txData: data, qrDataUrl: localUrl };
       setTxData(data);
       setQrDataUrl(localUrl);
       setTimeLeft(180);
@@ -141,13 +138,13 @@ export default function BakongKhqrCard({
     }
   };
 
-  // Re-fetch when currency, amount, payment method, or orderRef changes
+  // Re-fetch when amount, payment method, or orderRef changes
   useEffect(() => {
-    fetchLiveQr(currency);
+    fetchLiveQr();
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
-  }, [orderRef, paymentMethod, amountUsd, totalPrice, currency]);
+  }, [orderRef, paymentMethod, amountUsd, totalPrice]);
 
   // 2. Real-time Status Polling (Adaptive rapid-polling with in-flight deduplication)
   const pollPaymentCheck = async (isManual = false) => {
@@ -325,27 +322,10 @@ export default function BakongKhqrCard({
 
             <div className="mt-1 font-['Nunito_Sans']">
               <div className="flex items-baseline text-sm font-bold w-full">
-                {currency === 'USD' ? (
-                  <>
-                    <span className="khqr-price-text text-xl font-black text-slate-950" style={{ color: '#081b37' }}>
-                      ${parsedUsd.toFixed(2)}
-                    </span>
-                    <span className="text-[10px] font-black ml-1.5 text-slate-700">USD</span>
-                    <span className="khqr-price-sub text-[11px] font-bold text-slate-500 ml-auto" style={{ color: '#64748b' }}>
-                      ≈ ៛{calculatedKhr.toLocaleString()}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="khqr-price-text text-xl font-black text-emerald-700" style={{ color: '#047857' }}>
-                      ៛{calculatedKhr.toLocaleString()}
-                    </span>
-                    <span className="text-[10px] font-black ml-1.5 text-slate-700">KHR</span>
-                    <span className="khqr-price-sub text-[11px] font-bold text-slate-500 ml-auto" style={{ color: '#64748b' }}>
-                      ≈ ${parsedUsd.toFixed(2)}
-                    </span>
-                  </>
-                )}
+                <span className="khqr-price-text text-xl font-black text-slate-950" style={{ color: '#081b37' }}>
+                  ${parsedUsd.toFixed(2)}
+                </span>
+                <span className="text-[10px] font-black ml-1.5 text-slate-700">USD</span>
               </div>
             </div>
           </div>
@@ -355,7 +335,7 @@ export default function BakongKhqrCard({
         <div className="flex justify-center items-center relative flex-1 py-4 px-2 bg-white" style={{ backgroundColor: '#ffffff' }}>
           {/* Subtle NBC Currency Watermark */}
           <img
-            src={currency === 'KHR' ? '/assets/payments/khr_badge.png' : '/assets/payments/usd_badge.png'}
+            src="/assets/payments/usd_badge.png"
             alt="Currency Watermark"
             className="absolute w-[160px] h-[160px] object-contain opacity-10 pointer-events-none"
           />
@@ -379,8 +359,8 @@ export default function BakongKhqrCard({
                 {/* Center NBC Official Currency Badge */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-[2px] rounded-full shadow-md flex items-center justify-center pointer-events-none">
                   <img
-                    src={currency === 'KHR' ? '/assets/payments/khr_badge.png' : '/assets/payments/usd_badge.png'}
-                    alt={currency === 'KHR' ? 'KHR Riel' : 'USD Dollar'}
+                    src="/assets/payments/usd_badge.png"
+                    alt="USD Dollar"
                     className="w-[26px] h-[26px] rounded-full object-contain"
                   />
                 </div>
@@ -426,45 +406,6 @@ export default function BakongKhqrCard({
 
       {/* 3. Controls & Actions under the Card (Optimized for Dark Checkout Modal) */}
       <div className="text-center p-3 flex flex-col justify-center items-center w-[285px] mt-2 mx-auto">
-        
-        {/* Currency Switcher Tabs (USD ⇄ KHR) with 0ms Instant Memory Cache */}
-        <div className="flex items-center justify-center gap-1.5 p-1 bg-slate-900 border border-slate-700 rounded-2xl w-full mb-3 shadow-inner">
-          <button
-            type="button"
-            onClick={() => {
-              if (currency !== 'USD') {
-                setCurrency('USD');
-                fetchLiveQr('USD');
-              }
-            }}
-            className={`flex-1 py-1.5 px-3 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              currency === 'USD'
-                ? 'bg-[#E3062F] text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <img src="/assets/payments/usd_badge.png" alt="USD" className="w-3.5 h-3.5 rounded-full inline-block" />
-            <span>USD ($)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (currency !== 'KHR') {
-                setCurrency('KHR');
-                fetchLiveQr('KHR');
-              }
-            }}
-            className={`flex-1 py-1.5 px-3 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              currency === 'KHR'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <img src="/assets/payments/khr_badge.png" alt="KHR" className="w-3.5 h-3.5 rounded-full inline-block" />
-            <span>KHR (៛)</span>
-          </button>
-        </div>
-
         {/* Direct Deep Link button (ABA or Bakong) */}
         {txData?.deepLink && (
           <a

@@ -315,3 +315,4 @@ export function printReceiptInvoice(order, currentRegion = { currency: 'USD', ra
     }
   }, 250);
 }
+

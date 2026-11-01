@@ -745,7 +745,7 @@ async function handleIncomingMessage(msg) {
 
     // Generate a secure single-use 10-minute admin token
     const token = generateAdminToken(senderId);
-    const host = process.env.PUBLIC_URL || process.env.APP_URL || 'https://yurigamest4re.com';
+    const host = (process.env.PUBLIC_URL || process.env.APP_URL || 'https://yurigamest4res.com').replace(/\/$/, '');
     const adminUrl = `${host}/admin?token=${token}`;
 
     const replyHtml = [

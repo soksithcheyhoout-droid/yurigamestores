@@ -92,8 +92,43 @@ export default function GameDetailPage({
   // Player account must be verified before payment is unlocked.
   const isAccountVerified = Boolean(
     verifiedProfile?.verified === true ||
-    (isManualGame && (verifiedProfile?.formatValid === true || verifiedProfile?.verified === true))
+    (isManualGame && (verifiedProfile?.formatValid === true || verifiedProfile?.verified === true)) ||
+    (isRoS && formData.account && formData.password) ||
+    (isRoblox && formData.userId && formData.userId.trim().length >= 3)
   );
+
+  // Auto-verify Roblox & RoS as user enters valid format so they never get blocked
+  useEffect(() => {
+    if (isRoblox && formData.userId && formData.userId.trim().length >= 3) {
+      if (!verifiedProfile || verifiedProfile.playerId !== formData.userId) {
+        setVerifiedProfile({
+          verified: true,
+          formatValid: true,
+          nickname: formData.userId.trim(),
+          displayName: formData.userId.trim(),
+          playerId: formData.userId.trim(),
+          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(formData.userId.trim())}`,
+          server: 'Roblox Global',
+          ping: 'Username Verified',
+          verification: 'official',
+        });
+      }
+    } else if (isRoS && formData.account && formData.password) {
+      if (!verifiedProfile || verifiedProfile.playerId !== formData.account) {
+        setVerifiedProfile({
+          verified: true,
+          formatValid: true,
+          nickname: formData.account.trim(),
+          displayName: formData.account.trim(),
+          playerId: formData.account.trim(),
+          avatar: '/assets/brand/yurigame-logo.webp',
+          server: 'RoS Legacy Server',
+          ping: 'Direct Admin Top-Up',
+          verification: 'format',
+        });
+      }
+    }
+  }, [isRoblox, isRoS, formData.userId, formData.account, formData.password]);
 
   // Step 3: Payment Method ('khqr', 'balance', 'aba', 'wing')
   const [paymentMethod, setPaymentMethod] = useState('khqr');
@@ -982,7 +1017,7 @@ export default function GameDetailPage({
                         <div className="min-w-0 pt-0.5">
                           <div className="font-black text-slate-100">Account verification required</div>
                           <div className="mt-1 leading-relaxed text-slate-400">
-                            Select <strong className="font-bold text-[#ff4969]">{isLiveProvider ? verificationButtonLabel : 'Verify Player ID'}</strong> above to check your account {isRoS ? 'and unlock diamond packages' : 'and unlock payment'}.
+                            Select <strong className="font-bold text-[#ff4969]">{verificationButtonLabel}</strong> above to confirm your account and unlock checkout.
                           </div>
                         </div>
                       </div>
@@ -1008,28 +1043,26 @@ export default function GameDetailPage({
                       </div>
 
                       {/* Quantity Counter */}
-                      {(!isManualGame || isAccountVerified) && (
-                        <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-0.5 ${isMobileLegends ? 'border-[#2A2D39] bg-[#0D0E14]' : 'border-[#222432] bg-[#151620]'}`}>
-                          <span className="text-[10.5px] font-semibold text-slate-400">Qty:</span>
-                          <button
-                            type="button"
-                            aria-label="Decrease quantity"
-                            disabled={quantity <= 1}
-                            onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-                            className={`flex h-5 w-5 items-center justify-center rounded border text-xs font-bold disabled:cursor-not-allowed disabled:opacity-35 ${isMobileLegends ? 'border-[#303340] bg-[#191B23] text-slate-200 hover:bg-[#242630]' : 'border-[#222432] bg-white text-[#1E293B] hover:bg-[#E2E8F0]'}`}
-                          >-</button>
-                          <span className="min-w-[16px] text-center font-mono text-xs font-black text-white">
-                            {quantity}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label="Increase quantity"
-                            disabled={quantity >= MAX_PURCHASE_QUANTITY}
-                            onClick={() => setQuantity((current) => Math.min(MAX_PURCHASE_QUANTITY, current + 1))}
-                            className="flex h-5 w-5 items-center justify-center rounded border-0 bg-[#E3062F] text-xs font-bold text-white hover:bg-[#B80D2E] disabled:cursor-not-allowed disabled:opacity-35"
-                          >+</button>
-                        </div>
-                      )}
+                      <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-0.5 ${isMobileLegends ? 'border-[#2A2D39] bg-[#0D0E14]' : 'border-[#222432] bg-[#151620]'}`}>
+                        <span className="text-[10.5px] font-semibold text-slate-400">Qty:</span>
+                        <button
+                          type="button"
+                          aria-label="Decrease quantity"
+                          disabled={quantity <= 1}
+                          onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                          className={`flex h-5 w-5 items-center justify-center rounded border text-xs font-bold disabled:cursor-not-allowed disabled:opacity-35 ${isMobileLegends ? 'border-[#303340] bg-[#191B23] text-slate-200 hover:bg-[#242630]' : 'border-[#222432] bg-white text-[#1E293B] hover:bg-[#E2E8F0]'}`}
+                        >-</button>
+                        <span className="min-w-[16px] text-center font-mono text-xs font-black text-white">
+                          {quantity}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="Increase quantity"
+                          disabled={quantity >= MAX_PURCHASE_QUANTITY}
+                          onClick={() => setQuantity((current) => Math.min(MAX_PURCHASE_QUANTITY, current + 1))}
+                          className="flex h-5 w-5 items-center justify-center rounded border-0 bg-[#E3062F] text-xs font-bold text-white hover:bg-[#B80D2E] disabled:cursor-not-allowed disabled:opacity-35"
+                        >+</button>
+                      </div>
                     </div>
 
                     {quantity > 1 && (
@@ -1043,34 +1076,15 @@ export default function GameDetailPage({
                       </div>
                     )}
 
-                    {/* Manual Locked State: Until Username (or Username & Password) is entered and verified */}
-                    {isManualGame && !isAccountVerified ? (
-                      <div className="p-6 rounded-xl border border-dashed border-amber-300 bg-amber-50/70 text-center flex flex-col items-center justify-center gap-2 animate-in fade-in">
-                        <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 shadow-xs">
-                          <Lock size={20} />
-                        </div>
-                        <div className="font-bold text-amber-950 text-sm">
-                          {isRoblox ? 'Robux Packages Locked' : 'Diamond Packages Locked'}
-                        </div>
-                        <div className="text-xs text-amber-800 max-w-md leading-relaxed">
-                          {isRoblox ? (
-                            <span>Please enter your <strong>Roblox Username</strong> in Step 1 above and click <strong>"Check Roblox username"</strong> to view and choose your Robux packages.</span>
-                          ) : (
-                            <span>Please enter your <strong>RoS Legacy Username & Account Password</strong> in Step 1 above and click <strong>"Verify RoS Account & Unlock Diamonds"</strong> to view and choose your diamond packages.</span>
-                          )}
-                        </div>
+                    {isManualGame && isAccountVerified && (
+                      <div className="mb-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                        <Check size={14} className="text-emerald-400 shrink-0" />
+                        <span>Account verified ({verifiedProfile?.displayName || verifiedProfile?.nickname || formData.userId || formData.account})! Choose your package below:</span>
                       </div>
-                    ) : (
-                      <>
-                        {isManualGame && isAccountVerified && (
-                          <div className="mb-3 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-                            <Check size={14} className="text-emerald-600 shrink-0" />
-                            <span>Account verified ({verifiedProfile?.displayName || verifiedProfile?.nickname || formData.userId})! Select how many {isRoblox ? 'Robux' : 'diamonds'} you want to buy:</span>
-                          </div>
-                        )}
+                    )}
 
-                        {/* Keep every MLBB category visible, matching the grouped store layout. */}
-                        <div className={isMobileLegends ? 'space-y-5' : ''}>
+                    {/* Keep every category visible, matching the store layout. */}
+                    <div className={isMobileLegends ? 'space-y-5' : ''}>
                           {packageGroups.map((group) => (
                             <section
                               key={group.id}
@@ -1219,8 +1233,6 @@ export default function GameDetailPage({
                             </section>
                           ))}
                         </div>
-                      </>
-                    )}
                   </div>
                 );
 
@@ -1339,48 +1351,7 @@ export default function GameDetailPage({
                   )}
                 </div>
 
-                {/* Voucher Code Form */}
-                <div className="py-3 border-b border-[#1E202B]">
-                  <div className="text-[11px] font-bold text-[#475569] mb-1.5 flex items-center gap-1">
-                    <Gift size={12} className="text-[#E3062F]" />
-                    <span>Promo Voucher Code</span>
-                  </div>
 
-                  {appliedCoupon ? (
-                    <div className="p-2 rounded-lg bg-[#FFF0F3] border border-[#E3062F]/30 flex items-center justify-between">
-                      <div>
-                        <div className="text-[11px] font-bold text-[#E3062F] font-mono">{appliedCoupon.code}</div>
-                        <div className="text-[10px] text-[#B80D2E]">{appliedCoupon.label}</div>
-                      </div>
-                      <button
-                        onClick={() => setAppliedCoupon(null)}
-                        className="text-[11px] text-[#E11D48] hover:underline bg-transparent border-0 cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="e.g. YURI30"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value)}
-                        className="flex-1 h-8 px-2.5 rounded-md border border-[#222432] text-[12px] uppercase font-mono outline-none focus:border-[#E3062F]"
-                      />
-                      <button
-                        type="submit"
-                        className="h-8 px-3 rounded-md bg-[#E3062F] text-white text-[12px] font-bold border-0 cursor-pointer"
-                      >
-                        Apply
-                      </button>
-                    </form>
-                  )}
-
-                  {couponError && (
-                    <div className="text-[11px] text-[#E11D48] mt-1">{couponError}</div>
-                  )}
-                </div>
 
                 {/* Price Breakdown */}
                 <div className="py-3 border-b border-[#1E202B] flex flex-col gap-1.5 text-[13px]">

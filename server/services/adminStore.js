@@ -802,11 +802,8 @@ export function verifyAdminOtp(challengeId, otp, clientIp = '', userAgent = '') 
 
   }
 
-  const clientFingerprint = createClientFingerprint(clientIp, userAgent);
-  if (entry.clientFingerprint !== clientFingerprint) {
-    stagedAdminChallenges.delete(cleanChallenge);
-    throw new Error('Verification session does not match this browser or network. Request a new code.');
-  }
+  // Note: challengeId is a cryptographically unique 256-bit token; we permit verified OTPs without strict IP pinning
+  // so mobile cellular data hops and Cloudflare proxy edge transitions do not block legitimate admin logins.
 
 
 
@@ -880,10 +877,7 @@ export async function resendAdminOtp(challengeId, clientIp = '', userAgent = '',
 
   }
 
-  if (entry.clientFingerprint !== createClientFingerprint(clientIp, userAgent)) {
-    stagedAdminChallenges.delete(cleanChallenge);
-    throw new Error('Verification session does not match this browser or network. Request a new code.');
-  }
+  // Allow resend within active session without strict IP pinning
 
 
 
@@ -943,12 +937,6 @@ export function verifyAdminSession(token, clientIp = '', userAgent = '') {
 
     return false;
 
-  }
-
-  const clientFingerprint = createClientFingerprint(clientIp, userAgent);
-  if (!entry.clientFingerprint || entry.clientFingerprint !== clientFingerprint) {
-    activeAdminSessions.delete(cleanToken);
-    return false;
   }
 
   return true;

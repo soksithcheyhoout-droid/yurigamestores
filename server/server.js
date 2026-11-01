@@ -1697,13 +1697,33 @@ app.get('/api/soratopup/orders/lookup', async (req, res) => {
   try {
     const q = String(req.query.query || '').trim().toLowerCase();
 
+    // If query is empty or less than 2 characters, DO NOT leak store orders to public/new devices!
+    if (!q || q.length < 2) {
+      return res.json({
+        success: true,
+        provider: 'soratopup',
+        count: 0,
+        orders: [],
+      });
+    }
+
     const manualList = getAllRosOrders(q);
     const formattedManual = manualList.map((o) => {
-      const isRoblox = String(o.gameId || o.game || '').toLowerCase().includes('roblox') || String(o.gameId || o.game || '').toLowerCase().includes('robux');
-      const gameLabel = isRoblox ? 'Roblox' : (o.gameName || 'RoS Legacy');
-      const gameId = isRoblox ? 'robuxsend' : 'roslegacy';
-      const defaultItem = isRoblox ? '100 Robux' : 'RoS Diamonds';
+      const rawGame = String(o.gameId || o.game || o.gameName || '').toLowerCase();
+      const rawPkg = String(o.packageName || '').toLowerCase();
+      const isRoblox = rawGame.includes('roblox') || rawGame.includes('robux') || rawPkg.includes('robux');
+      const isFreeFire = rawGame.includes('freefire') || rawGame.includes('free fire') || rawGame === 'ff';
+      const isRoS = rawGame.includes('ros') || rawGame.includes('legacy');
+
+      const gameLabel = isRoblox ? 'Roblox' : isFreeFire ? 'Free Fire' : (o.gameName || 'RoS Legacy');
+      const gameId = isRoblox ? 'robuxsend' : isFreeFire ? 'ff' : 'roslegacy';
+      const defaultItem = isRoblox ? '100 Robux' : isFreeFire ? 'Diamonds' : 'RoS Diamonds';
       const currency = isRoblox ? 'Robux' : 'Diamonds';
+      const icon = isRoblox
+        ? '/assets/games/roblox_tile_4k.jpg'
+        : isFreeFire
+        ? '/assets/games/freefire_tile_4k.jpg'
+        : '/assets/brand/yurigame-logo.webp';
 
       const rawGmail = o.playerDetails?.gmail || '';
       const maskedGmail = rawGmail.length > 5
@@ -1721,6 +1741,7 @@ app.get('/api/soratopup/orders/lookup', async (req, res) => {
         gameId,
         gameLabel,
         gameName: gameLabel,
+        icon,
         item: o.packageName || defaultItem,
         packageName: o.packageName || defaultItem,
         amount: Number(o.totalUsd || 0),
@@ -1771,17 +1792,29 @@ app.get('/api/soratopup/orders', requireAdminAuth, async (req, res) => {
     // 1. Always load manual admin orders (RoS Legacy & Roblox) first
     const manualList = getAllRosOrders(query);
     const formattedManual = manualList.map((o) => {
-      const isRoblox = String(o.gameId || o.game || '').toLowerCase().includes('roblox') || String(o.gameId || o.game || '').toLowerCase().includes('robux');
-      const gameLabel = isRoblox ? 'Roblox' : 'RoS Legacy';
-      const gameId = isRoblox ? 'robuxsend' : 'roslegacy';
-      const defaultItem = isRoblox ? '100 Robux' : 'RoS Diamonds';
+      const rawGame = String(o.gameId || o.game || o.gameName || '').toLowerCase();
+      const rawPkg = String(o.packageName || '').toLowerCase();
+      const isRoblox = rawGame.includes('roblox') || rawGame.includes('robux') || rawPkg.includes('robux');
+      const isFreeFire = rawGame.includes('freefire') || rawGame.includes('free fire') || rawGame === 'ff';
+      const isRoS = rawGame.includes('ros') || rawGame.includes('legacy');
+
+      const gameLabel = isRoblox ? 'Roblox' : isFreeFire ? 'Free Fire' : (o.gameName || 'RoS Legacy');
+      const gameId = isRoblox ? 'robuxsend' : isFreeFire ? 'ff' : 'roslegacy';
+      const defaultItem = isRoblox ? '100 Robux' : isFreeFire ? 'Diamonds' : 'RoS Diamonds';
       const currency = isRoblox ? 'Robux' : 'Diamonds';
+      const icon = isRoblox
+        ? '/assets/games/roblox_tile_4k.jpg'
+        : isFreeFire
+        ? '/assets/games/freefire_tile_4k.jpg'
+        : '/assets/brand/yurigame-logo.webp';
 
       return {
         refid: o.ref,
         ref: o.ref,
         gameId,
         gameLabel,
+        gameName: gameLabel,
+        icon,
         item: o.packageName || defaultItem,
         amount: o.totalUsd || 0,
         status: o.status === 'COMPLETED' ? 'Success' : (o.status === 'CANCELLED' ? 'Failed' : 'Pending'),

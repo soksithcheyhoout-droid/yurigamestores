@@ -313,6 +313,9 @@ export function isSoraGame(game) {
 
 export async function searchSoraOrders(query = '', options = {}) {
   const q = String(query || '').trim();
+  if (!q || q.length < 2) {
+    return { success: true, count: 0, orders: [] };
+  }
   const endpoint = `/api/soratopup/orders/lookup?query=${encodeURIComponent(q)}`;
   return requestJson(endpoint, options);
 }

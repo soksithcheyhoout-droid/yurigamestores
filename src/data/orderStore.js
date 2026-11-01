@@ -181,7 +181,7 @@ export function getStoredOrders() {
   } catch (e) {
     console.error("Error reading stored orders", e);
   }
-  return SEED_ORDERS;
+  return [];
 }
 
 // Save order to store and sync with MySQL database

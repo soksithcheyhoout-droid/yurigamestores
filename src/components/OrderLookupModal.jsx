@@ -17,9 +17,79 @@ import { searchSoraOrders } from '../data/soraStore';
 import { syncOrdersStatusWithRemote } from '../data/orderStore';
 import { pauseLenis, resumeLenis } from '../hooks/useLenisSmoothScroll';
 
+export function getOrderGameIcon(o) {
+  if (!o) return '/assets/brand/yurigame-logo.webp';
+  const rawGame = String(o?.gameId || o?.gameLabel || o?.gameName || o?.game || '').toLowerCase();
+  const rawItem = String(o?.item || o?.packageName || '').toLowerCase();
+
+  if (
+    rawGame.includes('roblox') ||
+    rawGame.includes('robux') ||
+    rawItem.includes('robux') ||
+    rawGame === 'robuxsend'
+  ) {
+    return '/assets/games/roblox_tile_4k.jpg';
+  }
+  if (
+    rawGame.includes('freefire') ||
+    rawGame.includes('free fire') ||
+    rawGame === 'ff' ||
+    rawItem.includes('free fire')
+  ) {
+    return '/assets/games/freefire_tile_4k.jpg';
+  }
+  if (
+    rawGame.includes('ros') ||
+    rawGame.includes('legacy') ||
+    rawGame === 'roslegacy'
+  ) {
+    return '/assets/brand/yurigame-logo.webp';
+  }
+  if (
+    rawGame.includes('mobile legend') ||
+    rawGame.includes('mlbb') ||
+    rawGame === 'ml' ||
+    rawItem.includes('diamond') ||
+    rawItem.includes('twilight') ||
+    rawItem.includes('weekly pass')
+  ) {
+    return '/assets/games/mlbb_tile_4k.jpg';
+  }
+  if (rawGame.includes('pubg')) {
+    return '/assets/games/pubg_tile_4k.jpg';
+  }
+  if (rawGame.includes('valorant') || rawGame.includes('valo')) {
+    return '/assets/games/valo_tile_4k.jpg';
+  }
+  if (rawGame.includes('cod') || rawGame.includes('call of duty')) {
+    return '/assets/games/codm_tile_4k.jpg';
+  }
+  if (rawGame.includes('clash')) {
+    return '/assets/games/clash_tile_4k.jpg';
+  }
+  if (rawGame.includes('genshin')) {
+    return '/assets/games/genshin_tile_4k.jpg';
+  }
+  if (rawGame.includes('honkai')) {
+    return '/assets/games/honkai_tile_4k.jpg';
+  }
+  if (rawGame.includes('steam')) {
+    return '/assets/games/steam_tile_4k.jpg';
+  }
+  if (o.icon && !o.icon.includes('harikitopup.com')) {
+    return o.icon;
+  }
+  return '/assets/brand/yurigame-logo.webp';
+}
+
 function normalizeSoraOrder(o) {
   const isRoS = o.gameId === 'roslegacy' || o.gameLabel === 'RoS Legacy';
-  const isRoblox = o.gameId === 'robuxsend' || o.gameLabel === 'Roblox' || o.gameName === 'Roblox';
+  const isRoblox =
+    o.gameId === 'robuxsend' ||
+    o.gameLabel === 'Roblox' ||
+    o.gameName === 'Roblox' ||
+    String(o.gameId || o.gameLabel || o.gameName || '').toLowerCase().includes('roblox') ||
+    String(o.item || o.packageName || '').toLowerCase().includes('robux');
   const isManual = isRoS || isRoblox;
   const rawStatus = String(o.rawStatus || o.status || '').toUpperCase();
   const status =
@@ -49,23 +119,9 @@ function normalizeSoraOrder(o) {
     timestamp: o.created_at || o.createdAt || o.timestamp || new Date().toISOString(),
     isLiveProvider: !isManual,
     isManualAdmin: isManual,
-    icon:
-      o.gameId === 'ml'
-        ? '/assets/games/mlbb_tile_4k.jpg'
-        : o.gameId === 'ff'
-        ? 'https://storage.harikitopup.com/branding/vouchers/freefire.svg'
-        : isRoblox
-        ? 'https://storage.harikitopup.com/branding/vouchers/roblox.svg'
-        : '/assets/brand/yurigame-logo.webp',
+    icon: getOrderGameIcon(o),
   };
 }
-
-const QUICK_SUGGESTIONS = [
-  { label: 'Ucantusemeee', query: 'Ucantusemeee' },
-  { label: 'mengboy1', query: 'mengboy1' },
-  { label: 'Yur1Uchiha', query: 'Yur1Uchiha' },
-  { label: 'kaixite', query: 'kaixite' },
-];
 
 export default function OrderLookupModal({
   pastOrders = [],
@@ -88,11 +144,19 @@ export default function OrderLookupModal({
 
   useEffect(() => {
     let active = true;
+    const cleanQ = query.trim();
+
+    // If query is empty or less than 2 chars, DO NOT poll or dump stranger orders on new devices!
+    if (cleanQ.length < 2) {
+      setLiveOrders([]);
+      setIsLoadingLive(false);
+      return;
+    }
 
     const fetchLive = async (isInitial = false) => {
       if (isInitial) setIsLoadingLive(true);
       try {
-        const payload = await searchSoraOrders(query);
+        const payload = await searchSoraOrders(cleanQ);
         if (!active) return;
         const list = Array.isArray(payload?.orders) ? payload.orders : [];
         const normalized = list.map(normalizeSoraOrder);
@@ -106,8 +170,7 @@ export default function OrderLookupModal({
     };
 
     fetchLive(true);
-    // Dynamic real-time auto-polling every 2.5 seconds:
-    // When Admin taps Done or Cancel in Telegram, the order status updates dynamically without reload!
+    // Dynamic real-time auto-polling every 2.5 seconds when searching:
     const timer = setInterval(() => {
       fetchLive(false);
     }, 2500);
@@ -152,11 +215,6 @@ export default function OrderLookupModal({
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setSearchTrigger((prev) => prev + 1);
-  };
-
-  const handleSuggestionClick = (sq) => {
-    setQuery(sq);
     setSearchTrigger((prev) => prev + 1);
   };
 
@@ -208,7 +266,7 @@ export default function OrderLookupModal({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Enter User ID, Player Name, or Ref (e.g. Ucantusemeee)..."
+                placeholder="Enter User ID, Player Name, or Ref (e.g. YGS-462709)..."
                 className="h-10 text-xs sm:text-sm w-full pl-10 pr-3 rounded-xl border border-[#27293A] bg-[#0A0B10] text-white placeholder-slate-500 outline-none transition focus:border-[#E3062F] focus:ring-1 focus:ring-[#E3062F] font-['Kantumruy_Pro']"
               />
             </div>
@@ -227,23 +285,6 @@ export default function OrderLookupModal({
               )}
             </button>
           </form>
-
-          {/* Quick Suggestions Chips */}
-          <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto no-scrollbar text-xs">
-            <span className="text-[11px] text-slate-500 font-bold shrink-0">
-              Suggestions:
-            </span>
-            {QUICK_SUGGESTIONS.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => handleSuggestionClick(item.query)}
-                className="px-2.5 py-0.5 rounded-lg bg-[#181923] border border-[#272A3A] text-slate-300 hover:border-[#E3062F] hover:text-[#E3062F] transition-colors cursor-pointer shrink-0 text-[11px] font-medium"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
 
           {/* Status Filter Tabs */}
           <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-[#1C1D26] overflow-x-auto no-scrollbar">
@@ -281,6 +322,7 @@ export default function OrderLookupModal({
               const isPending = s === 'PENDING' || s === 'PROCESSING';
               const isRefunded = s === 'REFUNDED';
               const isFailed = s === 'FAILED' || s === 'CANCELLED';
+              const gameTileIcon = order.icon || getOrderGameIcon(order);
 
               return (
                 <div
@@ -289,11 +331,12 @@ export default function OrderLookupModal({
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <img
-                      src={order.icon || '/assets/games/mlbb_tile_4k.jpg'}
+                      src={gameTileIcon}
                       alt={order.gameName}
                       className="w-12 h-12 rounded-xl object-cover border border-[#282B3C] bg-slate-900 shrink-0"
                       onError={(e) => {
-                        e.currentTarget.src = '/assets/games/mlbb_tile_4k.jpg';
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = getOrderGameIcon(order);
                       }}
                     />
                     <div className="min-w-0">
@@ -367,13 +410,17 @@ export default function OrderLookupModal({
               );
             })
           ) : (
-            <div className="py-12 text-center text-slate-500">
+            <div className="py-14 text-center text-slate-500">
               <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3 text-slate-400">
                 <Search size={20} />
               </div>
-              <p className="text-sm font-bold text-slate-300 m-0">No orders found</p>
-              <p className="text-xs text-slate-500 mt-1 m-0">
-                Try searching by your Roblox username, Free Fire UID, or reference number.
+              <p className="text-sm font-bold text-slate-300 m-0">
+                {query.trim().length >= 2 ? 'No matching orders found' : 'Track Your YuriGame Order'}
+              </p>
+              <p className="text-xs text-slate-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
+                {query.trim().length >= 2
+                  ? 'No order matches your search query. Please double check your Player ID, username, or order reference number.'
+                  : 'Enter your Player ID, Game Username, or Order Reference above and tap Search to view live order and delivery status.'}
               </p>
             </div>
           )}
@@ -386,7 +433,7 @@ export default function OrderLookupModal({
             <span>Verified Server-Side Database Records</span>
           </span>
           <span className="font-mono text-[10px]">
-            {filteredOrders.length} order(s) listed
+            {filteredOrders.length > 0 ? `${filteredOrders.length} order(s) listed` : 'Ready to search'}
           </span>
         </div>
       </div>

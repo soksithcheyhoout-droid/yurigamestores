@@ -17,7 +17,7 @@ import {
  * Automatically cuts out solid/white backgrounds from icons using border-connected flood fill & soft feathering.
  * Preserves inner highlights and exports as clean transparent PNG.
  */
-export const removeImageBackground = (imageSource, tolerance = 42, feather = 18) => {
+export const removeImageBackground = (imageSource, tolerance = 50, feather = 20) => {
   return new Promise((resolve, reject) => {
     if (!imageSource) return resolve(null);
 
@@ -172,6 +172,47 @@ export const removeImageBackground = (imageSource, tolerance = 42, feather = 18)
       }
 
       ctx.putImageData(imgData, 0, 0);
+
+      // Auto-Trim: Crop tight bounding box around the icon to avoid empty margins and make it look clean
+      let minX = width;
+      let minY = height;
+      let maxX = 0;
+      let maxY = 0;
+      let hasVisiblePixels = false;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const a = data[(y * width + x) * 4 + 3];
+          if (a > 20) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+            hasVisiblePixels = true;
+          }
+        }
+      }
+
+      if (hasVisiblePixels && (maxX - minX > 20) && (maxY - minY > 20)) {
+        const pad = Math.max(6, Math.round(Math.max(maxX - minX, maxY - minY) * 0.05));
+        const cropX = Math.max(0, minX - pad);
+        const cropY = Math.max(0, minY - pad);
+        const cropW = Math.min(width - cropX, (maxX - minX) + pad * 2);
+        const cropH = Math.min(height - cropY, (maxY - minY) + pad * 2);
+
+        const maxDim = Math.max(cropW, cropH);
+        const trimCanvas = document.createElement('canvas');
+        trimCanvas.width = maxDim;
+        trimCanvas.height = maxDim;
+        const trimCtx = trimCanvas.getContext('2d');
+        if (trimCtx) {
+          const offsetX = Math.floor((maxDim - cropW) / 2);
+          const offsetY = Math.floor((maxDim - cropH) / 2);
+          trimCtx.drawImage(canvas, cropX, cropY, cropW, cropH, offsetX, offsetY, cropW, cropH);
+          return resolve(trimCanvas.toDataURL('image/png'));
+        }
+      }
+
       const transparentPng = canvas.toDataURL('image/png');
       resolve(transparentPng);
     };

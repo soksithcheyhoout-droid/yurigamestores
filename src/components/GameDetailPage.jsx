@@ -1145,12 +1145,16 @@ export default function GameDetailPage({
                                     >
                                       {isMobileLegends ? (
                                         <>
-                                          <span className="mr-3 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#2A1018] text-[#FF3156] sm:h-12 sm:w-12">
-                                            {group.id !== 'regular' && pkg.image ? (
+                                          <span className={`mr-3 flex h-11 w-11 shrink-0 items-center justify-center sm:h-12 sm:w-12 ${
+                                            pkg.image
+                                              ? 'bg-transparent overflow-visible'
+                                              : 'overflow-hidden rounded-xl bg-[#2A1018] text-[#FF3156]'
+                                          }`}>
+                                            {pkg.image ? (
                                               <img
                                                 src={pkg.image}
-                                                alt=""
-                                                className="h-full w-full object-cover"
+                                                alt={pkg.name || ''}
+                                                className="h-full w-full object-contain drop-shadow-md"
                                                 onError={(event) => { event.currentTarget.style.display = 'none'; }}
                                               />
                                             ) : group.id === 'regular' ? (
@@ -1189,7 +1193,7 @@ export default function GameDetailPage({
                                         <>
                                           <div>
                                             {pkg.image && (
-                                              <img src={pkg.image} alt="" className="w-5 h-5 sm:w-6 sm:h-6 object-contain rounded mb-1" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                              <img src={pkg.image} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-md mb-1.5 bg-transparent" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                                             )}
                                             {pkg.popular && (
                                               <span className="inline-block text-[8px] sm:text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-[#E3062F] text-white mb-1">

@@ -710,10 +710,12 @@ export function consumeAdminToken(token) {
   return entry;
 }
 
+export const ADMIN_SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes session expiry
+
 export function createAdminSession(clientIp = '', userAgent = '', adminId = 'admin_master') {
   const now = Date.now();
   const sessionToken = crypto.randomBytes(32).toString('hex');
-  const expiresAt = now + 12 * 60 * 60 * 1000;
+  const expiresAt = now + ADMIN_SESSION_DURATION_MS;
   activeAdminSessions.set(sessionToken, {
     adminId: String(adminId || 'admin_master'),
     createdAt: now,

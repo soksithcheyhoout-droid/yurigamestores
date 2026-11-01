@@ -833,7 +833,7 @@ export async function cancelOrderFromWeb(ref, adminInfo = {}) {
 
 // 9. Admin 2FA Security Alerts
 export async function sendAdminLoginOtp(otpCode, ip = 'Unknown', userAgent = '') {
-  const { adminIds } = getTelegramConfig();
+  const { adminIds, groupId } = getTelegramConfig();
   const timeStr = formatLocalTime(new Date());
   const cleanAgent = String(userAgent || 'Web Browser').slice(0, 100);
 
@@ -853,7 +853,7 @@ export async function sendAdminLoginOtp(otpCode, ip = 'Unknown', userAgent = '')
     `⚠️ <i>Do NOT share this code with anyone. If you did not initiate this login, ignore it and review your admin security settings.</i>`
   ].join('\n');
 
-  // OTP codes are delivered only to private registered admin chats, never to a group.
+  // OTP codes are delivered to private registered admin chats first
   const targets = [...new Set(adminIds.filter(Boolean))];
   const results = await Promise.allSettled(
     targets.map((chatId) =>
@@ -864,9 +864,26 @@ export async function sendAdminLoginOtp(otpCode, ip = 'Unknown', userAgent = '')
       })
     )
   );
-  const sentCount = results.filter((result) => result.status === 'fulfilled' && result.value?.ok === true).length;
+  let sentCount = results.filter((result) => result.status === 'fulfilled' && result.value?.ok === true).length;
+
+  // Fallback to Admin Supergroup if private DM is not started by the admin user
+  if (sentCount === 0 && groupId) {
+    try {
+      const groupRes = await telegramRequest('sendMessage', {
+        chat_id: groupId,
+        text: `${text}\n\n<i>(Delivered to Admin Group as fallback)</i>`,
+        parse_mode: 'HTML',
+      });
+      if (groupRes?.ok) {
+        sentCount++;
+      }
+    } catch (fallbackErr) {
+      console.warn('[Admin 2FA] Fallback group delivery failed:', fallbackErr?.message || fallbackErr);
+    }
+  }
+
   if (sentCount === 0) {
-    throw new Error('Telegram rejected all configured OTP destinations.');
+    throw new Error('Telegram rejected all configured OTP destinations. Please ensure the bot is started in private chat (/start) or the bot is in your Telegram admin group.');
   }
   return { sentCount, totalTargets: targets.length };
 }

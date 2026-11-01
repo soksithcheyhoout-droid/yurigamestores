@@ -434,7 +434,7 @@ export default function AdminDashboard({ onBackToStore }) {
         setConfig(data.config);
         setContactsData(data.config.contacts || {});
       } else if (res.status === 401) {
-        handleLogout();
+        handleLogout('Admin session expired (30 minutes limit). Please log in again.');
       }
     } catch (err) {
       console.error('Failed to load admin config:', err);
@@ -453,7 +453,7 @@ export default function AdminDashboard({ onBackToStore }) {
       if (data.success) {
         setOrders(data.orders || []);
       } else if (res.status === 401) {
-        handleLogout();
+        handleLogout('Admin session expired (30 minutes limit). Please log in again.');
       }
     } catch (err) {
       console.error('Failed to load admin orders:', err);
@@ -478,7 +478,7 @@ export default function AdminDashboard({ onBackToStore }) {
       if (res.ok && data.success) {
         setAnalytics(data);
       } else if (res.status === 401) {
-        handleLogout();
+        handleLogout('Admin session expired (30 minutes limit). Please log in again.');
       } else {
         showToast(data.error || 'Could not load analytics. Live data will retry automatically.');
       }
@@ -512,8 +512,8 @@ export default function AdminDashboard({ onBackToStore }) {
     return () => clearInterval(interval);
   }, [isAuthenticated, activeTab]);
 
-  // Handle Logout
-  const handleLogout = () => {
+  // Handle Logout (optionally showing reason)
+  const handleLogout = (reason = '') => {
     analyticsRequestRef.current.controller?.abort();
     fetch('/api/admin/auth/logout', {
       method: 'POST',
@@ -524,7 +524,28 @@ export default function AdminDashboard({ onBackToStore }) {
     setLoginStep('REQUEST');
     setOtpCode('');
     setChallengeId('');
+    if (reason) {
+      setAuthError(reason);
+      showToast(reason);
+    }
   };
+
+  // Heartbeat check every 45s: automatically log out when 30-minute session expires
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/admin/auth/session', {
+          headers: getAuthHeaders(),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success || !data.authenticated) {
+          handleLogout('Admin session expired after 30 minutes. Please log in again.');
+        }
+      } catch {}
+    }, 45000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   // =====================================
   // ACTIONS: Game Stock & Logo (Option 5)
@@ -1163,6 +1184,9 @@ export default function AdminDashboard({ onBackToStore }) {
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-[#E3062F]/15 border border-[#E3062F]/40 text-[#E3062F] text-[10px] sm:text-[11px] font-black uppercase tracking-wider whitespace-nowrap">
               Control Panel
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold hidden sm:inline-flex items-center gap-1">
+              <Clock size={10} /> 30m Auto-Expire
             </span>
             <span className="text-xs text-slate-400 font-medium hidden lg:inline whitespace-nowrap">
               Store Master Admin

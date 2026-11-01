@@ -183,6 +183,10 @@ const inMemoryUsers = new Map([
 
 // Middleware: Security Headers & CORS
 const allowedOrigins = [
+  'https://yurigamest4res.com',
+  'https://www.yurigamest4res.com',
+  'https://yurigamestores.com',
+  'https://www.yurigamestores.com',
   'https://yurigamest4re.com',
   'https://www.yurigamest4re.com',
   'https://yurigamest4re.games',
@@ -268,6 +272,16 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
+    try {
+      const parsedHost = new URL(origin).hostname;
+      if (
+        parsedHost.endsWith('.railway.app') ||
+        parsedHost.includes('yurigamest4re') ||
+        parsedHost.includes('yurigamestore')
+      ) {
+        return callback(null, true);
+      }
+    } catch {}
     return callback(null, false);
   },
   credentials: true

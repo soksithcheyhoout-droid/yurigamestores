@@ -310,6 +310,35 @@ export async function getSoraCatalogue({ force = false } = {}) {
     }));
   }
 
+  // Ensure Mobile Legends is ALWAYS present in gamesByCode
+  if (!gamesByCode.has('ml')) {
+    gamesByCode.set('ml', normalizeGame({
+      code: 'ml',
+      name: 'Mobile Legends: Bang Bang',
+      image: '/assets/games/mlbb_tile_4k.jpg',
+      description: 'Mobile Legends direct diamond top-up. Enter your User ID and Zone ID.',
+      needServer: true,
+      verificationMode: 'live',
+      fields: [
+        { name: 'User ID', required: true, type: 'text', options: [] },
+        { name: 'Server ID', required: true, type: 'text', options: [] },
+      ],
+    }));
+  }
+
+  // Ensure Free Fire is ALWAYS present in gamesByCode
+  if (!gamesByCode.has('ff')) {
+    gamesByCode.set('ff', normalizeGame({
+      code: 'ff',
+      name: 'Free Fire',
+      image: '/assets/games/freefire_tile_4k.jpg',
+      description: 'Free Fire direct diamond recharge by Player ID.',
+      needServer: false,
+      verificationMode: 'live',
+      fields: [{ name: 'Player ID', required: true, type: 'text', options: [] }],
+    }));
+  }
+
   // Ensure RoS Legacy is ALWAYS present in gamesByCode
   if (!gamesByCode.has('roslegacy')) {
     gamesByCode.set('roslegacy', normalizeGame({
@@ -403,6 +432,67 @@ export async function getSoraPackages(gameCode, { force = false } = {}) {
         }),
         packages: ROBUX_PACKAGES,
         count: ROBUX_PACKAGES.length,
+        fetchedAt: new Date().toISOString(),
+        isFallback: true,
+      };
+    }
+
+    if (code === 'ml') {
+      const mlPackages = [
+        { id: "sora_ml_weekly", code: "weekly", providerCode: "weekly", name: "Weekly Diamond Pass", price: 1.81, bonus: "Save 60%", popular: true },
+        { id: "sora_ml_55", code: "55", providerCode: "55", name: "55 Diamonds", price: 0.77, bonus: "Fast Delivery", popular: false },
+        { id: "sora_ml_86", code: "86", providerCode: "86", name: "86 Diamonds", price: 1.25, bonus: "+9 Bonus", popular: false },
+        { id: "sora_ml_172", code: "172", providerCode: "172", name: "172 Diamonds", price: 2.45, bonus: "+16 Bonus", popular: false },
+        { id: "sora_ml_257", code: "257", providerCode: "257", name: "257 Diamonds", price: 3.65, bonus: "+27 Bonus", popular: true },
+        { id: "sora_ml_343", code: "343", providerCode: "343", name: "343 Diamonds", price: 4.85, bonus: "+37 Bonus", popular: false },
+        { id: "sora_ml_706", code: "706", providerCode: "706", name: "706 Diamonds", price: 9.80, bonus: "+88 Bonus", popular: true },
+        { id: "sora_ml_2195", code: "2195", providerCode: "2195", name: "2,195 Diamonds", price: 30.50, bonus: "+320 Bonus", popular: true },
+        { id: "sora_ml_3688", code: "3688", providerCode: "3688", name: "3,688 Diamonds", price: 50.80, bonus: "+550 Bonus", popular: false },
+        { id: "sora_ml_5532", code: "5532", providerCode: "5532", name: "5,532 Diamonds", price: 76.50, bonus: "+800 Bonus", popular: true }
+      ];
+      return {
+        game: normalizeGame({
+          code: 'ml',
+          name: 'Mobile Legends: Bang Bang',
+          image: '/assets/games/mlbb_tile_4k.jpg',
+          description: 'Mobile Legends direct diamond top-up. Enter your User ID and Zone ID.',
+          needServer: true,
+          verificationMode: 'live',
+          fields: [
+            { name: 'User ID', required: true, type: 'text', options: [] },
+            { name: 'Server ID', required: true, type: 'text', options: [] },
+          ],
+        }),
+        packages: mlPackages,
+        count: mlPackages.length,
+        fetchedAt: new Date().toISOString(),
+        isFallback: true,
+      };
+    }
+
+    if (code === 'ff') {
+      const ffPackages = [
+        { id: "sora_ff_25", code: "25", providerCode: "25", name: "25 Diamonds", price: 0.25, bonus: "Starter Pack", popular: false },
+        { id: "sora_ff_50", code: "50", providerCode: "50", name: "50 Diamonds", price: 0.48, bonus: "+5 Bonus", popular: false },
+        { id: "sora_ff_100", code: "100", providerCode: "100", name: "100 Diamonds", price: 0.88, bonus: "+10 Bonus", popular: false },
+        { id: "sora_ff_weekly", code: "weekly", providerCode: "weekly", name: "Weekly Membership", price: 1.80, bonus: "450 Total", popular: true },
+        { id: "sora_ff_310", code: "310", providerCode: "310", name: "310 Diamonds", price: 2.60, bonus: "+31 Bonus", popular: true },
+        { id: "sora_ff_520", code: "520", providerCode: "520", name: "520 Diamonds", price: 4.30, bonus: "+52 Bonus", popular: false },
+        { id: "sora_ff_1060", code: "1060", providerCode: "1060", name: "1,060 Diamonds", price: 8.60, bonus: "+106 Bonus", popular: true },
+        { id: "sora_ff_2180", code: "2180", providerCode: "2180", name: "2,180 Diamonds", price: 17.20, bonus: "+218 Bonus", popular: true }
+      ];
+      return {
+        game: normalizeGame({
+          code: 'ff',
+          name: 'Free Fire',
+          image: '/assets/games/freefire_tile_4k.jpg',
+          description: 'Free Fire direct diamond recharge by Player ID.',
+          needServer: false,
+          verificationMode: 'live',
+          fields: [{ name: 'Player ID', required: true, type: 'text', options: [] }],
+        }),
+        packages: ffPackages,
+        count: ffPackages.length,
         fetchedAt: new Date().toISOString(),
         isFallback: true,
       };

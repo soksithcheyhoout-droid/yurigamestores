@@ -189,7 +189,12 @@ export default function GameCatalog({
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       onError={(event) => {
                         event.currentTarget.onerror = null;
-                        event.currentTarget.src = '/assets/games/mlbb_tile_4k.jpg';
+                        const fallback =
+                          game.providerCode === 'robuxsend' ? '/assets/games/roblox_tile_4k.jpg' :
+                          game.providerCode === 'ff' ? '/assets/games/freefire_tile_4k.jpg' :
+                          game.providerCode === 'roslegacy' ? '/assets/brand/yurigame-logo.webp' :
+                          '/assets/games/mlbb_tile_4k.jpg';
+                        event.currentTarget.src = fallback;
                       }}
                     />
                     <span className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/55 to-transparent" />

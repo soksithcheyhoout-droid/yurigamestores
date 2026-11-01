@@ -78,6 +78,23 @@ export function mapSoraGame(game) {
 
   const slug = CANONICAL_GAME_SLUGS[code] || `sora-${code}`;
 
+  const defaultTile =
+    code === 'robuxsend' ? '/assets/games/roblox_tile_4k.jpg' :
+    code === 'ml' ? '/assets/games/mlbb_tile_4k.jpg' :
+    code === 'ff' ? '/assets/games/freefire_tile_4k.jpg' :
+    '/assets/brand/yurigame-logo.webp';
+
+  const defaultBanner =
+    code === 'robuxsend' ? '/assets/games/roblox_hero_4k.jpg' :
+    code === 'ml' ? '/assets/games/mlbb_hero_4k.jpg' :
+    code === 'ff' ? '/assets/games/freefire_hero_4k.jpg' :
+    '/assets/brand/yurigame-logo.webp';
+
+  const rawImage = String(game?.image || '');
+  const rawBanner = String(game?.banner || game?.image || '');
+  const finalImage = (!rawImage || rawImage.includes('harikitopup.com')) ? defaultTile : rawImage;
+  const finalBanner = (!rawBanner || rawBanner.includes('harikitopup.com')) ? defaultBanner : rawBanner;
+
   return {
     id: `sora_${code}`,
     slug,
@@ -89,10 +106,10 @@ export function mapSoraGame(game) {
     publisher: code === 'robuxsend' ? 'Roblox Corp' : code === 'roslegacy' ? 'NetEase' : 'SoraTopup Live',
     category: 'popular',
     badge: code === 'robuxsend' ? 'Official Username' : 'Live API',
-    image: game?.image || (code === 'robuxsend' ? '/assets/games/roblox_tile_4k.jpg' : FALLBACK_GAME_IMAGE),
-    banner: game?.banner || game?.image || (code === 'robuxsend' ? '/assets/games/roblox_hero_4k.jpg' : FALLBACK_GAME_IMAGE),
+    image: finalImage,
+    banner: finalBanner,
     description: String(game?.description || (code === 'robuxsend' ? 'Instant Robux delivery to your Roblox account by username. Safe and verified.' : 'Live game top-up through the SoraTopup provider.')),
-    currency: code === 'robuxsend' ? 'Robux' : 'top-up',
+    currency: code === 'robuxsend' ? 'Robux' : 'Diamonds',
     needServer: Boolean(game?.needServer),
     fields: (Array.isArray(game?.fields) ? game.fields : []).map(mapField),
     packages: [],
@@ -120,7 +137,8 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'robuxsend',
     name: 'Roblox',
-    image: 'https://storage.harikitopup.com/branding/vouchers/roblox.svg',
+    image: '/assets/games/roblox_tile_4k.jpg',
+    banner: '/assets/games/roblox_hero_4k.jpg',
     description: 'Robux delivered by Roblox username after account verification.',
     needServer: false,
     verificationMode: 'official',
@@ -130,6 +148,7 @@ export const FALLBACK_FOUR_GAMES = [
     code: 'ml',
     name: 'Mobile Legends: Bang Bang',
     image: '/assets/games/mlbb_tile_4k.jpg',
+    banner: '/assets/games/mlbb_hero_4k.jpg',
     description: 'Mobile Legends top-up. Enter your User ID and Zone ID.',
     needServer: true,
     verificationMode: 'live',
@@ -141,7 +160,8 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'ff',
     name: 'Free Fire',
-    image: 'https://storage.harikitopup.com/branding/vouchers/freefire.svg',
+    image: '/assets/games/freefire_tile_4k.jpg',
+    banner: '/assets/games/freefire_hero_4k.jpg',
     description: 'Free Fire direct top-up. Available for KH/SG/MY and all regions.',
     needServer: false,
     verificationMode: 'live',
@@ -151,6 +171,7 @@ export const FALLBACK_FOUR_GAMES = [
     code: 'roslegacy',
     name: 'RoS Legacy',
     image: '/assets/brand/yurigame-logo.webp',
+    banner: '/assets/brand/yurigame-logo.webp',
     description: 'RoS Legacy top-up. Enter your public username only.',
     needServer: false,
     verificationMode: 'format',

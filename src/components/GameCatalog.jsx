@@ -69,7 +69,8 @@ export default function GameCatalog({
                 (g, i) =>
                   g.id === catalogue.games[i]?.id &&
                   g.image === catalogue.games[i]?.image &&
-                  g.name === catalogue.games[i]?.name
+                  g.name === catalogue.games[i]?.name &&
+                  g.stockOpen === catalogue.games[i]?.stockOpen
               );
             return isSame ? current : catalogue.games;
           });
@@ -117,6 +118,11 @@ export default function GameCatalog({
   };
 
   const openGame = async (game) => {
+    if (game.stockOpen === false) {
+      setProviderError(`${game.name} is currently out of stock. Please check back later!`);
+      return;
+    }
+
     if (!isSoraGame(game)) {
       onSelectGame?.(game);
       return;
@@ -240,11 +246,22 @@ export default function GameCatalog({
                       }}
                     />
                     <span className="pointer-events-none absolute inset-x-0 bottom-0 h-6 sm:h-10 bg-gradient-to-t from-black/65 to-transparent" />
-                    {isLive && (
-                      <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 sm:gap-1 rounded-full border border-white/20 bg-black/80 px-1 sm:px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-wider text-white backdrop-blur-sm">
-                        <span className="h-1 sm:h-1.5 w-1 sm:w-1.5 rounded-full bg-[#ff1748] shadow-[0_0_6px_rgba(255,23,72,0.9)]" /> Live
-                      </span>
-                    )}
+                    <span
+                      className={`absolute left-1 top-1 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-wider backdrop-blur-sm ${
+                        game.stockOpen !== false
+                          ? 'border-emerald-500/40 bg-black/85 text-emerald-300'
+                          : 'border-rose-500/50 bg-black/85 text-rose-300'
+                      }`}
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          game.stockOpen !== false
+                            ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]'
+                            : 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]'
+                        }`}
+                      />
+                      {game.stockOpen !== false ? 'In Stock' : 'Out of Stock'}
+                    </span>
                     {isOpening && (
                       <span className="absolute inset-0 flex items-center justify-center bg-black/80 text-[8px] sm:text-[10px] font-bold text-white backdrop-blur-xs">
                         <Loader2 size={13} className="mr-1 animate-spin text-[#ff3156]" /> Loading
@@ -262,11 +279,23 @@ export default function GameCatalog({
                       </span>
                     </div>
 
-                    {/* TOP UP Action Button matching 3-column mobile reference */}
+                    {/* Action Button: TOP UP or OUT OF STOCK */}
                     <div className="mt-1.5 sm:mt-2.5 w-full">
-                      <span className="w-full inline-flex items-center justify-center gap-1 py-1 sm:py-1.5 px-1 rounded-full bg-gradient-to-r from-[#e3062f] via-[#ff1e4a] to-[#ff4969] text-white text-[9px] sm:text-[11.5px] font-black uppercase tracking-wider shadow-[0_3px_10px_rgba(227,6,47,0.35)] group-hover:shadow-[0_6px_20px_rgba(227,6,47,0.55)] group-hover:scale-[1.02] transition-all">
-                        <Zap size={10} className="fill-white" />
-                        TOP UP
+                      <span
+                        className={`w-full inline-flex items-center justify-center gap-1 py-1 sm:py-1.5 px-1 rounded-full text-white text-[9px] sm:text-[11.5px] font-black uppercase tracking-wider transition-all ${
+                          game.stockOpen !== false
+                            ? 'bg-gradient-to-r from-[#e3062f] via-[#ff1e4a] to-[#ff4969] shadow-[0_3px_10px_rgba(227,6,47,0.35)] group-hover:shadow-[0_6px_20px_rgba(227,6,47,0.55)] group-hover:scale-[1.02]'
+                            : 'bg-slate-800 text-slate-400 border border-slate-700/80'
+                        }`}
+                      >
+                        {game.stockOpen !== false ? (
+                          <>
+                            <Zap size={10} className="fill-white" />
+                            TOP UP
+                          </>
+                        ) : (
+                          'OUT OF STOCK'
+                        )}
                       </span>
                     </div>
                   </div>

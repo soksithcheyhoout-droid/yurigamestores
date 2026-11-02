@@ -60,7 +60,7 @@ export default function GameDetailPage({
   const isRoS = game?.providerCode === 'roslegacy' || game?.id === 'roslegacy';
   const isRoblox = game?.providerCode === 'robuxsend' || game?.id === 'robuxsend' || game?.slug === 'roblox';
   const isMobileLegends = game?.providerCode === 'ml' || game?.id === 'ml' || game?.slug === 'mobile-legends';
-  const isManualGame = isRoS || isRoblox;
+  const isManualGame = isRoS;
   const isLiveProvider = game?.provider === 'soratopup' && !isManualGame;
   const providerOrderingEnabled = true;
   const verificationButtonLabel = isRoblox
@@ -414,7 +414,7 @@ export default function GameDetailPage({
     }
 
     if (!providerOrderingEnabled) {
-      setFormError('Live SoraTopup ordering is locked until secure payment-to-provider fulfillment is enabled on the server.');
+      setFormError('Live ordering is temporarily unavailable. Please try again in a few moments.');
       return;
     }
 
@@ -547,7 +547,7 @@ export default function GameDetailPage({
           message: `${isRoblox ? 'Roblox Robux' : 'RoS Diamond'} order received and sent to Telegram admins for fulfillment.`,
         };
       } else if (isLiveProvider) {
-        setDeliveryMessage(`Placing live order to SoraTopup for ${game.name}...`);
+        setDeliveryMessage(`Delivering ${game.currency || 'items'} to your ${game.name} account...`);
         let fieldValues = (game.fields || []).map((f) => formData[f.key] || '');
         if (fieldValues.length === 0 || !fieldValues[0]) {
           const fallbackPrimary = formData.userId || formData.user_id_0 || formData.roblox_username_0 || verifiedProfile?.username || verifiedProfile?.playerId || '';
@@ -812,7 +812,7 @@ export default function GameDetailPage({
           <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-amber-700/40 bg-amber-950/25 px-3.5 py-3 text-[11px] leading-relaxed text-amber-200 sm:mb-6 sm:text-[12px]">
             <ShieldCheck size={16} className="mt-0.5 shrink-0 text-amber-400" />
             <span>
-              Live games and prices are connected. Paid provider ordering stays locked until payment verification is securely bound to SoraTopup fulfillment.
+              Instant top-up delivers automatically to your account once payment is verified.
             </span>
           </div>
         )}
@@ -1074,7 +1074,7 @@ export default function GameDetailPage({
                         <span>
                           {isManualGame
                             ? `Quantity ×${quantity}: the admin receives one order requesting ${quantity} units of this package.`
-                            : `Quantity ×${quantity}: after payment, SoraTopup sends ${quantity} separate idempotent deliveries of this package to the same account.`}
+                            : `Quantity ×${quantity}: after payment, your account will automatically receive ${quantity} separate deliveries of this package.`}
                         </span>
                       </div>
                     )}

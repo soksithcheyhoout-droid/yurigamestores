@@ -90,7 +90,7 @@ function normalizeSoraOrder(o) {
     o.gameName === 'Roblox' ||
     String(o.gameId || o.gameLabel || o.gameName || '').toLowerCase().includes('roblox') ||
     String(o.item || o.packageName || '').toLowerCase().includes('robux');
-  const isManual = isRoS || isRoblox;
+  const isManual = isRoS;
   const rawStatus = String(o.rawStatus || o.status || '').toUpperCase();
   const status =
     rawStatus === 'COMPLETED' || rawStatus === 'SUCCESS' || rawStatus === 'DELIVERED'

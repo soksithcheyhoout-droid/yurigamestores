@@ -98,6 +98,14 @@ export function mapSoraGame(game) {
   const finalImage = (!rawImage || rawImage.includes('harikitopup.com')) ? defaultTile : rawImage;
   const finalBanner = (!rawBanner || rawBanner.includes('harikitopup.com')) ? defaultBanner : rawBanner;
 
+  const publisherMap = {
+    robuxsend: 'Roblox Corp',
+    ml: 'Moonton',
+    ff: 'Garena',
+    roslegacy: 'NetEase',
+  };
+  const publisher = game?.publisher || publisherMap[code] || 'Official Publisher';
+
   return {
     id: `sora_${code}`,
     slug,
@@ -106,16 +114,22 @@ export function mapSoraGame(game) {
     orderingEnabled: true,
     verificationMode: game?.verificationMode || (code === 'robuxsend' ? 'official' : 'none'),
     name: String(game?.name || (code === 'robuxsend' ? 'Roblox' : code)),
-    publisher: code === 'robuxsend' ? 'Roblox Corp' : code === 'roslegacy' ? 'NetEase' : 'SoraTopup Live',
+    publisher,
     category: 'popular',
-    badge: code === 'robuxsend' ? 'Official Username' : 'Live API',
+    badge: code === 'robuxsend' ? 'Instant Robux' : 'Official Top-Up',
     image: finalImage,
     banner: finalBanner,
-    description: String(game?.description || (code === 'robuxsend' ? 'Instant Robux delivery to your Roblox account by username. Safe and verified.' : 'Live game top-up through the SoraTopup provider.')),
+    description: String(
+      game?.description ||
+      (code === 'robuxsend'
+        ? 'Instant Robux delivery to your Roblox account by username. Safe and verified.'
+        : 'Official game top-up with instant automated delivery.')
+    ),
     currency: code === 'robuxsend' ? 'Robux' : 'Diamonds',
     needServer: Boolean(game?.needServer),
     fields: (Array.isArray(game?.fields) ? game.fields : []).map(mapField),
     packages: [],
+    stockOpen: game?.stockOpen !== false,
     rating: 'Live',
     sales: 'API',
   };

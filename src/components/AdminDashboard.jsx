@@ -472,9 +472,11 @@ export default function AdminDashboard({ onBackToStore }) {
             orderingEnabled: true,
             verificationMode: g.verificationMode || (code === 'robuxsend' ? 'official' : 'none'),
             name: g.name,
-            publisher: g.publisher || (code === 'robuxsend' ? 'Roblox Corp' : code === 'roslegacy' ? 'NetEase' : 'SoraTopup Live'),
+            publisher:
+              g.publisher ||
+              (code === 'robuxsend' ? 'Roblox Corp' : code === 'roslegacy' ? 'NetEase' : code === 'ml' ? 'Moonton' : code === 'ff' ? 'Garena' : 'Official Publisher'),
             category: 'popular',
-            badge: g.badge || (code === 'robuxsend' ? 'Official Username' : 'Live API'),
+            badge: g.badge || (code === 'robuxsend' ? 'Instant Robux' : 'Official Top-Up'),
             image: g.image,
             banner: g.banner || g.image,
             description: g.description || '',

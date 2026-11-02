@@ -71,7 +71,7 @@ export default function MarqueeBadges({ onSelectGame }) {
         </div>
         <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Live SoraTopup & PayLink KHQR Verified
+          Verified Instant Top-Up & Bakong KHQR
         </div>
       </div>
 

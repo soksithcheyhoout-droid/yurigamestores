@@ -1431,9 +1431,9 @@ async function connectAdminPackageToSora(gameIdentifier, packageData = {}, optio
   }
 
   const providerGameCode = String(game.providerCode || game.id || '').toLowerCase();
-  const isSoraGame = ['ml', 'mobile-legends', 'ff', 'free-fire', 'freefire'].includes(providerGameCode);
+  const isSoraGame = ['ml', 'mobile-legends', 'ff', 'free-fire', 'freefire', 'robuxsend', 'roblox'].includes(providerGameCode);
 
-  // Manual games (Roblox robuxsend, RoS roslegacy, or custom games) do not use SoraTopup
+  // Manual games (RoS roslegacy, or custom manual games) do not use SoraTopup
   if (!providerGameCode || !isSoraGame) {
     return {
       ...packageData,
@@ -1587,9 +1587,17 @@ function publicSoraGame(game) {
   const customImage = adminGame?.image && String(adminGame.image).trim();
   const customBanner = adminGame?.banner && String(adminGame.banner).trim();
 
+  const publisherMap = {
+    robuxsend: 'Roblox Corp',
+    ml: 'Moonton',
+    ff: 'Garena',
+    roslegacy: 'NetEase',
+  };
+
   return {
     ...game,
     name: adminGame?.name || game.name,
+    publisher: adminGame?.publisher || publisherMap[game.code] || 'Official Publisher',
     stockOpen: adminGame?.stockOpen !== false,
     image: customImage || LOCAL_GAME_IMAGES[game.code] || (game.image ? `/api/soratopup/image/${encodeURIComponent(game.code)}` : '/assets/games/mlbb_tile_4k.jpg'),
     banner: customBanner || LOCAL_GAME_BANNERS[game.code] || customImage || LOCAL_GAME_IMAGES[game.code] || (game.banner || game.image || '/assets/games/mlbb_hero_4k.jpg'),
@@ -1937,12 +1945,11 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
   const targetQuantity = normalizeOrderQuantity(orderDetails.quantity || 1);
   const finalRef = orderRef || ref || `YGS-${Math.floor(100000 + Math.random() * 900000)}`;
 
-  // Roblox & RoS Legacy orders are fulfilled manually via direct Telegram Admin notification with Done/Cancel buttons!
-  if (targetGame === 'roslegacy' || targetGame === 'robuxsend' || targetGame === 'roblox') {
-    const isRoblox = targetGame === 'robuxsend' || targetGame === 'roblox';
-    const username = fieldValues[0] || playerDetails?.userId || playerDetails?.username || playerDetails?.account || verifiedPlayer || (isRoblox ? 'Roblox Player' : 'RoS Player');
+  // RoS Legacy orders are fulfilled manually via direct Telegram Admin notification with Done/Cancel buttons!
+  if (targetGame === 'roslegacy') {
+    const username = fieldValues[0] || playerDetails?.userId || playerDetails?.username || playerDetails?.account || verifiedPlayer || 'RoS Player';
     const gmail = fieldValues[1] || playerDetails?.gmail || '';
-    const prefix = isRoblox ? 'RBLX' : 'ROS';
+    const prefix = 'ROS';
     const refFinal = finalRef.startsWith(prefix) ? finalRef : `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const manualOrder = {
@@ -1950,11 +1957,11 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
       ref: refFinal,
       clientIp: orderDetails.clientIp || '',
       deviceId: orderDetails.deviceId || '',
-      game: isRoblox ? 'robuxsend' : 'roslegacy',
-      gameId: isRoblox ? 'robuxsend' : 'roslegacy',
-      gameName: isRoblox ? 'Roblox' : 'RoS Legacy',
+      game: 'roslegacy',
+      gameId: 'roslegacy',
+      gameName: 'RoS Legacy',
       code: targetCode,
-      packageName: packageName || (isRoblox ? `${targetCode} Robux` : 'RoS Diamonds'),
+      packageName: packageName || 'RoS Diamonds',
       quantity: targetQuantity,
       totalUsd: Number(totalUsd || 0),
       totalKhr: totalKhr || (Math.round((Number(totalUsd || 0)) * 4100)).toLocaleString(),
@@ -1985,11 +1992,16 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
     };
   }
 
+  const cleanTargetGame = targetGame === 'roblox' ? 'robuxsend' : targetGame;
+  const cleanFieldValues = Array.isArray(fieldValues) && fieldValues.length > 0 && fieldValues[0]
+    ? fieldValues
+    : [playerDetails?.userId || playerDetails?.username || playerDetails?.account || verifiedPlayer || 'Player'];
+
   // Live provider automated fulfillment: submit one idempotent provider order per selected quantity.
   const batch = await createSoraOrderBatch({
-    game: targetGame,
+    game: cleanTargetGame,
     code: targetCode,
-    fieldValues,
+    fieldValues: cleanFieldValues,
     orderRef: finalRef,
     quantity: targetQuantity,
   });
@@ -1998,7 +2010,7 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
   const fulfillmentStatus = fullyDelivered ? 'DELIVERED' : 'PENDING_ADMIN';
   const providerRefs = batch.successful.map((item) => item.providerRef || item.orderRef);
   const fulfillmentMessage = fullyDelivered
-    ? `${batch.completedQuantity} of ${batch.requestedQuantity} item(s) delivered through SoraTopup.`
+    ? `${batch.completedQuantity} of ${batch.requestedQuantity} item(s) delivered successfully.`
     : `${batch.completedQuantity} of ${batch.requestedQuantity} item(s) delivered. ${batch.failedQuantity} item(s) require admin review.`;
 
   try {
@@ -2010,17 +2022,17 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
       ff: 'Free Fire',
       freefire: 'Free Fire',
     };
-    const resolvedGameName = gameNameMap[targetGame] || targetGame;
+    const resolvedGameName = gameNameMap[cleanTargetGame] || cleanTargetGame;
 
     const automatedOrder = {
       ref: finalRef,
       clientIp: orderDetails.clientIp || '',
       deviceId: orderDetails.deviceId || '',
-      game: targetGame,
-      gameId: targetGame,
+      game: cleanTargetGame,
+      gameId: cleanTargetGame,
       gameName: resolvedGameName,
       packageId: orderDetails.packageId || targetCode,
-      packageName: packageName || primaryResult?.item || `${targetCode} Credits`,
+      packageName: packageName || primaryResult?.item || (cleanTargetGame === 'robuxsend' ? `${targetCode} Robux` : `${targetCode} Credits`),
       quantity: targetQuantity,
       deliveredQuantity: batch.completedQuantity,
       pendingQuantity: batch.failedQuantity,
@@ -2029,26 +2041,26 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
       totalKhr: totalKhr || (Math.round(Number(totalUsd || primaryResult?.amount || 0) * 4100)).toLocaleString(),
       paymentMethod: paymentMethod || 'Bakong KHQR',
       playerDetails: {
-        userId: fieldValues[0] || playerDetails?.userId || playerDetails?.account || 'Player',
-        zoneId: fieldValues[1] || playerDetails?.zoneId || '',
-        account: fieldValues[0] || playerDetails?.account || playerDetails?.userId || 'Player',
+        userId: cleanFieldValues[0] || playerDetails?.userId || playerDetails?.account || 'Player',
+        zoneId: cleanFieldValues[1] || playerDetails?.zoneId || '',
+        account: cleanFieldValues[0] || playerDetails?.account || playerDetails?.userId || 'Player',
       },
-      verifiedPlayer: verifiedPlayer || fieldValues[0] || playerDetails?.userId || 'Player',
+      verifiedPlayer: verifiedPlayer || cleanFieldValues[0] || playerDetails?.userId || 'Player',
       status: fulfillmentStatus,
       providerStatus: batch.status,
       providerReason: fulfillmentMessage,
-      source: 'soratopup',
+      source: 'instant_api',
       createdAt: new Date().toISOString(),
     };
     await persistOrderHistory(automatedOrder);
-    notifyOrderToAdmins(automatedOrder).catch((error) => console.warn('[Telegram Alert] Sora notification warning:', error.message));
+    notifyOrderToAdmins(automatedOrder).catch((error) => console.warn('[Telegram Alert] Order notification warning:', error.message));
   } catch (notifyErr) {
     console.warn('[Order History] Automated order recording notice:', notifyErr.message);
   }
 
   return {
     success: true,
-    provider: 'soratopup',
+    provider: 'instant_api',
     refid: finalRef,
     orderRef: finalRef,
     providerRefs,

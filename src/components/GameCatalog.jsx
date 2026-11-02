@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Cloud, Loader2, RefreshCw, Search } from 'lucide-react';
+import {
+  ArrowRight,
+  ChevronDown,
+  Cloud,
+  Flame,
+  Loader2,
+  RefreshCw,
+  Search,
+  Zap,
+} from 'lucide-react';
 import {
   FALLBACK_FOUR_GAMES,
   fetchSoraCatalogue,
@@ -117,12 +126,26 @@ export default function GameCatalog({
   };
 
   return (
-    <section id="catalog" className="scroll-mt-24 border-y border-slate-200 bg-white py-8 sm:py-10">
+    <section id="catalog" className="scroll-mt-24 border-y border-slate-800/80 bg-[#0d0e14] py-6 sm:py-9">
       <div className="seagm-container">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="m-0 text-[11px] text-slate-400 sm:text-[12px] font-medium">
-            Four carefully selected games with current packages and secure player checks.
-          </p>
+        {/* Section Header with Featured Badge */}
+        <div className="mb-4 sm:mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center justify-between sm:justify-start gap-2.5">
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#E3062F] to-[#FF4D6D] text-white shadow-[0_4px_14px_rgba(227,6,47,0.4)]">
+                <Flame size={17} className="fill-white" />
+              </span>
+              <h2 className="m-0 text-base sm:text-xl font-black uppercase tracking-tight text-white font-['Rajdhani'] flex items-center gap-1.5">
+                Featured <span className="text-[#E3062F]">Games</span>
+              </h2>
+            </div>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/90 border border-slate-700/80 text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-200 shadow-sm">
+              <span className="text-[#E3062F] font-black">{visibleGames.length}</span> GAMES
+              <ArrowRight size={12} className="text-[#E3062F]" />
+            </span>
+          </div>
+
           <label className="relative block w-full sm:w-[280px]">
             <span className="sr-only">Search products</span>
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -131,7 +154,7 @@ export default function GameCatalog({
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search Roblox, MLBB, Free Fire, RoS..."
-              className="h-9 w-full rounded-xl border border-slate-700/60 bg-slate-900/60 pl-9 pr-3 text-[12px] text-slate-100 outline-none focus:border-[#e3062f] transition-colors"
+              className="h-9 w-full rounded-xl border border-slate-700/60 bg-slate-900/80 pl-9 pr-3 text-[12px] text-slate-100 outline-none focus:border-[#e3062f] transition-colors"
             />
           </label>
         </div>
@@ -155,14 +178,14 @@ export default function GameCatalog({
           </div>
         )}
 
-        <div className="no-scrollbar mb-5 flex gap-5 overflow-x-auto border-b border-slate-200">
+        <div className="no-scrollbar mb-4 flex gap-5 overflow-x-auto border-b border-slate-800/70">
           {CATEGORIES.map((category) => (
             <button
               key={category.id}
               type="button"
               onClick={() => selectCategory(category.id)}
               aria-pressed={selectedCategory === category.id}
-              className={`shrink-0 border-0 border-b-2 bg-transparent px-0 pb-2.5 text-[11px] font-bold sm:text-[12px] ${selectedCategory === category.id
+              className={`shrink-0 border-0 border-b-2 bg-transparent px-0 pb-2 text-[11px] font-bold sm:text-[12px] ${selectedCategory === category.id
                   ? 'border-[#e3062f] text-[#ff5575]'
                   : 'border-transparent text-slate-500 hover:text-slate-100'
                 }`}
@@ -170,13 +193,13 @@ export default function GameCatalog({
               {category.label}
             </button>
           ))}
-          <span className="ml-auto hidden pb-2.5 text-[10px] text-slate-400 sm:block">
-            {filteredGames.length.toLocaleString()} products
+          <span className="ml-auto hidden pb-2 text-[10px] text-slate-400 sm:block">
+            {filteredGames.length.toLocaleString()} authorized products
           </span>
         </div>
 
         {visibleGames.length ? (
-          <div className="flex flex-wrap gap-3.5 sm:gap-4.5">
+          <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4.5">
             {visibleGames.map((game) => {
               const isLive = isSoraGame(game);
               const isOpening = openingGameCode === game.providerCode;
@@ -188,9 +211,9 @@ export default function GameCatalog({
                   type="button"
                   onClick={() => openGame(game)}
                   disabled={Boolean(openingGameCode)}
-                  className="group w-[calc(50%-7px)] sm:w-[150px] md:w-[165px] lg:w-[172px] shrink-0 border-0 bg-transparent p-0 text-left cursor-pointer transition-all disabled:cursor-wait disabled:opacity-70"
+                  className="group relative flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#181926]/90 to-[#0e0f16]/95 p-2 sm:p-2.5 border border-slate-800/90 hover:border-[#E3062F]/60 transition-all duration-300 shadow-md hover:shadow-[0_10px_25px_rgba(227,6,47,0.25)] hover:-translate-y-1 text-left cursor-pointer disabled:cursor-wait disabled:opacity-70"
                 >
-                  <span className="relative block aspect-square w-full overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/60 shadow-md transition-all duration-300 group-hover:-translate-y-1 group-hover:border-[#e3062f]/60 group-hover:shadow-[0_12px_24px_rgba(227,6,47,0.22)]">
+                  <div className="relative aspect-square w-full overflow-hidden rounded-xl sm:rounded-2xl border border-slate-700/50 bg-[#12131C] shadow-inner">
                     <img
                       src={game.image}
                       alt={game.name}
@@ -199,48 +222,52 @@ export default function GameCatalog({
                       onError={(event) => {
                         event.currentTarget.onerror = null;
                         const fallback =
-                          game.providerCode === 'robuxsend' ? '/assets/games/roblox_tile_4k.jpg' :
-                          game.providerCode === 'ff' ? '/assets/games/freefire_tile_4k.jpg' :
-                          game.providerCode === 'roslegacy' ? '/assets/brand/yurigame-logo.webp' :
-                          '/assets/games/mlbb_tile_4k.jpg';
+                          game.providerCode === 'robuxsend' ? '/assets/games/current_roblox.jpg' :
+                          game.providerCode === 'ff' ? '/assets/games/current_free-fire.jpg' :
+                          game.providerCode === 'roslegacy' ? '/assets/games/current_ros-legacy.jpg' :
+                          '/assets/games/current_mobile-legends.jpg';
                         event.currentTarget.src = fallback;
                       }}
                     />
-                    <span className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/55 to-transparent" />
+                    <span className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/65 to-transparent" />
                     {isLive && (
-                      <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/75 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-[0.08em] text-white backdrop-blur-sm">
+                      <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/80 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-white backdrop-blur-sm">
                         <span className="h-1.5 w-1.5 rounded-full bg-[#ff1748] shadow-[0_0_6px_rgba(255,23,72,0.9)]" /> Live
                       </span>
                     )}
                     {isOpening && (
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/75 text-[10px] font-bold text-white backdrop-blur-xs">
-                        <Loader2 size={15} className="mr-1.5 animate-spin text-[#ff3156]" /> Loading
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/80 text-[10px] font-bold text-white backdrop-blur-xs">
+                        <Loader2 size={16} className="mr-1.5 animate-spin text-[#ff3156]" /> Loading
                       </span>
                     )}
-                  </span>
-                  <span className="block pt-2">
-                    <span className="block truncate text-[12px] font-extrabold text-slate-100 group-hover:text-[#ff5575] sm:text-[13px] transition-colors">
-                      {game.name}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[10px] text-slate-400 font-medium sm:text-[11px]">
-                      {game.publisher}
-                    </span>
-                    <span className="mt-1 flex items-baseline gap-1 text-[10px] text-slate-400">
-                      {isLive ? (
-                        <strong className="text-[11px] font-extrabold text-[#ff5575]">View live prices</strong>
-                      ) : (
-                        <>From <strong className="text-[12px] font-extrabold text-slate-200 sm:text-[13px]">${startingPrice.toFixed(2)}</strong></>
-                      )}
-                    </span>
-                  </span>
+                  </div>
+
+                  <div className="mt-2 flex flex-col flex-1 justify-between w-full">
+                    <div>
+                      <span className="block truncate text-center text-[12px] sm:text-[14px] font-black text-white group-hover:text-[#ff4d6d] transition-colors leading-tight">
+                        {game.name}
+                      </span>
+                      <span className="mt-0.5 block truncate text-center text-[10px] sm:text-[11px] text-slate-400 font-medium">
+                        {game.publisher}
+                      </span>
+                    </div>
+
+                    {/* TOP UP Action Button matching mobile reference */}
+                    <div className="mt-2.5 w-full">
+                      <span className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 sm:py-2 px-2.5 rounded-full bg-gradient-to-r from-[#e3062f] via-[#ff1e4a] to-[#ff4969] text-white text-[11px] sm:text-[12px] font-black uppercase tracking-wider shadow-[0_4px_14px_rgba(227,6,47,0.38)] group-hover:shadow-[0_6px_20px_rgba(227,6,47,0.55)] group-hover:scale-[1.02] transition-all">
+                        <Zap size={12} className="fill-white" />
+                        TOP UP
+                      </span>
+                    </div>
+                  </div>
                 </button>
               );
             })}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center">
-            <h3 className="m-0 text-[14px] font-bold text-slate-900">No products found</h3>
-            <p className="m-0 mt-1 text-[11px] text-slate-500">Try a different title or category.</p>
+          <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/40 px-5 py-10 text-center">
+            <h3 className="m-0 text-[14px] font-bold text-slate-100">No products found</h3>
+            <p className="m-0 mt-1 text-[11px] text-slate-400">Try a different title or category.</p>
           </div>
         )}
 

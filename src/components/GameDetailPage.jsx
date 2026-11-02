@@ -763,14 +763,18 @@ export default function GameDetailPage({
             <div className="absolute inset-0 bg-gradient-to-t from-[#0C0D13] via-transparent to-transparent" />
           </div>
 
-          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 p-4 sm:p-6">
+          <div className="relative z-10 flex flex-row items-center gap-3.5 sm:gap-6 p-4 sm:p-6">
             <img
               src={customGameImage || game.image}
               alt={game.name}
-              className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl object-cover bg-[#161722] p-1 border-2 border-[#E3062F] shadow-[0_0_25px_rgba(227,6,47,0.35)] shrink-0"
+              className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl sm:rounded-3xl object-cover bg-[#161722] p-1 border-2 border-[#E3062F] shadow-[0_0_25px_rgba(227,6,47,0.4)] shrink-0"
               onError={(e) => {
                 e.currentTarget.onerror = null;
-                e.currentTarget.src = '/assets/games/mlbb_tile_4k.jpg';
+                e.currentTarget.src =
+                  game.providerCode === 'robuxsend' ? '/assets/games/current_roblox.jpg' :
+                  game.providerCode === 'ff' ? '/assets/games/current_free-fire.jpg' :
+                  game.providerCode === 'roslegacy' ? '/assets/games/current_ros-legacy.jpg' :
+                  '/assets/games/current_mobile-legends.jpg';
               }}
             />
 

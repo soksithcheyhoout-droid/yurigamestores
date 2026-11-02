@@ -61,7 +61,7 @@ function wrapIndex(index) {
 export default function Hero({ onSelectGame }) {
   const [slides, setSlides] = useState(() => getCachedSlides() || PROMO_SLIDES);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [direction, setDirection] = useState(1);
+  const [direction, setDirection] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   const [isOpeningSlide, setIsOpeningSlide] = useState(false);
   const touchStartX = useRef(null);
@@ -75,7 +75,7 @@ export default function Hero({ onSelectGame }) {
           const mapped = d.banners.map(b => {
             const bannerImg = (b.image && String(b.image).trim())
               ? b.image
-              : (b.gameSlug === 'mobile-legends' ? '/assets/banners/banner_mlbb.jpg' : b.gameSlug === 'free-fire' ? '/assets/banners/banner_freefire.jpg' : '/assets/games/roblox_hero_4k.jpg');
+              : (b.gameSlug === 'mobile-legends' ? '/assets/banners/banner_mlbb.jpg' : b.gameSlug === 'free-fire' ? '/assets/banners/banner_freefire.jpg' : '/assets/games/current_roblox.jpg');
             return {
               id: b.id,
               image: bannerImg,
@@ -86,7 +86,13 @@ export default function Hero({ onSelectGame }) {
               position: 'center'
             };
           });
-          setSlides(mapped);
+
+          // Avoid remounting identical slides on refresh to keep render 100% glitch-free
+          setSlides(current => {
+            const isSame = current.length === mapped.length && current.every((s, i) => s.id === mapped[i]?.id && s.image === mapped[i]?.image);
+            return isSame ? current : mapped;
+          });
+
           try {
             if (typeof window !== 'undefined') {
               window.localStorage.setItem(HERO_CACHE_KEY, JSON.stringify(mapped));
@@ -224,7 +230,7 @@ export default function Hero({ onSelectGame }) {
               <div
                 key={activeSlide.id}
                 className="topbar-promo-media"
-                data-direction={direction > 0 ? 'next' : 'previous'}
+                data-direction={direction ? (direction > 0 ? 'next' : 'previous') : undefined}
               >
                 {activeSlide.kind === 'brand' ? (
                   <div className="yurigame-brand-slide">

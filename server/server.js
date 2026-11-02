@@ -3013,10 +3013,45 @@ app.post('/api/admin/soratopup/sync', requireAdminAuth, async (req, res) => {
   }
 });
 
+function saveBase64ToFile(base64Str, prefix = 'img') {
+  if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image/')) {
+    return base64Str;
+  }
+  try {
+    const match = base64Str.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+    if (!match) return base64Str;
+    const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+    const filename = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+    const uploadDir = path.join(PROJECT_ROOT, 'public', 'assets', 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const filePath = path.join(uploadDir, filename);
+    fs.writeFileSync(filePath, Buffer.from(match[2], 'base64'));
+    return `/assets/uploads/${filename}`;
+  } catch (err) {
+    console.warn('[saveBase64ToFile] Error saving upload to disk:', err.message);
+    return base64Str;
+  }
+}
+
+function sanitizeUploadPayload(body = {}, prefix = 'img') {
+  if (!body || typeof body !== 'object') return body;
+  const clone = { ...body };
+  if (clone.image && typeof clone.image === 'string' && clone.image.startsWith('data:image/')) {
+    clone.image = saveBase64ToFile(clone.image, `${prefix}_icon`);
+  }
+  if (clone.banner && typeof clone.banner === 'string' && clone.banner.startsWith('data:image/')) {
+    clone.banner = saveBase64ToFile(clone.banner, `${prefix}_banner`);
+  }
+  return clone;
+}
+
 // 4. Update Game (Option 5: Stock Open/Close, Logo, Banner, Name)
 app.post('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
   const { gameId } = req.params;
-  const updated = updateGameConfig(gameId, req.body || {});
+  const sanitized = sanitizeUploadPayload(req.body || {}, `game_${gameId}`);
+  const updated = updateGameConfig(gameId, sanitized);
   if (!updated) {
     return res.status(404).json({ success: false, error: 'Game not found' });
   }
@@ -3027,7 +3062,8 @@ app.post('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
 app.post('/api/admin/packages/:gameId', requireAdminAuth, async (req, res) => {
   const { gameId } = req.params;
   try {
-    const connectedData = await connectAdminPackageToSora(gameId, req.body || {});
+    const sanitized = sanitizeUploadPayload(req.body || {}, `pkg_${gameId}`);
+    const connectedData = await connectAdminPackageToSora(gameId, sanitized);
     const created = addPackageToGame(gameId, connectedData);
     if (!created) {
       return res.status(400).json({ success: false, error: 'Could not add package' });
@@ -3041,7 +3077,8 @@ app.post('/api/admin/packages/:gameId', requireAdminAuth, async (req, res) => {
 app.put('/api/admin/packages/:gameId/:pkgId', requireAdminAuth, async (req, res) => {
   const { gameId, pkgId } = req.params;
   try {
-    const connectedData = await connectAdminPackageToSora(gameId, req.body || {});
+    const sanitized = sanitizeUploadPayload(req.body || {}, `pkg_${gameId}`);
+    const connectedData = await connectAdminPackageToSora(gameId, sanitized);
     const updated = updatePackageInGame(gameId, pkgId, connectedData);
     if (!updated) {
       return res.status(404).json({ success: false, error: 'Package not found' });
@@ -3060,13 +3097,15 @@ app.delete('/api/admin/packages/:gameId/:pkgId', requireAdminAuth, (req, res) =>
 
 // 6. MLBB Event Categories & Event Packages CRUD (Option 1)
 app.post('/api/admin/mlbb-events', requireAdminAuth, (req, res) => {
-  const created = addMlbbEvent(req.body || {});
+  const sanitized = sanitizeUploadPayload(req.body || {}, 'event');
+  const created = addMlbbEvent(sanitized);
   return res.status(201).json({ success: true, event: created });
 });
 
 app.put('/api/admin/mlbb-events/:eventId', requireAdminAuth, (req, res) => {
   const { eventId } = req.params;
-  const updated = updateMlbbEvent(eventId, req.body || {});
+  const sanitized = sanitizeUploadPayload(req.body || {}, 'event');
+  const updated = updateMlbbEvent(eventId, sanitized);
   if (!updated) return res.status(404).json({ success: false, error: 'Event not found' });
   return res.json({ success: true, event: updated });
 });
@@ -3080,7 +3119,8 @@ app.delete('/api/admin/mlbb-events/:eventId', requireAdminAuth, (req, res) => {
 app.post('/api/admin/mlbb-events/:eventId/packages', requireAdminAuth, async (req, res) => {
   const { eventId } = req.params;
   try {
-    const connectedData = await connectAdminPackageToSora('ml', req.body || {});
+    const sanitized = sanitizeUploadPayload(req.body || {}, 'event_pkg');
+    const connectedData = await connectAdminPackageToSora('ml', sanitized);
     const created = addPackageToMlbbEvent(eventId, connectedData);
     if (!created) return res.status(400).json({ success: false, error: 'Could not add event package' });
     return res.status(201).json({ success: true, package: created });
@@ -3092,7 +3132,8 @@ app.post('/api/admin/mlbb-events/:eventId/packages', requireAdminAuth, async (re
 app.put('/api/admin/mlbb-events/:eventId/packages/:pkgId', requireAdminAuth, async (req, res) => {
   const { eventId, pkgId } = req.params;
   try {
-    const connectedData = await connectAdminPackageToSora('ml', req.body || {});
+    const sanitized = sanitizeUploadPayload(req.body || {}, 'event_pkg');
+    const connectedData = await connectAdminPackageToSora('ml', sanitized);
     const updated = updatePackageInMlbbEvent(eventId, pkgId, connectedData);
     if (!updated) return res.status(404).json({ success: false, error: 'Event package not found' });
     return res.json({ success: true, package: updated });
@@ -3125,13 +3166,15 @@ app.post('/api/admin/telegram/test', requireAdminAuth, async (req, res) => {
 
 // 8. Slide Banners (Option 4)
 app.post('/api/admin/banners', requireAdminAuth, (req, res) => {
-  const created = addSlideBanner(req.body || {});
+  const sanitized = sanitizeUploadPayload(req.body || {}, 'banner');
+  const created = addSlideBanner(sanitized);
   return res.status(201).json({ success: true, banner: created });
 });
 
 app.put('/api/admin/banners/:bannerId', requireAdminAuth, (req, res) => {
   const { bannerId } = req.params;
-  const updated = updateSlideBanner(bannerId, req.body || {});
+  const sanitized = sanitizeUploadPayload(req.body || {}, 'banner');
+  const updated = updateSlideBanner(bannerId, sanitized);
   if (!updated) return res.status(404).json({ success: false, error: 'Banner not found' });
   return res.json({ success: true, banner: updated });
 });
@@ -3346,6 +3389,9 @@ app.use((error, req, res, next) => {
     error: 'The server could not process this request.',
   });
 });
+
+// Static Assets Serving (uploads, game tiles, promo banners)
+app.use('/assets', express.static(path.join(PROJECT_ROOT, 'public', 'assets'), { maxAge: '7d' }));
 
 // Production Static Serving for Built React Frontend
 if (fs.existsSync(distPath)) {

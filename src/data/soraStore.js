@@ -20,6 +20,7 @@ async function requestJson(path, { signal, method = 'GET', body } = {}) {
   try {
     const response = await fetch(path, {
       method,
+      cache: 'no-store',
       headers: {
         Accept: 'application/json',
         ...(body ? { 'Content-Type': 'application/json' } : {}),

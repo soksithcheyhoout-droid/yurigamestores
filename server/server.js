@@ -1643,7 +1643,11 @@ app.get('/api/soratopup/image/:gameCode', async (req, res) => {
 app.get('/api/soratopup/catalogue', async (req, res) => {
   try {
     const catalogue = await getSoraCatalogue();
-    res.set('Cache-Control', 'no-cache, must-revalidate');
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    });
     return res.json({
       success: true,
       provider: 'soratopup',
@@ -2842,6 +2846,11 @@ app.post('/api/paylink/check-payment', async (req, res) => {
 
 // 1. Public Site Configuration (Storefront dynamic games, packages, open MLBB events, banners, contacts)
 app.get('/api/site-config', (req, res) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+  });
   return res.json({
     success: true,
     ...getPublicSiteConfig()
@@ -2968,6 +2977,11 @@ app.post('/api/admin/auth/verify', (req, res) => {
 
 // 3. Full Admin Configuration
 app.get('/api/admin/config', requireAdminAuth, (req, res) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+  });
   return res.json({
     success: true,
     config: getAdminClientConfig()
@@ -3019,16 +3033,23 @@ function saveBase64ToFile(base64Str, prefix = 'img') {
     return base64Str;
   }
   try {
-    const match = base64Str.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+    const match = base64Str.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,([\s\S]+)$/);
     if (!match) return base64Str;
-    const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+    let ext = match[1].toLowerCase();
+    if (ext === 'jpeg') ext = 'jpg';
+    else if (ext.includes('svg')) ext = 'svg';
+    else if (ext.includes('webp')) ext = 'webp';
+    else if (ext.includes('png')) ext = 'png';
+    else ext = 'jpg';
+
     const filename = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
     const uploadDir = path.join(PROJECT_ROOT, 'public', 'assets', 'uploads');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     const filePath = path.join(uploadDir, filename);
-    fs.writeFileSync(filePath, Buffer.from(match[2], 'base64'));
+    const cleanedBase64 = match[2].replace(/\s/g, '');
+    fs.writeFileSync(filePath, Buffer.from(cleanedBase64, 'base64'));
     return `/assets/uploads/${filename}`;
   } catch (err) {
     console.warn('[saveBase64ToFile] Error saving upload to disk:', err.message);

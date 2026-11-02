@@ -428,24 +428,90 @@ export default function AdminDashboard({ onBackToStore }) {
     }
   };
 
+  // Cache synchronization helper so storefront displays updated logos and banners on initial paint
+  const updateClientCaches = (configData) => {
+    if (!configData || typeof window === 'undefined') return;
+    try {
+      // 1. Site config cache
+      window.localStorage.setItem('yurigame_site_config_cache_v2', JSON.stringify({
+        success: true,
+        games: configData.games || [],
+        banners: (configData.banners || []).filter((b) => b.active !== false),
+        contacts: configData.contacts || {},
+      }));
+
+      // 2. Hero slides cache (homepage carousel renders updated slides on refresh)
+      if (Array.isArray(configData.banners)) {
+        const activeBanners = configData.banners.filter((b) => b.active !== false);
+        if (activeBanners.length > 0) {
+          const mappedSlides = activeBanners.map((b) => ({
+            id: b.id,
+            image: b.image,
+            fallbackImage: b.image,
+            title: b.title,
+            actionLabel: b.actionLabel || 'Shop now',
+            providerCode:
+              b.gameSlug === 'roblox' ? 'robuxsend' :
+              b.gameSlug === 'mobile-legends' ? 'ml' :
+              b.gameSlug === 'free-fire' ? 'ff' : 'roslegacy',
+            position: 'center',
+          }));
+          window.localStorage.setItem('yurigame_hero_slides_v2', JSON.stringify(mappedSlides));
+        }
+      }
+
+      // 3. Catalogue cache (game grid renders updated logo images on refresh without glitch)
+      if (Array.isArray(configData.games) && configData.games.length > 0) {
+        const mappedGames = configData.games.map((g) => {
+          const code = g.providerCode || g.id || g.code;
+          return {
+            id: `sora_${code}`,
+            slug: g.slug || (code === 'robuxsend' ? 'roblox' : code === 'ml' ? 'mobile-legends' : code === 'ff' ? 'free-fire' : 'ros-legacy'),
+            provider: 'soratopup',
+            providerCode: code,
+            orderingEnabled: true,
+            verificationMode: g.verificationMode || (code === 'robuxsend' ? 'official' : 'none'),
+            name: g.name,
+            publisher: g.publisher || (code === 'robuxsend' ? 'Roblox Corp' : code === 'roslegacy' ? 'NetEase' : 'SoraTopup Live'),
+            category: 'popular',
+            badge: g.badge || (code === 'robuxsend' ? 'Official Username' : 'Live API'),
+            image: g.image,
+            banner: g.banner || g.image,
+            description: g.description || '',
+            currency: code === 'robuxsend' ? 'Robux' : 'Diamonds',
+            needServer: Boolean(g.needServer),
+            fields: g.fields || [],
+            packages: g.packages || [],
+            stockOpen: g.stockOpen !== false,
+            rating: 'Live',
+            sales: 'API',
+          };
+        });
+        window.localStorage.setItem('yurigame_catalogue_cache_v2', JSON.stringify({
+          games: mappedGames,
+          count: mappedGames.length,
+          fetchedAt: new Date().toISOString(),
+          isFallback: false,
+        }));
+      }
+    } catch (e) {
+      console.warn('Cache update warning:', e);
+    }
+  };
+
   // 2. Load Full Configuration
   const fetchFullConfig = async (explicitToken) => {
     setIsLoading(true);
     try {
       const res = await fetch('/api/admin/config', {
-        headers: getAuthHeaders(explicitToken)
+        headers: getAuthHeaders(explicitToken),
+        cache: 'no-store',
       });
       const data = await res.json();
       if (data.success && data.config) {
         setConfig(data.config);
         setContactsData(data.config.contacts || {});
-        try {
-          if (typeof window !== 'undefined') {
-            window.localStorage.removeItem('yurigame_catalogue_cache_v2');
-            window.localStorage.removeItem('yurigame_hero_slides_v2');
-            window.localStorage.removeItem('yurigame_site_config_cache_v2');
-          }
-        } catch {}
+        updateClientCaches(data.config);
       } else if (res.status === 401) {
         handleLogout('Admin session expired (30 minutes limit). Please log in again.');
       }
@@ -582,18 +648,29 @@ export default function AdminDashboard({ onBackToStore }) {
 
   const handleUpdateGameInfo = async (gameId, updateFields) => {
     try {
-      const res = await fetch(`/api/admin/games/${gameId}`, {
+      const res = await fetch(`/api/admin/games/${encodeURIComponent(gameId)}`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(updateFields)
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.game) {
         showToast(`Game info updated for ${data.game.name}`);
-        fetchFullConfig();
+        setConfig((prev) => {
+          if (!prev) return prev;
+          const updatedGames = (prev.games || []).map((g) =>
+            g.id === gameId || g.slug === gameId || g.providerCode === gameId ? { ...g, ...data.game } : g
+          );
+          const newCfg = { ...prev, games: updatedGames };
+          updateClientCaches(newCfg);
+          return newCfg;
+        });
         if (data.game) {
           syncGamesWithAdminConfig([data.game]);
         }
+        fetchFullConfig();
+      } else {
+        showToast(data.error || 'Could not update game info');
       }
     } catch {
       showToast('Error updating game info');
@@ -918,9 +995,18 @@ export default function AdminDashboard({ onBackToStore }) {
           body: JSON.stringify(bannerFormData)
         });
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.banner) {
           showToast(`Banner "${data.banner.title}" updated!`);
           setEditingBanner(null);
+          setConfig((prev) => {
+            if (!prev) return prev;
+            const updatedBanners = (prev.banners || []).map((b) =>
+              b.id === data.banner.id ? data.banner : b
+            );
+            const newCfg = { ...prev, banners: updatedBanners };
+            updateClientCaches(newCfg);
+            return newCfg;
+          });
           fetchFullConfig();
         }
       } else {
@@ -930,9 +1016,16 @@ export default function AdminDashboard({ onBackToStore }) {
           body: JSON.stringify(bannerFormData)
         });
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.banner) {
           showToast(`Banner "${data.banner.title}" created!`);
           setIsAddingBanner(false);
+          setConfig((prev) => {
+            if (!prev) return prev;
+            const updatedBanners = [...(prev.banners || []), data.banner];
+            const newCfg = { ...prev, banners: updatedBanners };
+            updateClientCaches(newCfg);
+            return newCfg;
+          });
           fetchFullConfig();
         }
       }
@@ -951,6 +1044,13 @@ export default function AdminDashboard({ onBackToStore }) {
       const data = await res.json();
       if (data.success) {
         showToast(`Slide banner "${title}" deleted`);
+        setConfig((prev) => {
+          if (!prev) return prev;
+          const updatedBanners = (prev.banners || []).filter((b) => b.id !== bannerId);
+          const newCfg = { ...prev, banners: updatedBanners };
+          updateClientCaches(newCfg);
+          return newCfg;
+        });
         fetchFullConfig();
       }
     } catch {
@@ -1752,11 +1852,42 @@ export default function AdminDashboard({ onBackToStore }) {
               <div className="bg-[#0e1017] p-6 rounded-2xl border border-slate-800">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
                   <div className="flex items-center gap-3">
-                    <img
-                      src={selectedGame.image}
-                      alt={selectedGame.name}
-                      className="w-12 h-12 rounded-xl object-cover border border-slate-700"
-                    />
+                    <div className="relative group shrink-0">
+                      <img
+                        src={selectedGame.image}
+                        alt={selectedGame.name}
+                        className="w-14 h-14 rounded-xl object-cover border border-slate-700 shadow-md"
+                      />
+                      <input
+                        type="file"
+                        id={`tab2-logo-file-${selectedGame.id}`}
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              showToast(`Uploading logo for ${selectedGame.name}...`);
+                              const optimized = await compressImageFile(file, 800, 0.85);
+                              if (optimized) {
+                                await handleUpdateGameInfo(selectedGame.id, { image: optimized });
+                                showToast(`Logo for ${selectedGame.name} updated!`);
+                              }
+                            } catch (err) {
+                              showToast('Failed to process image');
+                            }
+                          }
+                          e.target.value = '';
+                        }}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor={`tab2-logo-file-${selectedGame.id}`}
+                        className="absolute inset-0 bg-black/60 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold cursor-pointer transition-opacity"
+                        title="Click to change logo"
+                      >
+                        <UploadCloud size={16} />
+                      </label>
+                    </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-xl font-black text-white m-0">{selectedGame.name}</h3>
@@ -1773,6 +1904,56 @@ export default function AdminDashboard({ onBackToStore }) {
                         {selectedGame.id === 'ml' && 'Customer input: User ID + Zone ID'}
                         {selectedGame.id === 'ff' && 'Customer input: Player ID'}
                       </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <label
+                          htmlFor={`tab2-logo-file-${selectedGame.id}`}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold border border-slate-700 cursor-pointer flex items-center gap-1.5 transition-colors"
+                        >
+                          <UploadCloud size={12} className="text-[#E3062F]" />
+                          <span>Change Logo (PC / Phone)</span>
+                        </label>
+                        <input
+                          type="file"
+                          id={`tab2-banner-file-${selectedGame.id}`}
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                showToast(`Uploading banner for ${selectedGame.name}...`);
+                                const optimized = await compressImageFile(file, 1600, 0.85);
+                                if (optimized) {
+                                  await handleUpdateGameInfo(selectedGame.id, { banner: optimized });
+                                  showToast(`Cover banner for ${selectedGame.name} updated!`);
+                                }
+                              } catch (err) {
+                                showToast('Failed to process image');
+                              }
+                            }
+                            e.target.value = '';
+                          }}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor={`tab2-banner-file-${selectedGame.id}`}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold border border-slate-700 cursor-pointer flex items-center gap-1.5 transition-colors"
+                        >
+                          <UploadCloud size={12} className="text-amber-400" />
+                          <span>Change Cover Banner</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newUrl = window.prompt(`Enter direct image URL for ${selectedGame.name} logo:`, selectedGame.image);
+                            if (newUrl && newUrl.trim()) {
+                              handleUpdateGameInfo(selectedGame.id, { image: newUrl.trim() });
+                            }
+                          }}
+                          className="px-2 py-1 text-[11px] text-slate-400 hover:text-slate-200 cursor-pointer bg-transparent border-0"
+                        >
+                          Or paste URL
+                        </button>
+                      </div>
                     </div>
                   </div>
 

@@ -227,46 +227,58 @@ export const removeImageBackground = (imageSource, tolerance = 50, feather = 20)
 export const compressImageFile = (file, maxDimension = 1200, quality = 0.85, format = 'auto') => {
   return new Promise((resolve, reject) => {
     if (!file) return resolve(null);
-    if (!file.type.startsWith('image/')) {
-      return reject(new Error('Please select a valid image file.'));
+    const isImage = file.type?.startsWith('image/') || file.name?.match(/\.(jpg|jpeg|png|webp|gif|bmp|svg|heic|heif|jfif)$/i);
+    if (!isImage) {
+      return reject(new Error('Please select an image file (PNG, JPG, WEBP, etc.)'));
     }
 
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.onerror = () => reject(new Error('Failed to read file from your device.'));
     reader.onload = (e) => {
+      const dataUrl = e.target?.result;
+      if (!dataUrl) return resolve(null);
+
       const img = new Image();
-      img.onerror = () => reject(new Error('Failed to load image preview'));
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return resolve(e.target.result);
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Preserve PNG transparency if input is PNG or format requested is PNG
-        const isPng = file.type === 'image/png' || format === 'png' || file.name?.toLowerCase().endsWith('.png');
-        const outputMime = isPng ? 'image/png' : 'image/jpeg';
-        const dataUrl = canvas.toDataURL(outputMime, isPng ? undefined : quality);
+      img.onerror = () => {
+        // Fallback to raw dataUrl if canvas decode fails so upload never gets blocked
         resolve(dataUrl);
       };
-      img.src = e.target.result;
+      img.onload = () => {
+        try {
+          let width = img.naturalWidth || img.width;
+          let height = img.naturalHeight || img.height;
+          if (!width || !height) return resolve(dataUrl);
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            return resolve(dataUrl);
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Preserve PNG transparency if input is PNG or format requested is PNG
+          const isPng = file.type === 'image/png' || format === 'png' || file.name?.toLowerCase().endsWith('.png');
+          const outputMime = isPng ? 'image/png' : 'image/jpeg';
+          const compressed = canvas.toDataURL(outputMime, isPng ? undefined : quality);
+          resolve(compressed);
+        } catch {
+          resolve(dataUrl);
+        }
+      };
+      img.src = dataUrl;
     };
     reader.readAsDataURL(file);
   });

@@ -62,7 +62,17 @@ export default function GameCatalog({
       .then((catalogue) => {
         if (!active) return;
         if (Array.isArray(catalogue.games) && catalogue.games.length > 0) {
-          setProviderGames(catalogue.games);
+          setProviderGames((current) => {
+            const isSame =
+              current.length === catalogue.games.length &&
+              current.every(
+                (g, i) =>
+                  g.id === catalogue.games[i]?.id &&
+                  g.image === catalogue.games[i]?.image &&
+                  g.name === catalogue.games[i]?.name
+              );
+            return isSame ? current : catalogue.games;
+          });
           setProviderCount(catalogue.count || catalogue.games.length);
           setProviderState('ready');
           setProviderError('');
@@ -199,7 +209,7 @@ export default function GameCatalog({
         </div>
 
         {visibleGames.length ? (
-          <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4.5">
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-3.5">
             {visibleGames.map((game) => {
               const isLive = isSoraGame(game);
               const isOpening = openingGameCode === game.providerCode;
@@ -211,9 +221,9 @@ export default function GameCatalog({
                   type="button"
                   onClick={() => openGame(game)}
                   disabled={Boolean(openingGameCode)}
-                  className="group relative flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#181926]/90 to-[#0e0f16]/95 p-2 sm:p-2.5 border border-slate-800/90 hover:border-[#E3062F]/60 transition-all duration-300 shadow-md hover:shadow-[0_10px_25px_rgba(227,6,47,0.25)] hover:-translate-y-1 text-left cursor-pointer disabled:cursor-wait disabled:opacity-70"
+                  className="group relative flex flex-col justify-between rounded-xl sm:rounded-2xl bg-gradient-to-b from-[#181926]/90 to-[#0e0f16]/95 p-1.5 sm:p-2.5 border border-slate-800/90 hover:border-[#E3062F]/60 transition-all duration-300 shadow-md hover:shadow-[0_10px_25px_rgba(227,6,47,0.25)] hover:-translate-y-0.5 text-left cursor-pointer disabled:cursor-wait disabled:opacity-70"
                 >
-                  <div className="relative aspect-square w-full overflow-hidden rounded-xl sm:rounded-2xl border border-slate-700/50 bg-[#12131C] shadow-inner">
+                  <div className="relative aspect-square w-full overflow-hidden rounded-lg sm:rounded-xl border border-slate-700/50 bg-[#12131C] shadow-inner">
                     <img
                       src={game.image}
                       alt={game.name}
@@ -229,33 +239,33 @@ export default function GameCatalog({
                         event.currentTarget.src = fallback;
                       }}
                     />
-                    <span className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/65 to-transparent" />
+                    <span className="pointer-events-none absolute inset-x-0 bottom-0 h-6 sm:h-10 bg-gradient-to-t from-black/65 to-transparent" />
                     {isLive && (
-                      <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/80 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-white backdrop-blur-sm">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#ff1748] shadow-[0_0_6px_rgba(255,23,72,0.9)]" /> Live
+                      <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 sm:gap-1 rounded-full border border-white/20 bg-black/80 px-1 sm:px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-wider text-white backdrop-blur-sm">
+                        <span className="h-1 sm:h-1.5 w-1 sm:w-1.5 rounded-full bg-[#ff1748] shadow-[0_0_6px_rgba(255,23,72,0.9)]" /> Live
                       </span>
                     )}
                     {isOpening && (
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/80 text-[10px] font-bold text-white backdrop-blur-xs">
-                        <Loader2 size={16} className="mr-1.5 animate-spin text-[#ff3156]" /> Loading
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/80 text-[8px] sm:text-[10px] font-bold text-white backdrop-blur-xs">
+                        <Loader2 size={13} className="mr-1 animate-spin text-[#ff3156]" /> Loading
                       </span>
                     )}
                   </div>
 
-                  <div className="mt-2 flex flex-col flex-1 justify-between w-full">
+                  <div className="mt-1.5 sm:mt-2 flex flex-col flex-1 justify-between w-full">
                     <div>
-                      <span className="block truncate text-center text-[12px] sm:text-[14px] font-black text-white group-hover:text-[#ff4d6d] transition-colors leading-tight">
+                      <span className="block truncate text-center text-[10px] sm:text-[13.5px] font-black text-white group-hover:text-[#ff4d6d] transition-colors leading-tight">
                         {game.name}
                       </span>
-                      <span className="mt-0.5 block truncate text-center text-[10px] sm:text-[11px] text-slate-400 font-medium">
+                      <span className="mt-0.5 block truncate text-center text-[8.5px] sm:text-[11px] text-slate-400 font-medium">
                         {game.publisher}
                       </span>
                     </div>
 
-                    {/* TOP UP Action Button matching mobile reference */}
-                    <div className="mt-2.5 w-full">
-                      <span className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 sm:py-2 px-2.5 rounded-full bg-gradient-to-r from-[#e3062f] via-[#ff1e4a] to-[#ff4969] text-white text-[11px] sm:text-[12px] font-black uppercase tracking-wider shadow-[0_4px_14px_rgba(227,6,47,0.38)] group-hover:shadow-[0_6px_20px_rgba(227,6,47,0.55)] group-hover:scale-[1.02] transition-all">
-                        <Zap size={12} className="fill-white" />
+                    {/* TOP UP Action Button matching 3-column mobile reference */}
+                    <div className="mt-1.5 sm:mt-2.5 w-full">
+                      <span className="w-full inline-flex items-center justify-center gap-1 py-1 sm:py-1.5 px-1 rounded-full bg-gradient-to-r from-[#e3062f] via-[#ff1e4a] to-[#ff4969] text-white text-[9px] sm:text-[11.5px] font-black uppercase tracking-wider shadow-[0_3px_10px_rgba(227,6,47,0.35)] group-hover:shadow-[0_6px_20px_rgba(227,6,47,0.55)] group-hover:scale-[1.02] transition-all">
+                        <Zap size={10} className="fill-white" />
                         TOP UP
                       </span>
                     </div>

@@ -68,7 +68,7 @@ export default function Hero({ onSelectGame }) {
   const didSwipe = useRef(false);
 
   useEffect(() => {
-    fetch('/api/site-config')
+    fetch('/api/site-config', { cache: 'no-store' })
       .then(r => r.json())
       .then(d => {
         if (d.success && Array.isArray(d.banners) && d.banners.length > 0) {

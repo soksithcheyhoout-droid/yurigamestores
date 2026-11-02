@@ -1018,37 +1018,30 @@ export function getAdminFullConfig() {
 
 
 // Game Stock & Logo Update
-
 export function updateGameConfig(gameId, updateData = {}) {
-
-  const idx = adminConfig.games.findIndex((g) => g.id === gameId || g.slug === gameId || g.providerCode === gameId);
+  const target = String(gameId || '').trim().toLowerCase();
+  const idx = adminConfig.games.findIndex((g) =>
+    String(g.id || '').toLowerCase() === target ||
+    String(g.slug || '').toLowerCase() === target ||
+    String(g.providerCode || '').toLowerCase() === target ||
+    String(g.code || '').toLowerCase() === target ||
+    String(g.name || '').toLowerCase() === target
+  );
 
   if (idx === -1) return null;
 
-
-
   const current = adminConfig.games[idx];
-
   adminConfig.games[idx] = {
-
     ...current,
-
     name: updateData.name || current.name,
-
     image: updateData.image || current.image,
-
     banner: updateData.banner || current.banner,
-
     badge: updateData.badge || current.badge,
-
     stockOpen: typeof updateData.stockOpen === 'boolean' ? updateData.stockOpen : current.stockOpen
-
   };
 
   saveAdminConfig();
-
   return adminConfig.games[idx];
-
 }
 
 

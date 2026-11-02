@@ -4,6 +4,7 @@ import {
   FALLBACK_FOUR_GAMES,
   fetchSoraCatalogue,
   fetchSoraGameWithPackages,
+  getCachedCatalogue,
   isSoraGame,
   mapSoraGame,
 } from '../data/soraStore';
@@ -12,7 +13,12 @@ const CATEGORIES = [
   { id: 'all', label: 'All games' },
 ];
 const INITIAL_VISIBLE_COUNT = 24;
-const INITIAL_FOUR_GAMES = FALLBACK_FOUR_GAMES.map(mapSoraGame).filter(Boolean);
+const getInitialGames = () => {
+  const cached = getCachedCatalogue();
+  if (cached?.games?.length) return cached.games;
+  return FALLBACK_FOUR_GAMES.map(mapSoraGame).filter(Boolean);
+};
+const INITIAL_FOUR_GAMES = getInitialGames();
 
 function getStartingPrice(game) {
   const prices = (game.packages || []).map((item) => Number(item.price)).filter(Number.isFinite);
@@ -27,8 +33,11 @@ export default function GameCatalog({
   const [internalCategory, setInternalCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [pagination, setPagination] = useState({ key: 'all:', count: INITIAL_VISIBLE_COUNT });
-  const [providerGames, setProviderGames] = useState(INITIAL_FOUR_GAMES);
-  const [providerCount, setProviderCount] = useState(INITIAL_FOUR_GAMES.length);
+  const [providerGames, setProviderGames] = useState(() => getInitialGames());
+  const [providerCount, setProviderCount] = useState(() => {
+    const cached = getCachedCatalogue();
+    return cached?.count || INITIAL_FOUR_GAMES.length;
+  });
   const [providerState, setProviderState] = useState('ready');
   const [providerError, setProviderError] = useState('');
   const [reloadToken, setReloadToken] = useState(0);

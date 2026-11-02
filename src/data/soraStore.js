@@ -139,8 +139,8 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'robuxsend',
     name: 'Roblox',
-    image: '/assets/games/roblox_tile_4k.jpg',
-    banner: '/assets/games/roblox_hero_4k.jpg',
+    image: '/assets/games/current_roblox.jpg',
+    banner: '/assets/games/current_roblox.jpg',
     description: 'Robux delivered by Roblox username after account verification.',
     needServer: false,
     verificationMode: 'official',
@@ -149,8 +149,8 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'ml',
     name: 'Mobile Legends: Bang Bang',
-    image: '/assets/games/mlbb_tile_4k.jpg',
-    banner: '/assets/games/mlbb_hero_4k.jpg',
+    image: '/assets/games/current_mobile-legends.jpg',
+    banner: '/assets/banners/banner_mlbb.jpg',
     description: 'Mobile Legends top-up. Enter your User ID and Zone ID.',
     needServer: true,
     verificationMode: 'live',
@@ -162,8 +162,8 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'ff',
     name: 'Free Fire',
-    image: '/assets/games/freefire_tile_4k.jpg',
-    banner: '/assets/games/freefire_hero_4k.jpg',
+    image: '/assets/games/current_free-fire.jpg',
+    banner: '/assets/banners/banner_freefire.jpg',
     description: 'Free Fire direct top-up. Available for KH/SG/MY and all regions.',
     needServer: false,
     verificationMode: 'live',
@@ -172,8 +172,8 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'roslegacy',
     name: 'RoS Legacy',
-    image: '/assets/brand/yurigame-logo.webp',
-    banner: '/assets/brand/yurigame-logo.webp',
+    image: '/assets/games/current_ros-legacy.jpg',
+    banner: '/assets/games/current_ros-legacy.jpg',
     description: 'RoS Legacy top-up. Enter your public username only.',
     needServer: false,
     verificationMode: 'format',
@@ -220,6 +220,29 @@ const FALLBACK_PACKAGES_BY_CODE = {
   ],
 };
 
+const CATALOGUE_CACHE_KEY = 'yurigame_catalogue_cache_v2';
+
+export function getCachedCatalogue() {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = window.localStorage.getItem(CATALOGUE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed?.games) && parsed.games.length > 0) {
+      return parsed;
+    }
+  } catch {}
+  return null;
+}
+
+export function setCachedCatalogue(catalogue) {
+  try {
+    if (typeof window !== 'undefined' && Array.isArray(catalogue?.games) && catalogue.games.length > 0) {
+      window.localStorage.setItem(CATALOGUE_CACHE_KEY, JSON.stringify(catalogue));
+    }
+  } catch {}
+}
+
 export async function fetchSoraCatalogue(options = {}) {
   try {
     const payload = await requestJson('/api/soratopup/catalogue', options);
@@ -227,16 +250,19 @@ export async function fetchSoraCatalogue(options = {}) {
       .map(mapSoraGame)
       .filter(Boolean);
     if (games.length > 0) {
-      return {
+      const result = {
         games,
         count: Number(payload.count) || games.length,
         fetchedAt: payload.fetchedAt || null,
         isFallback: false,
       };
+      setCachedCatalogue(result);
+      return result;
     }
   } catch (error) {
     if (options.signal?.aborted) {
-      // Component unmounted or request cancelled
+      const cached = getCachedCatalogue();
+      if (cached) return cached;
       return {
         games: FALLBACK_FOUR_GAMES.map(mapSoraGame).filter(Boolean),
         count: FALLBACK_FOUR_GAMES.length,
@@ -246,6 +272,9 @@ export async function fetchSoraCatalogue(options = {}) {
     }
     console.warn('Backend catalogue connecting, using verified local store:', error.message);
   }
+
+  const cached = getCachedCatalogue();
+  if (cached) return cached;
 
   const fallback = FALLBACK_FOUR_GAMES.map(mapSoraGame).filter(Boolean);
   return {

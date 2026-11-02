@@ -302,7 +302,7 @@ export async function getSoraCatalogue({ force = false } = {}) {
     gamesByCode.set('robuxsend', normalizeGame({
       code: 'robuxsend',
       name: 'Roblox',
-      image: '/assets/games/roblox_tile_4k.jpg',
+      image: '/assets/games/current_roblox.jpg',
       description: 'Instant Robux delivery to your Roblox account by username. Safe and verified.',
       needServer: false,
       verificationMode: 'official',
@@ -315,7 +315,7 @@ export async function getSoraCatalogue({ force = false } = {}) {
     gamesByCode.set('ml', normalizeGame({
       code: 'ml',
       name: 'Mobile Legends: Bang Bang',
-      image: '/assets/games/mlbb_tile_4k.jpg',
+      image: '/assets/games/current_mobile-legends.jpg',
       description: 'Mobile Legends direct diamond top-up. Enter your User ID and Zone ID.',
       needServer: true,
       verificationMode: 'live',
@@ -331,7 +331,7 @@ export async function getSoraCatalogue({ force = false } = {}) {
     gamesByCode.set('ff', normalizeGame({
       code: 'ff',
       name: 'Free Fire',
-      image: '/assets/games/freefire_tile_4k.jpg',
+      image: '/assets/games/current_free-fire.jpg',
       description: 'Free Fire direct diamond recharge by Player ID.',
       needServer: false,
       verificationMode: 'live',
@@ -344,7 +344,7 @@ export async function getSoraCatalogue({ force = false } = {}) {
     gamesByCode.set('roslegacy', normalizeGame({
       code: 'roslegacy',
       name: 'RoS Legacy',
-      image: '/assets/brand/yurigame-logo.webp',
+      image: '/assets/games/current_ros-legacy.jpg',
       description: 'RoS Legacy top-up. Enter your Username or Gmail and Password.',
       needServer: false,
       verificationMode: 'format',

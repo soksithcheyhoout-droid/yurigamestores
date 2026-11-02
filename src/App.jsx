@@ -56,7 +56,15 @@ export default function App() {
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
   const [pastOrders, setPastOrders] = useState(() => getStoredOrders());
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [siteConfig, setSiteConfig] = useState(null);
+  const [siteConfig, setSiteConfig] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = window.localStorage.getItem('yurigame_site_config_cache_v2');
+        if (raw) return JSON.parse(raw);
+      }
+    } catch {}
+    return null;
+  });
   const [casinoSpinOrder, setCasinoSpinOrder] = useState(null);
 
   useEffect(() => {
@@ -65,6 +73,11 @@ export default function App() {
       .then((data) => {
         if (data && data.success) {
           setSiteConfig(data);
+          try {
+            if (typeof window !== 'undefined') {
+              window.localStorage.setItem('yurigame_site_config_cache_v2', JSON.stringify(data));
+            }
+          } catch {}
           if (Array.isArray(data.games)) {
             syncGamesWithAdminConfig(data.games);
           }

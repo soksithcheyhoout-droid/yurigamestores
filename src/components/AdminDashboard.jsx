@@ -158,12 +158,18 @@ export default function AdminDashboard({ onBackToStore }) {
     'Content-Type': 'application/json',
   });
 
+  const isSoraSupportedGame = (gameId) => {
+    const clean = String(gameId || '').toLowerCase();
+    return clean === 'ml' || clean === 'mobile-legends' || clean === 'ff' || clean === 'free-fire' || clean === 'freefire';
+  };
+
   const isRegularPackageModalOpen = isAddingPackage || Boolean(editingPackage);
   const isEventPackageModalOpen = isAddingEventPkg || Boolean(editingEventPkg);
 
   useEffect(() => {
     const providerGameId = isEventPackageModalOpen ? 'ml' : selectedGameId;
     const shouldLoad = Boolean(providerGameId)
+      && isSoraSupportedGame(providerGameId)
       && (isRegularPackageModalOpen || isEventPackageModalOpen);
 
     if (!shouldLoad) {
@@ -433,6 +439,13 @@ export default function AdminDashboard({ onBackToStore }) {
       if (data.success && data.config) {
         setConfig(data.config);
         setContactsData(data.config.contacts || {});
+        try {
+          if (typeof window !== 'undefined') {
+            window.localStorage.removeItem('yurigame_catalogue_cache_v2');
+            window.localStorage.removeItem('yurigame_hero_slides_v2');
+            window.localStorage.removeItem('yurigame_site_config_cache_v2');
+          }
+        } catch {}
       } else if (res.status === 401) {
         handleLogout('Admin session expired (30 minutes limit). Please log in again.');
       }
@@ -2803,7 +2816,7 @@ export default function AdminDashboard({ onBackToStore }) {
                 />
               </div>
 
-              {Boolean(selectedGame?.providerCode || selectedGame?.id) && (
+              {isSoraSupportedGame(selectedGame?.providerCode || selectedGame?.id) ? (
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
                   <label className="mb-1 block font-bold text-emerald-300">SoraTopup Live Product</label>
                   <select
@@ -2823,10 +2836,20 @@ export default function AdminDashboard({ onBackToStore }) {
                     {isLoadingLivePackages
                       ? 'Loading current SoraTopup products...'
                       : liveProviderError
-                        ? <span className="text-rose-400">{liveProviderError}</span>
+                        ? <span className="text-amber-400">Custom SKU (saved directly to store)</span>
                         : packageFormData.providerCode
                           ? <span className="text-emerald-400">Connected SKU: {packageFormData.providerCode}</span>
                           : 'Exact diamond amounts and Weekly names connect automatically when saved.'}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
+                    <Sparkles size={14} className="text-amber-400" />
+                    <span>Admin Direct Delivery Package</span>
+                  </div>
+                  <div className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                    Orders for this game are fulfilled directly by store admin. Product images, names, and prices save instantly.
                   </div>
                 </div>
               )}
@@ -2874,6 +2897,7 @@ export default function AdminDashboard({ onBackToStore }) {
                 onChange={(val) => setPackageFormData({ ...packageFormData, image: val })}
                 placeholder="Click to choose icon from your PC or Phone"
                 aspectRatio="square"
+                maxDimension={512}
                 helperText="Icon displayed for this diamond / robux package on YuriGame store."
               />
 
@@ -3130,6 +3154,7 @@ export default function AdminDashboard({ onBackToStore }) {
                 onChange={(val) => setEventPkgFormData({ ...eventPkgFormData, image: val })}
                 placeholder="Click to choose event diamond icon from PC or Phone"
                 aspectRatio="square"
+                maxDimension={512}
                 helperText="Icon displayed for this event diamond package."
               />
 

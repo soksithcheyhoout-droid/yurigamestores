@@ -4,12 +4,24 @@ import { fetchSoraGameWithPackages } from '../data/soraStore';
 import YuriGameLogo from './YuriGameLogo';
 
 const AUTO_PLAY_MS = 6500;
+const HERO_CACHE_KEY = 'yurigame_hero_slides_v2';
+
+function getCachedSlides() {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = window.localStorage.getItem(HERO_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch {}
+  return null;
+}
 
 const PROMO_SLIDES = [
   {
     id: 'roblox-live',
-    image: '/assets/games/roblox_hero_4k.jpg',
-    fallbackImage: '/assets/games/roblox_tile_4k.jpg',
+    image: '/assets/games/current_roblox.jpg',
+    fallbackImage: '/assets/games/current_roblox.jpg',
     title: 'Roblox Robux fast delivery with official username verification',
     actionLabel: 'Open Roblox Robux packages',
     providerCode: 'robuxsend',
@@ -33,8 +45,8 @@ const PROMO_SLIDES = [
   },
   {
     id: 'ros-legacy-live',
-    image: '/assets/brand/yurigame-logo.webp',
-    fallbackImage: '/assets/games/mlbb_tile_4k.jpg',
+    image: '/assets/games/current_ros-legacy.jpg',
+    fallbackImage: '/assets/games/current_ros-legacy.jpg',
     title: 'RoS Legacy direct top-up with dedicated admin fulfillment',
     actionLabel: 'Open RoS Legacy packages',
     providerCode: 'roslegacy',
@@ -47,7 +59,7 @@ function wrapIndex(index) {
 }
 
 export default function Hero({ onSelectGame }) {
-  const [slides, setSlides] = useState(PROMO_SLIDES);
+  const [slides, setSlides] = useState(() => getCachedSlides() || PROMO_SLIDES);
   const [activeIndex, setActiveIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
@@ -75,6 +87,11 @@ export default function Hero({ onSelectGame }) {
             };
           });
           setSlides(mapped);
+          try {
+            if (typeof window !== 'undefined') {
+              window.localStorage.setItem(HERO_CACHE_KEY, JSON.stringify(mapped));
+            }
+          } catch {}
         }
       })
       .catch(() => {});

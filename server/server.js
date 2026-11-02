@@ -319,8 +319,8 @@ app.use('/api/soratopup/orders/lookup', publicLookupRateLimit);
 app.use('/api/paylink/generate-qr', paymentCreateRateLimit);
 app.use('/api/paylink/check-payment', paymentStatusRateLimit);
 
-app.use(express.json({ limit: '2mb', strict: true }));
-app.use(express.urlencoded({ extended: true, limit: '1mb', parameterLimit: 100 }));
+app.use(express.json({ limit: '50mb', strict: true }));
+app.use(express.urlencoded({ extended: true, limit: '50mb', parameterLimit: 1000 }));
 
 // Native Scrypt Password Hashing & Constant-Time Verification
 function hashPassword(password) {
@@ -1430,26 +1430,37 @@ async function connectAdminPackageToSora(gameIdentifier, packageData = {}, optio
   }
 
   const providerGameCode = String(game.providerCode || game.id || '').toLowerCase();
-  if (!providerGameCode) {
-    return packageData;
+  const isSoraGame = ['ml', 'mobile-legends', 'ff', 'free-fire', 'freefire'].includes(providerGameCode);
+
+  // Manual games (Roblox robuxsend, RoS roslegacy, or custom games) do not use SoraTopup
+  if (!providerGameCode || !isSoraGame) {
+    return {
+      ...packageData,
+      providerConnected: false,
+    };
   }
 
-  const providerPackage = await resolveSoraPackage(providerGameCode, packageData, options);
-  if (!providerPackage) {
-    throw new SoraTopupError(
-      'No exact SoraTopup Live product matches this package. Choose a live product code or use an exact diamond amount/weekly package name.',
-      { status: 422, code: 'provider_package_match_required' }
-    );
+  try {
+    const providerPackage = await resolveSoraPackage(providerGameCode, packageData, options);
+    if (providerPackage) {
+      return {
+        ...packageData,
+        code: providerPackage.code,
+        providerCode: providerPackage.code,
+        providerName: providerPackage.name,
+        providerPrice: providerPackage.price,
+        providerConnected: true,
+        providerSyncedAt: new Date().toISOString(),
+      };
+    }
+  } catch (error) {
+    console.warn(`[connectAdminPackageToSora] Provider match skipped for ${providerGameCode}:`, error.message);
   }
 
+  // Gracefully return package data so admin can always save images, prices, titles, badges, etc.
   return {
     ...packageData,
-    code: providerPackage.code,
-    providerCode: providerPackage.code,
-    providerName: providerPackage.name,
-    providerPrice: providerPackage.price,
-    providerConnected: true,
-    providerSyncedAt: new Date().toISOString(),
+    providerConnected: false,
   };
 }
 
@@ -1480,6 +1491,10 @@ async function syncConfiguredPackagesWithSora({ force = false } = {}) {
     for (const pkg of (game.packages || [])) {
       try {
         const connected = await connectAdminPackageToSora(providerGameCode, pkg);
+        if (!connected?.providerConnected) {
+          result.unmatched += 1;
+          continue;
+        }
         const alreadyCurrent = pkg.providerConnected
           && pkg.providerCode === connected.providerCode
           && Number(pkg.providerPrice) === Number(connected.providerPrice);
@@ -1504,6 +1519,10 @@ async function syncConfiguredPackagesWithSora({ force = false } = {}) {
       for (const pkg of (event.packages || [])) {
         try {
           const connected = await connectAdminPackageToSora('ml', pkg);
+          if (!connected?.providerConnected) {
+            result.unmatched += 1;
+            continue;
+          }
           const alreadyCurrent = pkg.providerConnected
             && pkg.providerCode === connected.providerCode
             && Number(pkg.providerPrice) === Number(connected.providerPrice);
@@ -1542,10 +1561,10 @@ function sendPlayerLookupError(res, error) {
 }
 
 const LOCAL_GAME_IMAGES = {
-  robuxsend: '/assets/games/roblox_tile_4k.jpg',
-  ml: '/assets/games/mlbb_tile_4k.jpg',
-  ff: '/assets/games/freefire_tile_4k.jpg',
-  roslegacy: '/assets/brand/yurigame-logo.webp',
+  robuxsend: '/assets/games/current_roblox.jpg',
+  ml: '/assets/games/current_mobile-legends.jpg',
+  ff: '/assets/games/current_free-fire.jpg',
+  roslegacy: '/assets/games/current_ros-legacy.jpg',
 };
 
 const LOCAL_GAME_BANNERS = {

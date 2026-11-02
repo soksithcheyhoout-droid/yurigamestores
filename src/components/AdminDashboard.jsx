@@ -2091,7 +2091,7 @@ export default function AdminDashboard({ onBackToStore }) {
                   <div>
                     <div className="flex items-center gap-2">
                       <Sparkles size={20} className="text-amber-400" />
-                      <h3 className="text-xl font-black text-white m-0">Mobile Legends Event Categories</h3>
+                      <h3 className="text-xl font-black text-white m-0">Mobile Legends KH Event Categories</h3>
                     </div>
                     <p className="text-xs text-slate-400 mt-1 max-w-xl">
                       Manage Special Events & Weekly Events. Toggle <strong>Open / Close</strong>: when Closed, users will not see the event in the store. When users pay from an event, Telegram alerts will display full event details!
@@ -3427,7 +3427,7 @@ export default function AdminDashboard({ onBackToStore }) {
                   className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-[#E3062F]"
                 >
                   <option value="roblox">Roblox</option>
-                  <option value="mobile-legends">Mobile Legends</option>
+                  <option value="mobile-legends">Mobile Legends KH</option>
                   <option value="free-fire">Free Fire</option>
                   <option value="ros-legacy">RoS Legacy</option>
                 </select>

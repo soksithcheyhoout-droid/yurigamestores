@@ -30,8 +30,8 @@ const PROMO_SLIDES = [
   {
     id: 'mlbb-anniversary',
     image: '/assets/banners/banner_mlbb.jpg',
-    title: 'Mobile Legends direct diamonds top-up with fast 5-second sync',
-    actionLabel: 'Open Mobile Legends packages',
+    title: 'Mobile Legends KH direct diamonds top-up with fast 5-second sync',
+    actionLabel: 'Open Mobile Legends KH packages',
     providerCode: 'ml',
     position: 'center',
   },

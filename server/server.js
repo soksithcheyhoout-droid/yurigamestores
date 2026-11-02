@@ -117,7 +117,7 @@ const inMemoryOrders = [
     ref: 'CD-948210',
     userId: 'usr_vip1',
     gameId: 'ml',
-    gameName: 'Mobile Legends: Bang Bang',
+    gameName: 'Mobile Legends KH',
     packageName: 'Weekly Diamond Pass',
     quantity: 1,
     totalUsd: 1.81,
@@ -427,7 +427,7 @@ export async function getAuthoritativePackagePrice(gameIdOrCode, packageIdOrCode
         return {
           price: Number((pkg.price * qty).toFixed(2)),
           name: pkg.name,
-          gameName: 'Mobile Legends: Bang Bang',
+          gameName: 'Mobile Legends KH',
           providerCode: resolved.code,
           providerConnected: true,
         };
@@ -2017,8 +2017,8 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
     const gameNameMap = {
       robuxsend: 'Roblox',
       roblox: 'Roblox',
-      ml: 'Mobile Legends: Bang Bang',
-      mlbb: 'Mobile Legends: Bang Bang',
+      ml: 'Mobile Legends KH',
+      mlbb: 'Mobile Legends KH',
       ff: 'Free Fire',
       freefire: 'Free Fire',
     };

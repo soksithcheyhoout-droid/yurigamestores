@@ -47,11 +47,11 @@ const MARQUEE_ITEMS = [
     badge: '0% Fee',
     highlight: 'Fast'
   },
-  // 4. Product: Mobile Legends: Bang Bang
+  // 4. Product: Mobile Legends KH
   {
     type: 'product',
     id: 'ml',
-    name: 'Mobile Legends',
+    name: 'Mobile Legends KH',
     tag: 'MOONTON',
     tagColor: '#0284C7',
     tagBg: '#E0F2FE',

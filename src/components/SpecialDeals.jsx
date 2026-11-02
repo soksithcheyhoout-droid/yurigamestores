@@ -14,7 +14,7 @@ const EXCLUSIVE_OFFERS = [
   {
     id: 'mlbb_weekly',
     title: 'Weekly Diamond Pass',
-    gameName: 'Mobile Legends: Bang Bang',
+    gameName: 'Mobile Legends KH',
     discount: '60% off',
     image: '/assets/games/mlbb_tile_4k.jpg',
     gameId: 'ml'
@@ -38,7 +38,7 @@ const EXCLUSIVE_OFFERS = [
   {
     id: 'mlbb_2195',
     title: '2,195 Diamonds Mega Pack',
-    gameName: 'Mobile Legends: Bang Bang',
+    gameName: 'Mobile Legends KH',
     discount: '18% off',
     image: '/assets/games/mlbb_tile_4k.jpg',
     gameId: 'ml'

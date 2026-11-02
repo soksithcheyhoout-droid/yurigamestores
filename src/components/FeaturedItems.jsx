@@ -14,7 +14,7 @@ const ITEMS = [
   {
     id: 2,
     gameId: 'ml',
-    eyebrow: 'Mobile Legends',
+    eyebrow: 'Mobile Legends KH',
     title: 'Moonton Direct Server Sync',
     desc: 'Weekly Diamond Pass and Diamond packages delivered in under 5 seconds to your User ID & Zone ID.',
     image: '/assets/games/mlbb_tile_4k.jpg',

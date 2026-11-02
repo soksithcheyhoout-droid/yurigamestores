@@ -8,7 +8,7 @@ export default function LiveTransactions() {
   // Periodically add a new simulated transaction to keep the feed dynamic
   useEffect(() => {
     const gamesList = [
-      { game: "Mobile Legends", products: ["86 Diamonds", "Weekly Pass", "257 Diamonds"], price: [1.48, 1.81, 4.18] },
+      { game: "Mobile Legends KH", products: ["86 Diamonds", "Weekly Pass", "257 Diamonds"], price: [1.48, 1.81, 4.18] },
       { game: "Free Fire", products: ["100 Diamonds", "520 Diamonds", "Weekly Membership"], price: [0.95, 4.65, 1.90] },
       { game: "PUBG Mobile", products: ["60 UC", "660 UC", "325 UC"], price: [0.95, 9.40, 4.75] },
       { game: "Genshin Impact", products: ["Welkin Moon", "300 Genesis Crystals"], price: [4.80, 4.75] },

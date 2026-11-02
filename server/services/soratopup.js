@@ -40,7 +40,7 @@ const STOREFRONT_GAME_OVERRIDES = {
     packages: ROS_LEGACY_PACKAGES,
   },
   ml: {
-    name: 'Mobile Legends: Bang Bang',
+    name: 'Mobile Legends KH',
     verificationMode: 'live',
   },
   ff: {
@@ -314,9 +314,9 @@ export async function getSoraCatalogue({ force = false } = {}) {
   if (!gamesByCode.has('ml')) {
     gamesByCode.set('ml', normalizeGame({
       code: 'ml',
-      name: 'Mobile Legends: Bang Bang',
+      name: 'Mobile Legends KH',
       image: '/assets/games/current_mobile-legends.jpg',
-      description: 'Mobile Legends direct diamond top-up. Enter your User ID and Zone ID.',
+      description: 'Mobile Legends KH direct diamond top-up. Enter your User ID and Zone ID.',
       needServer: true,
       verificationMode: 'live',
       fields: [
@@ -453,9 +453,9 @@ export async function getSoraPackages(gameCode, { force = false } = {}) {
       return {
         game: normalizeGame({
           code: 'ml',
-          name: 'Mobile Legends: Bang Bang',
+          name: 'Mobile Legends KH',
           image: '/assets/games/mlbb_tile_4k.jpg',
-          description: 'Mobile Legends direct diamond top-up. Enter your User ID and Zone ID.',
+          description: 'Mobile Legends KH direct diamond top-up. Enter your User ID and Zone ID.',
           needServer: true,
           verificationMode: 'live',
           fields: [

@@ -163,10 +163,10 @@ export const FALLBACK_FOUR_GAMES = [
   },
   {
     code: 'ml',
-    name: 'Mobile Legends: Bang Bang',
+    name: 'Mobile Legends KH',
     image: '/assets/games/current_mobile-legends.jpg',
     banner: '/assets/banners/banner_mlbb.jpg',
-    description: 'Mobile Legends top-up. Enter your User ID and Zone ID.',
+    description: 'Mobile Legends KH top-up. Enter your User ID and Zone ID.',
     needServer: true,
     verificationMode: 'live',
     fields: [

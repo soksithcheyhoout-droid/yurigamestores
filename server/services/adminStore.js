@@ -84,7 +84,7 @@ const DEFAULT_GAMES = [
 
     providerCode: 'ml',
 
-    name: 'Mobile Legends: Bang Bang',
+    name: 'Mobile Legends KH',
 
     publisher: 'Moonton',
 
@@ -98,7 +98,7 @@ const DEFAULT_GAMES = [
 
     badge: '5s Moonton Sync',
 
-    description: 'Mobile Legends official direct diamond top-up. Enter your User ID and Zone ID.',
+    description: 'Mobile Legends KH official direct diamond top-up. Enter your User ID and Zone ID.',
 
     fields: [
 
@@ -429,7 +429,7 @@ const DEFAULT_BANNERS = [
 
     id: 'banner_mlbb',
 
-    title: 'Mobile Legends: Bang Bang Live Top-Up',
+    title: 'Mobile Legends KH Live Top-Up',
 
     subtitle: 'Weekly Diamond Pass Offer with Moonton Direct Sync',
 

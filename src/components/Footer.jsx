@@ -42,7 +42,7 @@ export default function Footer({ contacts = {} }) {
           <div className="space-y-3">
             <YuriGameLogo size="default" showBadge={true} inverse />
             <p className="text-[12px] leading-relaxed text-slate-400 m-0">
-              Premier digital gaming store in Cambodia. Instant automated delivery for Roblox, Mobile Legends, Free Fire & RoS Legacy.
+              Premier digital gaming store in Cambodia. Instant automated delivery for Roblox, Mobile Legends KH, Free Fire & RoS Legacy.
             </p>
             <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-400">
               <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -63,7 +63,7 @@ export default function Footer({ contacts = {} }) {
               </li>
               <li>
                 <a href="#catalog" className="text-slate-400 hover:text-[#E3062F] transition-colors no-underline">
-                  Mobile Legends Direct Moonton
+                  Mobile Legends KH Direct Moonton
                 </a>
               </li>
               <li>

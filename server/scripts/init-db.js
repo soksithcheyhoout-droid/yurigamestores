@@ -177,16 +177,16 @@ async function initDatabase() {
     console.log('💎 Seeding initial Diamond Stock inventory...');
     const stockItems = [
       // Mobile Legends (MLBB)
-      ['mlbb', 'Mobile Legends: Bang Bang', 'mlbb_55', '55 Diamonds', 'Diamonds', 55, 1200, 50, 0.70, 0.93, 'IN_STOCK', 'Moonton Direct API Gateway'],
-      ['mlbb', 'Mobile Legends: Bang Bang', 'mlbb_weekly', 'Weekly Diamond Pass', 'Pass', 210, 2500, 100, 1.40, 1.81, 'IN_STOCK', 'Moonton Direct API Gateway'],
-      ['mlbb', 'Mobile Legends: Bang Bang', 'mlbb_86', '86 Diamonds', 'Diamonds', 86, 1800, 50, 1.15, 1.48, 'IN_STOCK', 'Moonton Direct API Gateway'],
-      ['mlbb', 'Mobile Legends: Bang Bang', 'mlbb_172', '172 Diamonds', 'Diamonds', 172, 1100, 40, 2.30, 2.92, 'IN_STOCK', 'Moonton Direct API Gateway'],
-      ['mlbb', 'Mobile Legends: Bang Bang', 'mlbb_257', '257 Diamonds', 'Diamonds', 257, 1500, 40, 3.35, 4.18, 'IN_STOCK', 'Moonton Direct API Gateway'],
-      ['mlbb', 'Mobile Legends: Bang Bang', 'mlbb_343', '343 Diamonds', 'Diamonds', 343, 900, 30, 4.50, 5.65, 'IN_STOCK', 'Moonton Direct API Gateway'],
-      ['mlbb', 'Mobile Legends: Bang Bang', 'mlbb_514', '514 Diamonds', 'Diamonds', 514, 750, 25, 6.70, 8.36, 'IN_STOCK', 'Moonton Direct API Gateway'],
-      ['mlbb', 'Mobile Legends: Bang Bang', 'mlbb_706', '706 Diamonds', 'Diamonds', 706, 850, 25, 9.00, 11.20, 'IN_STOCK', 'Moonton Direct API Gateway'],
-      ['mlbb', 'Mobile Legends: Bang Bang', 'mlbb_2195', '2,195 Diamonds', 'Diamonds', 2195, 400, 15, 28.00, 34.50, 'IN_STOCK', 'Moonton Direct API Gateway'],
-      ['mlbb', 'Mobile Legends: Bang Bang', 'mlbb_twilight', 'Twilight Pass', 'Pass', 0, 600, 20, 7.90, 9.80, 'IN_STOCK', 'Moonton Direct API Gateway'],
+      ['mlbb', 'Mobile Legends KH', 'mlbb_55', '55 Diamonds', 'Diamonds', 55, 1200, 50, 0.70, 0.93, 'IN_STOCK', 'Moonton Direct API Gateway'],
+      ['mlbb', 'Mobile Legends KH', 'mlbb_weekly', 'Weekly Diamond Pass', 'Pass', 210, 2500, 100, 1.40, 1.81, 'IN_STOCK', 'Moonton Direct API Gateway'],
+      ['mlbb', 'Mobile Legends KH', 'mlbb_86', '86 Diamonds', 'Diamonds', 86, 1800, 50, 1.15, 1.48, 'IN_STOCK', 'Moonton Direct API Gateway'],
+      ['mlbb', 'Mobile Legends KH', 'mlbb_172', '172 Diamonds', 'Diamonds', 172, 1100, 40, 2.30, 2.92, 'IN_STOCK', 'Moonton Direct API Gateway'],
+      ['mlbb', 'Mobile Legends KH', 'mlbb_257', '257 Diamonds', 'Diamonds', 257, 1500, 40, 3.35, 4.18, 'IN_STOCK', 'Moonton Direct API Gateway'],
+      ['mlbb', 'Mobile Legends KH', 'mlbb_343', '343 Diamonds', 'Diamonds', 343, 900, 30, 4.50, 5.65, 'IN_STOCK', 'Moonton Direct API Gateway'],
+      ['mlbb', 'Mobile Legends KH', 'mlbb_514', '514 Diamonds', 'Diamonds', 514, 750, 25, 6.70, 8.36, 'IN_STOCK', 'Moonton Direct API Gateway'],
+      ['mlbb', 'Mobile Legends KH', 'mlbb_706', '706 Diamonds', 'Diamonds', 706, 850, 25, 9.00, 11.20, 'IN_STOCK', 'Moonton Direct API Gateway'],
+      ['mlbb', 'Mobile Legends KH', 'mlbb_2195', '2,195 Diamonds', 'Diamonds', 2195, 400, 15, 28.00, 34.50, 'IN_STOCK', 'Moonton Direct API Gateway'],
+      ['mlbb', 'Mobile Legends KH', 'mlbb_twilight', 'Twilight Pass', 'Pass', 0, 600, 20, 7.90, 9.80, 'IN_STOCK', 'Moonton Direct API Gateway'],
 
       // Free Fire
       ['freefire', 'Free Fire', 'ff_100', '100 Diamonds', 'Diamonds', 100, 2000, 50, 0.75, 0.95, 'IN_STOCK', 'Garena Direct Stock'],

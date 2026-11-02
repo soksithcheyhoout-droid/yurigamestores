@@ -375,7 +375,7 @@ export default function App() {
             onClose={() => setCasinoSpinOrder(null)}
             purchasedQty={casinoSpinOrder.qty || 50}
             currencyName={casinoSpinOrder.currency || 'Diamonds'}
-            gameName={casinoSpinOrder.gameName || 'Mobile Legends: Bang Bang'}
+            gameName={casinoSpinOrder.gameName || 'Mobile Legends KH'}
             bankedProfitUsd={siteConfig?.casino_vault_profit || 0}
           />
         )}

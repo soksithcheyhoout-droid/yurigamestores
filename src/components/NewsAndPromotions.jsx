@@ -6,7 +6,7 @@ export default function NewsAndPromotions({ onSelectGame }) {
   const newsItems = [
     {
       id: 1,
-      title: "Mobile Legends: Weekly Diamond Pass Offer with Moonton Direct Sync",
+      title: "Mobile Legends KH: Weekly Diamond Pass Offer with Moonton Direct Sync",
       image: "/assets/banners/banner_mlbb.jpg",
       gameId: "ml"
     },

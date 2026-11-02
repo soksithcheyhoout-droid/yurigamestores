@@ -79,7 +79,7 @@ export default function AliceSupportWidget({ onOpenLookup, telegramUrl, contacts
       } else if (lower.includes('roblox') || lower.includes('robux')) {
         reply = "Roblox Robux are delivered directly to your account by username. Please make sure your username is spelled accurately during checkout.";
       } else if (lower.includes('ml') || lower.includes('mobile legends') || lower.includes('diamond')) {
-        reply = "Mobile Legends direct top-ups sync with official Moonton servers in ~5 seconds. Enter your User ID and Zone ID to verify before purchasing!";
+        reply = "Mobile Legends KH direct top-ups sync with official Moonton servers in ~5 seconds. Enter your User ID and Zone ID to verify before purchasing!";
       } else if (lower.includes('admin') || lower.includes('human') || lower.includes('agent') || lower.includes('help')) {
         reply = `Our human admin team is available 24/7 on Telegram. You can chat directly with our team at ${cleanTelegramUsername}!`;
       } else {

@@ -5,22 +5,22 @@ import { GAMES, findAuthorizedGame } from '../data/games';
 export default function MarqueeBadges({ onSelectGame }) {
   const row1 = [
     { id: "robuxsend", name: "Roblox", currency: "Robux", badge: "Official Username", icon: "/assets/games/roblox_tile_4k.jpg" },
-    { id: "ml", name: "Mobile Legends", currency: "Diamonds", badge: "5s Moonton Sync", icon: "/assets/games/mlbb_tile_4k.jpg" },
+    { id: "ml", name: "Mobile Legends KH", currency: "Diamonds", badge: "5s Moonton Sync", icon: "/assets/games/mlbb_tile_4k.jpg" },
     { id: "ff", name: "Free Fire", currency: "Diamonds", badge: "Official Direct UID", icon: "/assets/games/freefire_tile_4k.jpg" },
     { id: "roslegacy", name: "RoS Legacy", currency: "Diamonds", badge: "Secure Voucher", icon: "/assets/brand/yurigame-logo.webp" },
     { id: "robuxsend", name: "Roblox", currency: "Robux", badge: "Instant Delivery", icon: "/assets/games/roblox_tile_4k.jpg" },
-    { id: "ml", name: "MLBB Pass", currency: "Weekly Pass", badge: "Save 60%", icon: "/assets/games/mlbb_tile_4k.jpg" },
+    { id: "ml", name: "Mobile Legends KH Pass", currency: "Weekly Pass", badge: "Save 60%", icon: "/assets/games/mlbb_tile_4k.jpg" },
     { id: "ff", name: "Free Fire", currency: "Diamonds", badge: "Anti-Ban 100%", icon: "/assets/games/freefire_tile_4k.jpg" },
     { id: "roslegacy", name: "RoS Legacy", currency: "Diamonds", badge: "Fast Top-Up", icon: "/assets/brand/yurigame-logo.webp" }
   ];
 
   const row2 = [
-    { id: "ml", name: "Mobile Legends: Bang Bang", currency: "Diamonds", badge: "Live Check", icon: "/assets/games/mlbb_tile_4k.jpg" },
+    { id: "ml", name: "Mobile Legends KH", currency: "Diamonds", badge: "Live Check", icon: "/assets/games/mlbb_tile_4k.jpg" },
     { id: "robuxsend", name: "Roblox Robux", currency: "Robux", badge: "Official API", icon: "/assets/games/roblox_tile_4k.jpg" },
     { id: "ff", name: "Garena Free Fire", currency: "Diamonds", badge: "Automated", icon: "/assets/games/freefire_tile_4k.jpg" },
     { id: "roslegacy", name: "RoS Legacy Top-Up", currency: "Diamonds", badge: "Safe Username", icon: "/assets/brand/yurigame-logo.webp" },
     { id: "robuxsend", name: "Roblox", currency: "Robux", badge: "Official Users API", icon: "/assets/games/roblox_tile_4k.jpg" },
-    { id: "ml", name: "Mobile Legends", currency: "Diamonds", badge: "Zone ID Sync", icon: "/assets/games/mlbb_tile_4k.jpg" },
+    { id: "ml", name: "Mobile Legends KH", currency: "Diamonds", badge: "Zone ID Sync", icon: "/assets/games/mlbb_tile_4k.jpg" },
     { id: "ff", name: "Free Fire", currency: "Diamonds", badge: "Direct Deposit", icon: "/assets/games/freefire_tile_4k.jpg" },
     { id: "roslegacy", name: "RoS Legacy", currency: "Diamonds", badge: "24/7 Available", icon: "/assets/brand/yurigame-logo.webp" }
   ];

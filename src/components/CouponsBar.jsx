@@ -21,7 +21,7 @@ export default function CouponsBar() {
     {
       code: "MLBB18",
       discount: "18% OFF",
-      title: "Mobile Legends Diamond Pass",
+      title: "Mobile Legends KH Diamond Pass",
       status: "available"
     },
     {

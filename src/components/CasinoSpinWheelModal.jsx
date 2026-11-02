@@ -57,7 +57,7 @@ export default function CasinoSpinWheelModal({
   gameCode = 'mlbb',
   purchasedQty = 55,
   currencyName = 'Diamonds',
-  gameName = 'Mobile Legends: Bang Bang',
+  gameName = 'Mobile Legends KH',
   bankedProfitUsd = 0,
   onSpinComplete,
   forcePreview = false,

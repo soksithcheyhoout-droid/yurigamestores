@@ -202,8 +202,8 @@ export default function GameCatalog({
               onClick={() => selectCategory(category.id)}
               aria-pressed={selectedCategory === category.id}
               className={`shrink-0 border-0 border-b-2 bg-transparent px-0 pb-2 text-[11px] font-bold sm:text-[12px] ${selectedCategory === category.id
-                  ? 'border-[#e3062f] text-[#ff5575]'
-                  : 'border-transparent text-slate-500 hover:text-slate-100'
+                ? 'border-[#e3062f] text-[#ff5575]'
+                : 'border-transparent text-slate-500 hover:text-slate-100'
                 }`}
             >
               {category.label}
@@ -239,26 +239,24 @@ export default function GameCatalog({
                         event.currentTarget.onerror = null;
                         const fallback =
                           game.providerCode === 'robuxsend' ? '/assets/games/current_roblox.jpg' :
-                          game.providerCode === 'ff' ? '/assets/games/current_free-fire.jpg' :
-                          game.providerCode === 'roslegacy' ? '/assets/games/current_ros-legacy.jpg' :
-                          '/assets/games/current_mobile-legends.jpg';
+                            game.providerCode === 'ff' ? '/assets/games/current_free-fire.jpg' :
+                              game.providerCode === 'roslegacy' ? '/assets/games/current_ros-legacy.jpg' :
+                                '/assets/games/current_mobile-legends.jpg';
                         event.currentTarget.src = fallback;
                       }}
                     />
                     <span className="pointer-events-none absolute inset-x-0 bottom-0 h-6 sm:h-10 bg-gradient-to-t from-black/65 to-transparent" />
                     <span
-                      className={`absolute left-1 top-1 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-wider backdrop-blur-sm ${
-                        game.stockOpen !== false
+                      className={`absolute left-1 top-1 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-wider backdrop-blur-sm ${game.stockOpen !== false
                           ? 'border-emerald-500/40 bg-black/85 text-emerald-300'
                           : 'border-rose-500/50 bg-black/85 text-rose-300'
-                      }`}
+                        }`}
                     >
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          game.stockOpen !== false
+                        className={`h-1.5 w-1.5 rounded-full ${game.stockOpen !== false
                             ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]'
                             : 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]'
-                        }`}
+                          }`}
                       />
                       {game.stockOpen !== false ? 'In Stock' : 'Out of Stock'}
                     </span>
@@ -282,11 +280,10 @@ export default function GameCatalog({
                     {/* Action Button: TOP UP or OUT OF STOCK */}
                     <div className="mt-1.5 sm:mt-2.5 w-full">
                       <span
-                        className={`w-full inline-flex items-center justify-center gap-1 py-1 sm:py-1.5 px-1 rounded-full text-white text-[9px] sm:text-[11.5px] font-black uppercase tracking-wider transition-all ${
-                          game.stockOpen !== false
+                        className={`w-full inline-flex items-center justify-center gap-1 py-1 sm:py-1.5 px-1 rounded-full text-white text-[9px] sm:text-[11.5px] font-black uppercase tracking-wider transition-all ${game.stockOpen !== false
                             ? 'bg-gradient-to-r from-[#e3062f] via-[#ff1e4a] to-[#ff4969] shadow-[0_3px_10px_rgba(227,6,47,0.35)] group-hover:shadow-[0_6px_20px_rgba(227,6,47,0.55)] group-hover:scale-[1.02]'
                             : 'bg-slate-800 text-slate-400 border border-slate-700/80'
-                        }`}
+                          }`}
                       >
                         {game.stockOpen !== false ? (
                           <>

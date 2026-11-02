@@ -27,7 +27,7 @@ export const CASINO_CONFIG = {
   // Game-specific Provider-Accredited Tiers
   // Every single outcome corresponds to a real, valid product_code in platform_pricing
   gameCatalogTiers: {
-    // Mobile Legends: Bang Bang (mlbb)
+    // Mobile Legends KH (mlbb)
     mlbb: [
       {
         purchaseRange: [0, 80],

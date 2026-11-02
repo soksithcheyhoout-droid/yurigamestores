@@ -40,7 +40,7 @@ export default function PromotionsBanner({ onSelectGame }) {
   const deals = useMemo(() => [
     {
       id: 'ml',
-      gameTitle: 'Mobile Legends: Bang Bang',
+      gameTitle: 'Mobile Legends KH',
       dealName: 'Weekly Diamond Pass',
       tagline: 'Moonton Direct Server Sync',
       badge: 'SAVE 60%',

@@ -123,7 +123,7 @@ async function lookupMobileLegends(values) {
           verified: true,
           verification: 'live',
           source: 'Moonton Official Server Gateway',
-          message: 'Mobile Legends account verified.',
+          message: 'Mobile Legends KH account verified.',
           player: {
             id: cleanUserId,
             serverId: cleanServerId,
@@ -136,7 +136,7 @@ async function lookupMobileLegends(values) {
       }
 
       if (smileData?.code === 201 || (smileData?.info && smileData.info.includes('não existe'))) {
-        return invalidResult('ml', `Mobile Legends User ID ${cleanUserId} does not exist in Server/Zone ${cleanServerId}.`);
+        return invalidResult('ml', `Mobile Legends KH User ID ${cleanUserId} does not exist in Server/Zone ${cleanServerId}.`);
       }
     } catch {
       // Continue to next endpoint
@@ -161,7 +161,7 @@ async function lookupMobileLegends(values) {
         verified: true,
         verification: 'live',
         source: 'Moonton Server Gateway (Codashop)',
-        message: 'Mobile Legends account verified.',
+        message: 'Mobile Legends KH account verified.',
         player: {
           id: cleanUserId,
           serverId: cleanServerId,
@@ -177,7 +177,7 @@ async function lookupMobileLegends(values) {
   }
 
   // Account not found on Moonton servers
-  return invalidResult('ml', `Mobile Legends account was not found for User ID ${cleanUserId} and Zone ${cleanServerId}. Please double-check your ID.`);
+  return invalidResult('ml', `Mobile Legends KH account was not found for User ID ${cleanUserId} and Zone ${cleanServerId}. Please double-check your ID.`);
 }
 
 // 2. Free Fire (Live Garena Multi-Region Profile Search)

@@ -16,7 +16,7 @@ import CountryFlag from './CountryFlag';
 
 const NAV_GAMES = [
   { providerCode: 'robuxsend', name: 'Roblox', publisher: 'Official Username', image: 'https://storage.harikitopup.com/branding/vouchers/roblox.svg', badge: 'Instant' },
-  { providerCode: 'ml', name: 'Mobile Legends', publisher: 'Moonton 5s Sync', image: '/assets/games/mlbb_tile_4k.jpg', badge: 'Hot' },
+  { providerCode: 'ml', name: 'Mobile Legends KH', publisher: 'Moonton 5s Sync', image: '/assets/games/mlbb_tile_4k.jpg', badge: 'Hot' },
   { providerCode: 'ff', name: 'Free Fire', publisher: 'Garena UID Direct', image: 'https://storage.harikitopup.com/branding/vouchers/freefire.svg', badge: 'Fast' },
   { providerCode: 'roslegacy', name: 'RoS Legacy', publisher: 'Dedicated Admin', image: '/assets/brand/yurigame-logo.webp', badge: 'Safe' },
 ];
@@ -268,7 +268,7 @@ export default function Navbar({
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             onFocus={() => setSearchFocused(true)}
-            placeholder={t.searchPlaceholder || 'Search Roblox, Mobile Legends, Free Fire, RoS...'}
+            placeholder={t.searchPlaceholder || 'Search Roblox, Mobile Legends KH, Free Fire, RoS...'}
             className="h-10 w-full rounded-xl border border-[#262836] bg-[#12131A] pl-10 pr-4 text-[13px] font-medium text-white placeholder-slate-500 outline-none transition focus:border-[#E3062F] focus:bg-[#161821] focus:ring-2 focus:ring-[#E3062F]/20 font-['Kantumruy_Pro']"
           />
           {searchFocused && renderSearchResults()}

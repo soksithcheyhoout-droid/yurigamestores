@@ -1,6 +1,6 @@
 // YuriGame Store - Strictly 4 Authorized Games
 // 1. Roblox (robuxsend)
-// 2. Mobile Legends: Bang Bang (ml)
+// 2. Mobile Legends KH (ml)
 // 3. Free Fire (ff)
 // 4. RoS Legacy (roslegacy)
 
@@ -44,7 +44,7 @@ export const GAMES = [
     slug: "mobile-legends",
     provider: "soratopup",
     providerCode: "ml",
-    name: "Mobile Legends: Bang Bang",
+    name: "Mobile Legends KH",
     publisher: "Moonton",
     category: "popular",
     type: "moba",
@@ -56,7 +56,7 @@ export const GAMES = [
     badge: "5s Moonton Sync",
     orderingEnabled: true,
     verificationMode: "live",
-    description: "Mobile Legends official direct diamond top-up. Enter your User ID and Zone ID.",
+    description: "Mobile Legends KH official direct diamond top-up. Enter your User ID and Zone ID.",
     fields: [
       { key: "userId", label: "User ID", placeholder: "e.g. 29481903", type: "text", required: true },
       { key: "zoneId", label: "Zone ID / Server ID", placeholder: "e.g. 2042", type: "text", required: true }

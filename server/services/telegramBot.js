@@ -283,7 +283,7 @@ export async function notifyOrderToAdmins(order) {
   const rawGameName = order.gameName || (
     gameCode.includes('ros') ? 'Rules of Survival (RoS Legacy)' :
     gameCode.includes('robux') || gameCode.includes('roblox') ? 'Roblox' :
-    gameCode.includes('ml') ? 'Mobile Legends: Bang Bang' :
+    gameCode.includes('ml') ? 'Mobile Legends KH' :
     gameCode.includes('ff') || gameCode.includes('freefire') ? 'Free Fire' :
     'YuriGame Store Top-Up'
   );

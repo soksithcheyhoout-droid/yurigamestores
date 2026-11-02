@@ -139,14 +139,14 @@
       "id": "ml",
       "slug": "mobile-legends",
       "providerCode": "ml",
-      "name": "Mobile Legends: Bang Bang",
+      "name": "Mobile Legends KH",
       "publisher": "Moonton",
       "currency": "Diamonds",
       "stockOpen": true,
       "banner": "/assets/games/current_mobile-legends.jpg",
       "image": "/assets/games/current_mobile-legends.jpg",
       "badge": "5s Moonton Sync",
-      "description": "Mobile Legends official direct diamond top-up. Enter your User ID and Zone ID.",
+      "description": "Mobile Legends KH official direct diamond top-up. Enter your User ID and Zone ID.",
       "fields": [
         {
           "key": "userId",
@@ -602,7 +602,7 @@
   "banners": [
     {
       "id": "banner_mlbb",
-      "title": "Mobile Legends: Bang Bang Live Top-Up",
+      "title": "Mobile Legends KH Live Top-Up",
       "subtitle": "Weekly Diamond Pass Offer with Moonton Direct Sync",
       "actionLabel": "Open MLBB Packages",
       "image": "/assets/banners/banner_mlbb.jpg",

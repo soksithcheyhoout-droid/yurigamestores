@@ -19,7 +19,8 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const distPath = path.resolve(__dirname, '../dist');
+const PROJECT_ROOT = path.resolve(__dirname, '..');
+const distPath = path.resolve(PROJECT_ROOT, 'dist');
 import {
   PlayerLookupError,
   verifyPlayerAccount,
@@ -281,7 +282,7 @@ app.use(cors({
       ) {
         return callback(null, true);
       }
-    } catch {}
+    } catch { }
     return callback(null, false);
   },
   credentials: true
@@ -365,13 +366,13 @@ export async function getAuthoritativePackagePrice(gameIdOrCode, packageIdOrCode
 
   // 1. Search in adminConfig.games
   for (const game of (config?.games || [])) {
-    const gameMatch = 
+    const gameMatch =
       String(game.id || '').toLowerCase() === cleanGame ||
       String(game.slug || '').toLowerCase() === cleanGame ||
       String(game.providerCode || '').toLowerCase() === cleanGame;
-    
+
     if (gameMatch && Array.isArray(game.packages)) {
-      const pkg = game.packages.find(p => 
+      const pkg = game.packages.find(p =>
         String(p.id || '').toLowerCase() === cleanPkg ||
         String(p.code || '').toLowerCase() === cleanPkg ||
         String(p.providerCode || '').toLowerCase() === cleanPkg
@@ -409,7 +410,7 @@ export async function getAuthoritativePackagePrice(gameIdOrCode, packageIdOrCode
   // 2. Search in adminConfig.mlbbEvents
   for (const event of (config?.mlbbEvents || [])) {
     if (Array.isArray(event.packages)) {
-      const pkg = event.packages.find(p => 
+      const pkg = event.packages.find(p =>
         String(p.id || '').toLowerCase() === cleanPkg ||
         String(p.code || '').toLowerCase() === cleanPkg ||
         String(p.providerCode || '').toLowerCase() === cleanPkg
@@ -438,7 +439,7 @@ export async function getAuthoritativePackagePrice(gameIdOrCode, packageIdOrCode
   try {
     const soraData = await getSoraPackages(cleanGame);
     const packages = Array.isArray(soraData) ? soraData : (soraData?.packages || []);
-    const pkg = packages.find(p => 
+    const pkg = packages.find(p =>
       String(p.code || '').toLowerCase() === cleanPkg ||
       String(p.id || '').toLowerCase() === cleanPkg
     );
@@ -499,11 +500,11 @@ export function inspectEmailOrIdentifier(id) {
 
   // Check if input is an explicit fake keyword or pattern
   if (clean === 'fake' || clean.startsWith('fake@') || clean.includes('fakegmail') || clean.includes('fakeemail')) {
-    return { 
-      type: 'email', 
-      isGmail: clean.includes('gmail'), 
-      valid: false, 
-      error: 'Gmail not found. Fake or placeholder Gmail addresses cannot be used.' 
+    return {
+      type: 'email',
+      isGmail: clean.includes('gmail'),
+      valid: false,
+      error: 'Gmail not found. Fake or placeholder Gmail addresses cannot be used.'
     };
   }
 
@@ -516,47 +517,47 @@ export function inspectEmailOrIdentifier(id) {
 
     // Malformed or incomplete Gmail domain
     if (domain === 'gmail' || domain.startsWith('gmai.') || domain.startsWith('gmial.')) {
-      return { 
-        type: 'email', 
-        isGmail: true, 
-        valid: false, 
-        error: 'Gmail not found. Incomplete domain (did you mean @gmail.com?)' 
+      return {
+        type: 'email',
+        isGmail: true,
+        valid: false,
+        error: 'Gmail not found. Incomplete domain (did you mean @gmail.com?)'
       };
     }
 
     if (domain === 'gmail.com') {
       // Google requires 6 to 30 characters
       if (username.length < 6) {
-        return { 
-          type: 'email', 
-          isGmail: true, 
-          valid: false, 
-          error: 'Gmail not found. Google requires Gmail usernames to be at least 6 characters.' 
+        return {
+          type: 'email',
+          isGmail: true,
+          valid: false,
+          error: 'Gmail not found. Google requires Gmail usernames to be at least 6 characters.'
         };
       }
       if (!/^[a-z0-9.]+$/.test(username)) {
-        return { 
-          type: 'email', 
-          isGmail: true, 
-          valid: false, 
-          error: 'Gmail not found. Contains forbidden characters for a Gmail address.' 
+        return {
+          type: 'email',
+          isGmail: true,
+          valid: false,
+          error: 'Gmail not found. Contains forbidden characters for a Gmail address.'
         };
       }
       if (username.startsWith('.') || username.endsWith('.') || username.includes('..')) {
-        return { 
-          type: 'email', 
-          isGmail: true, 
-          valid: false, 
-          error: 'Gmail not found. Periods cannot be consecutive or at the start/end.' 
+        return {
+          type: 'email',
+          isGmail: true,
+          valid: false,
+          error: 'Gmail not found. Periods cannot be consecutive or at the start/end.'
         };
       }
       const fakeNames = ['fake', 'fakemail', 'fakeuser', 'fakegmail', 'test', 'temp', 'dummy', 'nobody', 'sample', 'asdfgh', '123456', 'unknown'];
       if (fakeNames.some(f => username.replace(/\./g, '') === f || username.replace(/\./g, '').startsWith('fake'))) {
-        return { 
-          type: 'email', 
-          isGmail: true, 
-          valid: false, 
-          error: 'Gmail not found. Fake or placeholder Gmail addresses cannot be used.' 
+        return {
+          type: 'email',
+          isGmail: true,
+          valid: false,
+          error: 'Gmail not found. Fake or placeholder Gmail addresses cannot be used.'
         };
       }
       return { type: 'email', isGmail: true, valid: true, clean };
@@ -573,11 +574,11 @@ export function inspectEmailOrIdentifier(id) {
 
   // Incomplete string containing 'fake' or 'gmail'
   if (clean.includes('fake') || clean.includes('gmail')) {
-    return { 
-      type: 'email', 
-      isGmail: true, 
-      valid: false, 
-      error: 'Gmail not found. Please enter a valid registered Gmail address.' 
+    return {
+      type: 'email',
+      isGmail: true,
+      valid: false,
+      error: 'Gmail not found. Please enter a valid registered Gmail address.'
     };
   }
 
@@ -599,9 +600,9 @@ app.post('/api/auth/register', async (req, res) => {
 
     // Block unverified manual Gmail registration - must use Google OAuth
     if (cleanEmail.endsWith('@gmail.com') || cleanEmail.includes('gmail')) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Gmail not found or unverified: To prevent fake Gmail accounts like ' + cleanEmail + ', all Gmail accounts must be authenticated using the official "Continue with Google" button.' 
+      return res.status(400).json({
+        success: false,
+        error: 'Gmail not found or unverified: To prevent fake Gmail accounts like ' + cleanEmail + ', all Gmail accounts must be authenticated using the official "Continue with Google" button.'
       });
     }
 
@@ -673,20 +674,20 @@ app.post('/api/auth/login', async (req, res) => {
 
     if (rows.length === 0) {
       if (check.isGmail || cleanId.includes('@gmail.com') || cleanId.includes('gmail')) {
-        return res.status(401).json({ 
-          success: false, 
-          error: 'Gmail not found. Please check your email or click Register below.' 
+        return res.status(401).json({
+          success: false,
+          error: 'Gmail not found. Please check your email or click Register below.'
         });
       }
       if (cleanId.includes('@')) {
-        return res.status(401).json({ 
-          success: false, 
-          error: 'Email not found. Please check your email or click Register below.' 
+        return res.status(401).json({
+          success: false,
+          error: 'Email not found. Please check your email or click Register below.'
         });
       }
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Account not found. Please register first.' 
+      return res.status(401).json({
+        success: false,
+        error: 'Account not found. Please register first.'
       });
     }
 
@@ -967,7 +968,7 @@ app.get('/api/orders', requireAdminAuth, async (req, res) => {
     const uniqueDb = dbOrders.filter(o => !rosRefs.has(o.ref));
     return res.json({ success: true, orders: [...formattedRos, ...uniqueDb] });
   } catch (err) {
-    const filtered = userId 
+    const filtered = userId
       ? inMemoryOrders.filter(o => o.userId === userId)
       : inMemoryOrders;
     const rosRefs = new Set(formattedRos.map(r => r.ref));
@@ -1048,7 +1049,7 @@ app.post('/api/orders', requireAdminAuth, async (req, res) => {
         const currentBal = parseFloat(userRows[0].wallet_balance);
         const newBal = Math.max(0, currentBal - totalUsd);
         await connection.query('UPDATE `users` SET wallet_balance = ? WHERE id = ?', [newBal, userId]);
-        
+
         const txId = `TX-PUR-${Math.floor(10000 + Math.random() * 90000)}`;
         await connection.query(
           `INSERT INTO \`wallet_transactions\` (id, user_id, type, title, amount, payment_method, status)
@@ -1085,7 +1086,7 @@ app.post('/api/orders', requireAdminAuth, async (req, res) => {
     return res.status(201).json({ success: true, order: savedOrder });
   } catch (err) {
     if (connection) {
-      try { await connection.rollback(); } catch {}
+      try { await connection.rollback(); } catch { }
     }
     const order = req.body || {};
     const ref = order.ref || `CD-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -1113,7 +1114,7 @@ app.post('/api/orders', requireAdminAuth, async (req, res) => {
     return res.status(201).json({ success: true, order: savedOrder, dbMode: 'in_memory' });
   } finally {
     if (connection) {
-      try { connection.release(); } catch {}
+      try { connection.release(); } catch { }
     }
   }
 });
@@ -1768,8 +1769,8 @@ app.get('/api/soratopup/orders/lookup', async (req, res) => {
       const icon = isRoblox
         ? '/assets/games/roblox_tile_4k.jpg'
         : isFreeFire
-        ? '/assets/games/freefire_tile_4k.jpg'
-        : '/assets/brand/yurigame-logo.webp';
+          ? '/assets/games/freefire_tile_4k.jpg'
+          : '/assets/brand/yurigame-logo.webp';
 
       const rawGmail = o.playerDetails?.gmail || '';
       const maskedGmail = rawGmail.length > 5
@@ -1851,8 +1852,8 @@ app.get('/api/soratopup/orders', requireAdminAuth, async (req, res) => {
       const icon = isRoblox
         ? '/assets/games/roblox_tile_4k.jpg'
         : isFreeFire
-        ? '/assets/games/freefire_tile_4k.jpg'
-        : '/assets/brand/yurigame-logo.webp';
+          ? '/assets/games/freefire_tile_4k.jpg'
+          : '/assets/brand/yurigame-logo.webp';
 
       return {
         refid: o.ref,
@@ -2186,11 +2187,11 @@ function verifyTransactionPayment(data, pending, logContext = '') {
   // Extract actual received payment amount from any gateway format
   const rawPaidAmount =
     data.amount !== undefined ? Number(data.amount) :
-    data.data?.amount !== undefined ? Number(data.data.amount) :
-    data.transaction?.amount !== undefined ? Number(data.transaction.amount) :
-    data.payment?.amount !== undefined ? Number(data.payment.amount) :
-    data.raw?.amount !== undefined ? Number(data.raw.amount) :
-    null;
+      data.data?.amount !== undefined ? Number(data.data.amount) :
+        data.transaction?.amount !== undefined ? Number(data.transaction.amount) :
+          data.payment?.amount !== undefined ? Number(data.payment.amount) :
+            data.raw?.amount !== undefined ? Number(data.raw.amount) :
+              null;
 
   const rawPaidCurrency = String(
     data.currency ||
@@ -2612,7 +2613,7 @@ app.post('/api/paylink/generate-qr', async (req, res) => {
             light: '#FFFFFF'
           }
         });
-      } catch {}
+      } catch { }
     }
 
     // Save authoritative pending order record on server
@@ -2814,7 +2815,7 @@ app.post('/api/paylink/check-payment', async (req, res) => {
             status: 'PENDING_ADMIN',
             source: 'preorder',
             createdAt: pending.createdAt,
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }
       stopOrderPaymentWatcher(watcherKey);
@@ -2884,7 +2885,7 @@ app.post('/api/admin/auth/verify-otp', async (req, res) => {
     const result = verifyAdminOtp(challengeId, otp, clientIp, userAgent);
     setAdminSessionCookie(req, res, result.token, result.expiresAt);
     // Send background alert to Telegram confirming successful login
-    sendAdminLoginSuccessAlert(clientIp, userAgent).catch(() => {});
+    sendAdminLoginSuccessAlert(clientIp, userAgent).catch(() => { });
 
     return res.json({
       success: true,

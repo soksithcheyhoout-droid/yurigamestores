@@ -1383,18 +1383,8 @@ export default function GameDetailPage({
                     <span className="font-bold text-white text-base">Total Payable</span>
                     <div className="text-right">
                       <div className="text-xl font-black text-[#E3062F] font-mono">
-                        {formatPrice(totalPrice, currentRegion)}
+                        ${totalPrice} USD
                       </div>
-                      {currentRegion?.currency !== 'KHR' && (
-                        <div className="text-[11px] text-slate-400">
-                          ≈ ៛{rielPrice} KHR
-                        </div>
-                      )}
-                      {currentRegion?.currency === 'KHR' && (
-                        <div className="text-[11px] text-slate-400">
-                          ≈ ${Number(totalPrice).toFixed(2)} USD
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>

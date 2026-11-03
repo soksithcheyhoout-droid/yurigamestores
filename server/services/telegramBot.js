@@ -419,7 +419,7 @@ export async function notifyOrderToAdmins(order) {
     ...(isMLBB ? [`🏷️ <b>Category:</b> ${isMlbbEvent ? `🌟 <b>EVENT: ${mlbbEventLabel}</b>` : `💎 <b>Regular Diamonds Store</b>`}`] : []),
     `🆔 <b>Order Ref:</b> <code>${order.ref}</code>`,
     `💎 <b>Item / Package:</b> <b>${packageName}</b> (x${quantity})`,
-    `💵 <b>Amount Paid:</b> <b>$${amountUsd} USD</b> (≈ ៛${amountKhr})`,
+    `💵 <b>Amount Paid:</b> <b>$${amountUsd} USD</b>`,
     `💳 <b>Payment Method:</b> ${paymentMethod}`,
     ``,
     playerCredsHtml,

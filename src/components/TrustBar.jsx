@@ -255,7 +255,7 @@ export function ProductPaymentMarquee({ onSelectGame }) {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#64748B] font-medium">Supported Currencies:</span>
-                <span className="font-bold text-[#0F172A]">USD, KHR, USDT</span>
+                <span className="font-bold text-[#0F172A]">USD</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#64748B] font-medium">Security Standard:</span>

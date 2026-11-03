@@ -270,8 +270,7 @@ export function printReceiptInvoice(order, currentRegion = { currency: 'USD', ra
       </div>
     </div>
     <div>
-      <div class="total-val">$${totalUsd.toFixed(2)}</div>
-      <div class="total-khr">≈ ៛${totalKhr} KHR</div>
+      <div class="total-val">$${totalUsd.toFixed(2)} USD</div>
     </div>
   </div>
 

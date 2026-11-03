@@ -1,9 +1,9 @@
 export const RESELLER_PLANS = [
   {
     id: "weekly",
-    badge: "Starter · អ្នកចាប់ផ្ដើម",
+    badge: "Starter",
     name: "Weekly Plan",
-    subName: "គម្រោង 7 ថ្ងៃ (សម្រាប់អ្នកចាប់ផ្ដើម)",
+    subName: "7 Days Seller Plan",
     price: 5,
     period: "7 Days",
     tagline: "Flexible 7-day access for short-term sellers.",
@@ -21,9 +21,9 @@ export const RESELLER_PLANS = [
   },
   {
     id: "monthly",
-    badge: "Most Popular · ការពេញនិយមបំផុត",
+    badge: "Most Popular",
     name: "Monthly VIP Plan",
-    subName: "គម្រោង 30 ថ្ងៃ (ពេញនិយមបំផុត ចំណេញខ្ពស់)",
+    subName: "30 Days VIP Plan",
     price: 15,
     period: "30 Days",
     tagline: "Best value 30-day plan for full store access & max margins.",
@@ -42,9 +42,9 @@ export const RESELLER_PLANS = [
   },
   {
     id: "storefront",
-    badge: "Custom Storefront · Website ផ្ទាល់ខ្លួន",
+    badge: "Custom Storefront",
     name: "Store Website Setup",
-    subName: "រៀបចំគេហទំព័រ Top-Up ផ្ទាល់ខ្លួនលើ Domain របស់អ្នក",
+    subName: "Custom Top-Up Website on Your Domain",
     price: "Custom",
     period: "One-Time Setup",
     tagline: "Custom storefront website built, branded & approved on your own domain.",

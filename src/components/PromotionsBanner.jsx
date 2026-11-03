@@ -500,11 +500,10 @@ export default function PromotionsBanner({ onSelectGame }) {
                 key={deal.id}
                 type="button"
                 onClick={() => handleJumpToDeal(idx)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
-                  idx === activeIndex
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-2xs ${idx === activeIndex
                     ? 'bg-slate-950 text-white border-slate-950 shadow-sm scale-105'
                     : 'bg-white text-slate-600 hover:text-slate-950 border-slate-200 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 <img
                   src={deal.icon}
@@ -516,9 +515,8 @@ export default function PromotionsBanner({ onSelectGame }) {
                   }}
                 />
                 <span>{deal.gameTitle.split(':')[0]}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded font-black ${
-                  idx === activeIndex ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
-                }`}>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded font-black ${idx === activeIndex ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                  }`}>
                   {deal.price}
                 </span>
               </button>
@@ -528,7 +526,7 @@ export default function PromotionsBanner({ onSelectGame }) {
 
         {/* 2. CENTER STAGE: THREE.JS 3D CANVAS + SYNCHRONIZED PRODUCT CARDS */}
         <div className="relative w-full flex-1 flex flex-col lg:flex-row items-center justify-between gap-6 my-auto overflow-hidden">
-          
+
           {/* LEFT: Synchronized Product Details Deck */}
           <div className="w-full lg:max-w-xl text-left relative min-h-[380px] sm:min-h-[420px] flex items-center z-20">
             {deals.map((deal, idx) => {
@@ -538,9 +536,8 @@ export default function PromotionsBanner({ onSelectGame }) {
                 <div
                   key={deal.id}
                   ref={el => cardRefs.current[idx] = el}
-                  className={`absolute inset-0 flex flex-col justify-center rounded-3xl p-6 sm:p-7 bg-white/95 backdrop-blur-2xl border border-slate-200/90 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.14)] ${
-                    isCurrent ? 'pointer-events-auto' : 'pointer-events-none'
-                  }`}
+                  className={`absolute inset-0 flex flex-col justify-center rounded-3xl p-6 sm:p-7 bg-white/95 backdrop-blur-2xl border border-slate-200/90 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.14)] ${isCurrent ? 'pointer-events-auto' : 'pointer-events-none'
+                    }`}
                 >
                   {/* Top Badges */}
                   <div className="flex items-center gap-2.5 flex-wrap mb-3.5">

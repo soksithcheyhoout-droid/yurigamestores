@@ -282,7 +282,7 @@ export default function TopUpModal({ game, onClose, onOrderComplete, walletBalan
                       fontFamily: 'var(--font-gaming)'
                     }}>1</span>
                     <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
-                      Select Package · ជ្រើសរើសកញ្ចប់
+                      Select Package
                     </span>
                   </div>
 
@@ -425,7 +425,7 @@ export default function TopUpModal({ game, onClose, onOrderComplete, walletBalan
                     fontFamily: 'var(--font-gaming)'
                   }}>2</span>
                   <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
-                    Account Details · ព័ត៌មានគណនី
+                    Account Details
                   </span>
                 </div>
 
@@ -522,7 +522,7 @@ export default function TopUpModal({ game, onClose, onOrderComplete, walletBalan
                     ) : (
                       <>
                         <ShieldCheck size={14} color="#0284c7" />
-                        <span>Verify Account · ពិនិត្យឈ្មោះ</span>
+                        <span>Verify Account</span>
                       </>
                     )}
                   </button>
@@ -598,7 +598,7 @@ export default function TopUpModal({ game, onClose, onOrderComplete, walletBalan
                     fontFamily: 'var(--font-gaming)'
                   }}>3</span>
                   <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
-                    Payment Method · វិធីសាស្ត្រទូទាត់
+                    Payment Method
                   </span>
                 </div>
 
@@ -696,7 +696,7 @@ export default function TopUpModal({ game, onClose, onOrderComplete, walletBalan
                   style={{ marginTop: '0.2rem', accentColor: '#0284c7' }}
                 />
                 <label htmlFor="agree-tnc" style={{ cursor: 'pointer', lineHeight: 1.4 }}>
-                  I confirm that my Game ID is accurate. Top-ups sent to wrong IDs entered by customers cannot be refunded / ការបញ្ចូល ID ខុស មិនអាចសងប្រាក់វិញបានឡើយ។
+                  I confirm that my Game ID is accurate. Top-ups sent to wrong IDs entered by customers cannot be refunded.
                 </label>
               </div>
 
@@ -733,8 +733,8 @@ export default function TopUpModal({ game, onClose, onOrderComplete, walletBalan
                     <span className="mono font-gaming" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0284c7', lineHeight: 1 }}>
                       ${totalPrice}
                     </span>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                      ≈ ៛{rielPrice}
+                    <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 700 }}>
+                      USD
                     </span>
                   </div>
                 </div>
@@ -744,7 +744,7 @@ export default function TopUpModal({ game, onClose, onOrderComplete, walletBalan
                   className="btn btn-primary btn-lg"
                   style={{ minWidth: '180px' }}
                 >
-                  <span>Buy Now · ទិញឥឡូវ</span>
+                  <span>Buy Now</span>
                   <ArrowRight size={18} />
                 </button>
               </div>

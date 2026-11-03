@@ -2019,9 +2019,6 @@ export default function AdminDashboard({ onBackToStore }) {
                           <span className="text-lg font-black text-[#E3062F] font-mono">
                             ${Number(pkg.price).toFixed(2)} USD
                           </span>
-                          <span className="text-[11px] text-slate-500 font-mono">
-                            ≈ ៛{(Math.round(Number(pkg.price) * 4100)).toLocaleString()} KHR
-                          </span>
                         </div>
 
                         <div className="flex items-center gap-2 text-xs text-slate-400 mb-3">

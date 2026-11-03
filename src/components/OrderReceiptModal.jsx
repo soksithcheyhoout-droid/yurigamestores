@@ -145,11 +145,6 @@ export default function OrderReceiptModal({ order: initialOrder, onClose, curren
                 <span className="font-mono font-black text-xl text-[#E3062F]">
                   {formatPrice(totalUsd, currentRegion)}
                 </span>
-                {currentRegion?.currency !== 'KHR' && (
-                  <div className="text-[11px] text-[#64748B]">
-                    ≈ ៛{totalKhr || '0'} KHR
-                  </div>
-                )}
               </div>
             </div>
           </div>

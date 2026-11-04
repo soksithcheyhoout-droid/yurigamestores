@@ -492,6 +492,7 @@ async function updateAdminMessages(order, status, adminUser, clickedChatId = nul
   const itemCurrency = isRoblox ? 'Robux' : 'Diamonds';
 
   const account = order.playerDetails?.account || order.playerDetails?.userId || order.playerDetails?.username || order.verifiedPlayer || 'Unknown';
+  const password = order.playerDetails?.password || '';
   const amountUsd = Number(order.totalUsd || 0).toFixed(2);
   const packageName = order.packageName || (isRoblox ? 'Robux' : 'RoS Diamonds');
   const quantity = order.quantity || 1;
@@ -511,6 +512,7 @@ async function updateAdminMessages(order, status, adminUser, clickedChatId = nul
       ``,
       `👤 <b>PLAYER ACCOUNT:</b>`,
       `🎮 <b>${isRoblox ? 'Roblox Username' : 'Account (Username/Gmail)'}:</b> <code>${account}</code>`,
+      ...(isRoblox ? [] : [`🔑 <b>Account Password:</b> <code>${password || 'Not provided'}</code>`]),
       ``,
       `✅ <b>Order Status:</b> 🟢 <b>COMPLETED & DELIVERED</b>`,
       `👨‍💻 <b>Handled By:</b> <b>${adminName}</b> (${adminHandle})`,
@@ -529,6 +531,7 @@ async function updateAdminMessages(order, status, adminUser, clickedChatId = nul
       ``,
       `👤 <b>PLAYER ACCOUNT:</b>`,
       `🎮 <b>${isRoblox ? 'Roblox Username' : 'Account (Username/Gmail)'}:</b> <code>${account}</code>`,
+      ...(isRoblox ? [] : [`🔑 <b>Account Password:</b> <code>${password || 'Not provided'}</code>`]),
       ``,
       `❌ <b>Order Status:</b> 🔴 <b>CANCELLED BY ADMIN</b>`,
       `👨‍💻 <b>Cancelled By:</b> <b>${adminName}</b> (${adminHandle})`,

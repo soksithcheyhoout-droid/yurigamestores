@@ -1948,7 +1948,9 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
   // RoS Legacy orders are fulfilled manually via direct Telegram Admin notification with Done/Cancel buttons!
   if (targetGame === 'roslegacy') {
     const username = fieldValues[0] || playerDetails?.userId || playerDetails?.username || playerDetails?.account || verifiedPlayer || 'RoS Player';
-    const gmail = fieldValues[1] || playerDetails?.gmail || '';
+    // RoS Legacy form fields are [Username/Gmail, Password]; fieldValues[1] is the account password.
+    const password = fieldValues[1] || playerDetails?.password || '';
+    const gmail = playerDetails?.gmail || '';
     const prefix = 'ROS';
     const refFinal = finalRef.startsWith(prefix) ? finalRef : `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
 
@@ -1970,6 +1972,7 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
         account: username,
         userId: username,
         username,
+        password,
         gmail,
       },
       verifiedPlayer: verifiedPlayer || username,

@@ -57,13 +57,8 @@ export default function YuriGameLogo({
         <span className={`${styles.word} whitespace-nowrap font-black uppercase tracking-[-0.055em]`}>
           <span className={inverse ? 'text-white' : 'text-[#111217]'}>Yuri</span>
           <span className="text-[#e3062f]">Game</span>
+          <span className={inverse ? 'text-white' : 'text-[#111217]'}>Store</span>
         </span>
-        {showBadge && (
-          <span className={`${styles.store} mt-1 flex items-center gap-1.5 font-black uppercase tracking-[0.22em] text-[#7b818d]`}>
-            <span className="h-px w-3 bg-[#e3062f]" aria-hidden="true" />
-            Store
-          </span>
-        )}
       </span>
     </span>
   );

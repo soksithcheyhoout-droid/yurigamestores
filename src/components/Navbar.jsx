@@ -175,9 +175,6 @@ export default function Navbar({
           aria-label="YuriGame Store home"
         >
           <YuriGameLogo size="sm" showBadge={false} inverse />
-          <span className="ml-2.5 hidden rounded-md border border-[#E3062F]/50 bg-[#E3062F]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#FF4D6D] sm:inline-flex font-['Rajdhani']">
-            Store
-          </span>
         </a>
 
         {/* Desktop PC Nav with Interactive Hover Animations */}

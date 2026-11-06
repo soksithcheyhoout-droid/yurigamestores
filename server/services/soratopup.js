@@ -827,9 +827,10 @@ export async function createSoraOrder({ game, code, fieldValues = [], orderRef =
     game_user_id: cleanString(fieldValues[0], 120),
     reference,
   };
-  // Server/zone id is the second field for games that need it (e.g. Mobile Legends).
+  // Second field for games that need it — Bay2Game reads it as `game_zone_id`.
+  // Mobile Legends: zone/server id. RoS Legacy: the account password (userid=username, zone=password).
   if (PROVIDER_SERVER_GAMES.has(providerGame) && cleanString(fieldValues[1])) {
-    body.game_server_id = cleanString(fieldValues[1], 120);
+    body.game_zone_id = cleanString(fieldValues[1], 120);
   }
 
   const payload = await providerRequest('/create_order', { provider: 'bay2game', method: 'POST', body });

@@ -696,9 +696,7 @@ export default function GameDetailPage({
   };
 
   const handleCloseTab = () => {
-    try {
-      window.close();
-    } catch { }
+    // Do NOT close the tab/URL after payment — just return to the storefront.
     if (onBack) {
       onBack();
     }
@@ -1722,7 +1720,7 @@ export default function GameDetailPage({
                       className="px-3.5 py-1.5 rounded-lg bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold text-xs cursor-pointer flex items-center gap-1.5 shadow-sm transition-transform active:scale-95 border-0"
                     >
                       <X size={13} />
-                      <span>Close Tab or Return</span>
+                      <span>Return to Store</span>
                     </button>
                   </div>
                 </div>
@@ -1829,7 +1827,7 @@ export default function GameDetailPage({
                 onClick={handleCloseTab}
                 className="w-full seagm-btn-teal py-3 text-sm font-black uppercase tracking-wider cursor-pointer shadow-lg active:scale-95 transition-all"
               >
-                <span>{completedOrder.status === 'PROCESSING' ? 'Close Tab / Return to Store' : 'Done • Back to Store'}</span>
+                <span>{completedOrder.status === 'PROCESSING' ? 'Return to Store' : 'Done • Back to Store'}</span>
               </button>
             </div>
           </div>

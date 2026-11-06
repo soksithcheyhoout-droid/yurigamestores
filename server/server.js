@@ -1564,10 +1564,10 @@ function sendPlayerLookupError(res, error) {
 }
 
 const LOCAL_GAME_IMAGES = {
-  robuxsend: '/assets/games/current_roblox.jpg',
-  ml: '/assets/games/current_mobile-legends.jpg',
-  ff: '/assets/games/current_free-fire.jpg',
-  roslegacy: '/assets/games/current_ros-legacy.jpg',
+  robuxsend: '/assets/games/roblox_kh.png',
+  ml: '/assets/games/ml_kh.png',
+  ff: '/assets/games/ff_kh.png',
+  roslegacy: '/assets/games/ros_legacy_kh.webp',
 };
 
 const LOCAL_GAME_BANNERS = {

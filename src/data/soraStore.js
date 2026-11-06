@@ -82,10 +82,10 @@ export function mapSoraGame(game) {
   const slug = CANONICAL_GAME_SLUGS[code] || `sora-${code}`;
 
   const defaultTile =
-    code === 'robuxsend' ? '/assets/games/roblox_tile_4k.jpg' :
-    code === 'ml' ? '/assets/games/mlbb_tile_4k.jpg' :
-    code === 'ff' ? '/assets/games/freefire_tile_4k.jpg' :
-    '/assets/brand/yurigame-logo.webp';
+    code === 'robuxsend' ? '/assets/games/roblox_kh.png' :
+    code === 'ml' ? '/assets/games/ml_kh.png' :
+    code === 'ff' ? '/assets/games/ff_kh.png' :
+    '/assets/games/ros_legacy_kh.webp';
 
   const defaultBanner =
     code === 'robuxsend' ? '/assets/games/roblox_hero_4k.jpg' :
@@ -156,8 +156,8 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'robuxsend',
     name: 'Roblox',
-    image: '/assets/games/current_roblox.jpg',
-    banner: '/assets/games/current_roblox.jpg',
+    image: '/assets/games/roblox_kh.png',
+    banner: '/assets/games/roblox_kh.png',
     description: 'Robux delivered by Roblox username after account verification.',
     needServer: false,
     verificationMode: 'official',
@@ -166,7 +166,7 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'ml',
     name: 'Mobile Legends KH',
-    image: '/assets/games/current_mobile-legends.jpg',
+    image: '/assets/games/ml_kh.png',
     banner: '/assets/banners/banner_mlbb.jpg',
     description: 'Mobile Legends KH top-up. Enter your User ID and Zone ID.',
     needServer: true,
@@ -179,7 +179,7 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'ff',
     name: 'Free Fire',
-    image: '/assets/games/current_free-fire.jpg',
+    image: '/assets/games/ff_kh.png',
     banner: '/assets/banners/banner_freefire.jpg',
     description: 'Free Fire direct top-up. Available for KH/SG/MY and all regions.',
     needServer: false,
@@ -189,8 +189,8 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'roslegacy',
     name: 'RoS Legacy',
-    image: '/assets/games/current_ros-legacy.jpg',
-    banner: '/assets/games/current_ros-legacy.jpg',
+    image: '/assets/games/ros_legacy_kh.webp',
+    banner: '/assets/games/ros_legacy_kh.webp',
     description: 'RoS Legacy top-up. Enter your public username only.',
     needServer: false,
     verificationMode: 'format',

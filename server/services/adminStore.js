@@ -38,7 +38,7 @@ const DEFAULT_GAMES = [
 
     banner: '/assets/games/roblox_hero_4k.jpg',
 
-    image: '/assets/games/roblox_tile_4k.jpg',
+    image: '/assets/games/roblox_kh.png',
 
     badge: 'Official Username',
 
@@ -86,7 +86,7 @@ const DEFAULT_GAMES = [
 
     banner: '/assets/games/mlbb_hero_4k.jpg',
 
-    image: '/assets/games/mlbb_tile_4k.jpg',
+    image: '/assets/games/ml_kh.png',
 
     badge: '5s Moonton Sync',
 
@@ -162,7 +162,7 @@ const DEFAULT_GAMES = [
 
     banner: '/assets/games/freefire_hero_4k.jpg',
 
-    image: '/assets/games/freefire_tile_4k.jpg',
+    image: '/assets/games/ff_kh.png',
 
     badge: 'Official Garena UID',
 
@@ -216,7 +216,7 @@ const DEFAULT_GAMES = [
 
     banner: '/assets/brand/yurigame-logo.webp',
 
-    image: '/assets/brand/yurigame-logo.webp',
+    image: '/assets/games/ros_legacy_kh.webp',
 
     badge: 'Official Top-Up',
 
@@ -497,7 +497,7 @@ const DEFAULT_BANNERS = [
 
     actionLabel: 'Open RoS Legacy Packages',
 
-    image: '/assets/brand/yurigame-logo.webp',
+    image: '/assets/games/ros_legacy_kh.webp',
 
     gameSlug: 'ros-legacy',
 

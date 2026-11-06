@@ -2,7 +2,15 @@
 // Auth: api_key passed as a query param (GET) or body field (POST).
 // Endpoints used: /profile, /categories, /products?game_code=, /create_order (POST), /check_order?reference=
 const DEFAULT_BASE_URL = 'https://api.bay2game.xyz/api';
+// Roblox (robuxsend) is NOT sold by Bay2Game, so it keeps using the legacy SoraTopup provider.
+const SORATOPUP_DEFAULT_BASE_URL = 'https://app.soratopup.com/api/v1';
 const REQUEST_TIMEOUT_MS = 15_000;
+
+// Games still fulfilled by the legacy SoraTopup provider (everything else uses Bay2Game).
+const SORATOPUP_GAMES = new Set(['robuxsend', 'roblox']);
+function providerForGame(code) {
+  return SORATOPUP_GAMES.has(cleanString(code, 80).toLowerCase()) ? 'soratopup' : 'bay2game';
+}
 
 // Map our internal storefront codes to Bay2Game game codes.
 const PROVIDER_GAME_CODE_MAP = {
@@ -110,12 +118,17 @@ export class SoraTopupError extends Error {
   }
 }
 
-function getConfig() {
-  const rawBaseUrl = (process.env.BAY2GAME_BASE_URL || process.env.SORATOPUP_BASE_URL || DEFAULT_BASE_URL).trim();
-  const apiKey = (process.env.BAY2GAME_API_KEY || process.env.SORATOPUP_API_KEY || '').trim();
+function getConfig(provider = 'bay2game') {
+  const isSora = provider === 'soratopup';
+  const rawBaseUrl = isSora
+    ? (process.env.SORATOPUP_BASE_URL || SORATOPUP_DEFAULT_BASE_URL).trim()
+    : (process.env.BAY2GAME_BASE_URL || DEFAULT_BASE_URL).trim();
+  const apiKey = isSora
+    ? (process.env.SORATOPUP_API_KEY || '').trim()
+    : (process.env.BAY2GAME_API_KEY || '').trim();
 
   if (!apiKey) {
-    throw new SoraTopupError('Game provider is not configured.', {
+    throw new SoraTopupError(`${isSora ? 'Roblox provider (SoraTopup)' : 'Game provider (Bay2Game)'} is not configured.`, {
       status: 503,
       code: 'provider_not_configured',
     });
@@ -125,14 +138,14 @@ function getConfig() {
   try {
     parsedUrl = new URL(rawBaseUrl);
   } catch {
-    throw new SoraTopupError('SoraTopup base URL is invalid.', {
+    throw new SoraTopupError('Provider base URL is invalid.', {
       status: 503,
       code: 'provider_config_invalid',
     });
   }
 
   if (parsedUrl.protocol !== 'https:') {
-    throw new SoraTopupError('SoraTopup base URL must use HTTPS.', {
+    throw new SoraTopupError('Provider base URL must use HTTPS.', {
       status: 503,
       code: 'provider_config_invalid',
     });
@@ -141,27 +154,31 @@ function getConfig() {
   return {
     baseUrl: parsedUrl.toString().replace(/\/+$/, ''),
     apiKey,
+    auth: isSora ? 'bearer' : 'query',
   };
 }
 
-async function providerRequest(path, { method = 'GET', body, headers = {} } = {}) {
-  const { baseUrl, apiKey } = getConfig();
+async function providerRequest(path, { provider = 'bay2game', method = 'GET', body, headers = {} } = {}) {
+  const { baseUrl, apiKey, auth } = getConfig(provider);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  // Bay2Game authenticates with api_key as a query param (and in the JSON body for POST).
+  // Bay2Game authenticates with api_key (query param + JSON body); SoraTopup uses a Bearer token.
   const url = new URL(`${baseUrl}${path}`);
-  url.searchParams.set('api_key', apiKey);
-  const outboundBody = body ? { api_key: apiKey, ...body } : undefined;
+  const reqHeaders = { Accept: 'application/json', ...headers };
+  let outboundBody = body;
+  if (auth === 'query') {
+    url.searchParams.set('api_key', apiKey);
+    outboundBody = body ? { api_key: apiKey, ...body } : undefined;
+  } else {
+    reqHeaders.Authorization = `Bearer ${apiKey}`;
+  }
+  if (outboundBody) reqHeaders['Content-Type'] = 'application/json';
 
   try {
     const response = await fetch(url.toString(), {
       method,
-      headers: {
-        Accept: 'application/json',
-        ...(outboundBody ? { 'Content-Type': 'application/json' } : {}),
-        ...headers,
-      },
+      headers: reqHeaders,
       body: outboundBody ? JSON.stringify(outboundBody) : undefined,
       signal: controller.signal,
     });
@@ -433,9 +450,8 @@ export async function getLiveSoraPackages(gameCode, { force = false } = {}) {
   let code = validGameCode(gameCode);
   if (code === 'roblox') code = 'robuxsend';
 
-  // Bay2Game has no Roblox catalogue and no live catalogue for locally-fulfilled games.
-  const providerCode = toProviderGameCode(code);
-  if (!PROVIDER_GAME_CODE_MAP[code]) {
+  const provider = providerForGame(code);
+  if (provider === 'bay2game' && !PROVIDER_GAME_CODE_MAP[code]) {
     throw new SoraTopupError('This game has no live provider catalogue.', {
       status: 404,
       code: 'no_live_catalogue',
@@ -447,19 +463,33 @@ export async function getLiveSoraPackages(gameCode, { force = false } = {}) {
   const cached = packageCache.get(cacheKey);
   if (!force && cached && cached.expiresAt > now) return cached.value;
 
-  const payload = await providerRequest(`/products?game_code=${encodeURIComponent(providerCode)}`);
-  const g = payload?.game || {};
-  const game = normalizeGame({
-    code, // keep storefront code so STOREFRONT_GAME_OVERRIDES (labels/fields) apply
-    name: g.name,
-    image: g.image_url,
-    description: g.description,
-    fields: Array.isArray(g.game_fields) ? g.game_fields : [],
-    needServer: PROVIDER_SERVER_GAMES.has(providerCode),
-  });
-  const packages = (Array.isArray(payload?.products) ? payload.products : [])
-    .map((item) => normalizePackage(item, code))
-    .filter(Boolean);
+  let game;
+  let packages;
+  if (provider === 'soratopup') {
+    // Legacy SoraTopup provider (Roblox / robuxsend).
+    const payload = await providerRequest(`/packages?game=${encodeURIComponent(code)}`, { provider: 'soratopup' });
+    game = normalizeGame(payload?.gameInfo || { code, name: payload?.game || code });
+    packages = (Array.isArray(payload?.packages) ? payload.packages : [])
+      .map((item) => normalizePackage(item, code))
+      .filter(Boolean);
+  } else {
+    // Bay2Game provider (ML / FF / RoS Legacy).
+    const providerCode = toProviderGameCode(code);
+    const payload = await providerRequest(`/products?game_code=${encodeURIComponent(providerCode)}`, { provider: 'bay2game' });
+    const g = payload?.game || {};
+    game = normalizeGame({
+      code, // keep storefront code so STOREFRONT_GAME_OVERRIDES (labels/fields) apply
+      name: g.name,
+      image: g.image_url,
+      description: g.description,
+      fields: Array.isArray(g.game_fields) ? g.game_fields : [],
+      needServer: PROVIDER_SERVER_GAMES.has(providerCode),
+    });
+    packages = (Array.isArray(payload?.products) ? payload.products : [])
+      .map((item) => normalizePackage(item, code))
+      .filter(Boolean);
+  }
+
   const value = {
     game,
     packages,
@@ -695,9 +725,35 @@ export async function getSoraOrders({ limit = 50, query = '' } = {}) {
     }
   }
 
-  // Bay2Game exposes no bulk order-list endpoint; provider order history is tracked in our own store.
-  void safeLimit;
-  return [];
+  // Bay2Game has no bulk order-list endpoint (ML/FF history lives in our own store).
+  // The legacy SoraTopup provider does, so we surface its list (Roblox orders) when configured.
+  let orders = [];
+  try {
+    const payload = await providerRequest(`/orders?limit=${safeLimit}`, { provider: 'soratopup' });
+    orders = Array.isArray(payload?.orders) ? payload.orders : [];
+  } catch {
+    return [];
+  }
+
+  if (!cleanQ) return orders;
+
+  return orders.filter((o) => {
+    const ref = cleanString(o.refid || o.ref).toLowerCase();
+    const player = cleanString(o.player).toLowerCase();
+    const nick = cleanString(o.nickname).toLowerCase();
+    const game = cleanString(o.gameId || o.gameLabel).toLowerCase();
+    const item = cleanString(o.item).toLowerCase();
+    const reason = cleanString(o.reason).toLowerCase();
+
+    return (
+      ref.includes(cleanQ) ||
+      player.includes(cleanQ) ||
+      nick.includes(cleanQ) ||
+      game.includes(cleanQ) ||
+      item.includes(cleanQ) ||
+      reason.includes(cleanQ)
+    );
+  });
 }
 
 export async function getSoraOrder(ref) {
@@ -708,19 +764,28 @@ export async function getSoraOrder(ref) {
       code: 'missing_ref',
     });
   }
-  const payload = await providerRequest(`/check_order?reference=${encodeURIComponent(cleanRef)}`);
-  const order = payload?.order || payload?.data || payload || {};
-  return {
-    ok: true,
-    refid: order?.reference || cleanRef,
-    ref: cleanRef,
-    status: order?.status,
-    player: order?.game_user_id,
-    item: order?.product_name || order?.product_code,
-    amount: order?.price ?? order?.cost,
-    raw: payload,
-    ...order,
-  };
+  // Order could belong to either provider. Try Bay2Game first, then fall back to legacy SoraTopup.
+  try {
+    const payload = await providerRequest(`/check_order?reference=${encodeURIComponent(cleanRef)}`, { provider: 'bay2game' });
+    const order = payload?.order || payload?.data || payload || {};
+    return {
+      ok: true,
+      refid: order?.reference || cleanRef,
+      ref: cleanRef,
+      status: order?.status,
+      player: order?.game_user_id,
+      item: order?.product_name || order?.product_code,
+      amount: order?.price ?? order?.cost,
+      raw: payload,
+      ...order,
+    };
+  } catch (bay2Err) {
+    try {
+      return await providerRequest(`/order?ref=${encodeURIComponent(cleanRef)}`, { provider: 'soratopup' });
+    } catch {
+      throw bay2Err;
+    }
+  }
 }
 
 export async function createSoraOrder({ game, code, fieldValues = [], orderRef = '' }) {
@@ -732,22 +797,42 @@ export async function createSoraOrder({ game, code, fieldValues = [], orderRef =
     throw new SoraTopupError('Player details (fieldValues) are required.', { status: 400, code: 'missing_fields' });
   }
 
-  const providerGame = toProviderGameCode(cleanGame);
-  // Bay2Game requires a unique `reference`; it doubles as our idempotency key and status lookup handle.
-  const reference = cleanString(orderRef, 80) || `YGS_${providerGame}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const reference = cleanString(orderRef, 80) || `YGS_${cleanGame}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+  // Legacy SoraTopup provider (Roblox / robuxsend) keeps its original order contract.
+  if (providerForGame(cleanGame) === 'soratopup') {
+    return await providerRequest('/order', {
+      provider: 'soratopup',
+      method: 'POST',
+      headers: {
+        'Idempotency-Key': reference,
+        'X-Idempotency-Key': reference,
+      },
+      body: {
+        game: cleanGame,
+        code: cleanCode,
+        fieldValues: fieldValues.map((v) => cleanString(v, 120)),
+        idempotency_key: reference,
+        idempotencyKey: reference,
+        orderRef: reference,
+      },
+    });
+  }
+
+  // Bay2Game provider (ML / FF): reference is required, unique, and doubles as the status handle.
+  const providerGame = toProviderGameCode(cleanGame);
   const body = {
     game_code: providerGame,
     product_code: cleanCode,
     game_user_id: cleanString(fieldValues[0], 120),
     reference,
   };
-  // Server/zone id is the second field for games that need it (e.g. Mobile Legends, RoS Legacy).
+  // Server/zone id is the second field for games that need it (e.g. Mobile Legends).
   if (PROVIDER_SERVER_GAMES.has(providerGame) && cleanString(fieldValues[1])) {
     body.game_server_id = cleanString(fieldValues[1], 120);
   }
 
-  const payload = await providerRequest('/create_order', { method: 'POST', body });
+  const payload = await providerRequest('/create_order', { provider: 'bay2game', method: 'POST', body });
 
   // Normalize to the shape the fulfillment layer expects (refid/ref/status/item/amount).
   const order = payload?.order || payload?.data || payload || {};

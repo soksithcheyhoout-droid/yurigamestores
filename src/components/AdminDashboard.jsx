@@ -699,7 +699,7 @@ export default function AdminDashboard({ onBackToStore }) {
       showToast(`Sora sync complete: ${result.connected || 0} connected, ${result.unchanged || 0} current, ${result.unmatched || 0} need SKU selection.`);
       fetchFullConfig();
     } catch {
-      showToast('Could not connect to SoraTopup Live.');
+      showToast('Could not connect to the game provider.');
     } finally {
       setIsSyncingSora(false);
     }
@@ -718,7 +718,7 @@ export default function AdminDashboard({ onBackToStore }) {
         const data = await res.json();
         if (data.success) {
           const connection = data.package.providerConnected
-            ? ` Connected to SoraTopup Live (${data.package.providerCode}).`
+            ? ` Connected to provider (${data.package.providerCode}).`
             : '';
           showToast(`Package "${data.package.name}" updated successfully!${connection}`);
           setEditingPackage(null);
@@ -736,7 +736,7 @@ export default function AdminDashboard({ onBackToStore }) {
         const data = await res.json();
         if (data.success) {
           const connection = data.package.providerConnected
-            ? ` Connected to SoraTopup Live (${data.package.providerCode}).`
+            ? ` Connected to provider (${data.package.providerCode}).`
             : '';
           showToast(`New package "${data.package.name}" added!${connection}`);
           setIsAddingPackage(false);
@@ -1245,6 +1245,13 @@ export default function AdminDashboard({ onBackToStore }) {
   }
 
   const selectedGame = config?.games?.find((g) => g.id === selectedGameId) || config?.games?.[0];
+
+  // Which upstream provider fulfils a game: Roblox -> SoraTopup, everything else -> Bay2Game.
+  const providerNameFor = (g) =>
+    ['robuxsend', 'roblox'].includes(String(g?.providerCode || g?.id || '').toLowerCase())
+      ? 'Sora'
+      : 'Bay2Game';
+  const selectedProviderName = providerNameFor(selectedGame);
 
   const filteredOrders = orders.filter((o) => {
     if (orderFilter !== 'all' && o.status !== orderFilter) return false;
@@ -1968,7 +1975,7 @@ export default function AdminDashboard({ onBackToStore }) {
                         className="flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-xs font-black text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-wait disabled:opacity-60"
                       >
                         <RefreshCw size={15} className={isSyncingSora ? 'animate-spin' : ''} />
-                        <span>{isSyncingSora ? 'Syncing Sora Live...' : 'Sync Sora Live'}</span>
+                        <span>{isSyncingSora ? `Syncing ${selectedProviderName} Live...` : `Sync ${selectedProviderName} Live`}</span>
                       </button>
                     )}
                     <button
@@ -2033,8 +2040,8 @@ export default function AdminDashboard({ onBackToStore }) {
                           }`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${pkg.providerConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                             {pkg.providerConnected
-                              ? `Sora Live · ${pkg.providerCode}`
-                              : 'Legacy package · edit to connect'}
+                              ? `${selectedProviderName} Live · ${pkg.providerCode}`
+                              : `Edit to connect with ${selectedProviderName}`}
                           </div>
                         )}
                       </div>
@@ -2233,8 +2240,8 @@ export default function AdminDashboard({ onBackToStore }) {
                                   </div>
                                   <div className={`mt-1 text-[9px] font-bold ${pkg.providerConnected ? 'text-emerald-400' : 'text-amber-300'}`}>
                                     {pkg.providerConnected
-                                      ? `Sora Live · ${pkg.providerCode}`
-                                      : 'Edit to connect with Sora Live'}
+                                      ? `${selectedProviderName} Live · ${pkg.providerCode}`
+                                      : `Edit to connect with ${selectedProviderName}`}
                                   </div>
                                 </div>
                               </div>

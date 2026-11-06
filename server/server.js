@@ -1430,9 +1430,10 @@ async function connectAdminPackageToSora(gameIdentifier, packageData = {}, optio
   }
 
   const providerGameCode = String(game.providerCode || game.id || '').toLowerCase();
-  const isSoraGame = ['ml', 'mobile-legends', 'ff', 'free-fire', 'freefire', 'robuxsend', 'roblox'].includes(providerGameCode);
+  // RoS Legacy now auto-delivers via Bay2Game, so it is connectable like the others.
+  const isSoraGame = ['ml', 'mobile-legends', 'ff', 'free-fire', 'freefire', 'robuxsend', 'roblox', 'roslegacy', 'ros'].includes(providerGameCode);
 
-  // Manual games (RoS roslegacy, or custom manual games) do not use SoraTopup
+  // Only truly manual/custom games skip provider connection.
   if (!providerGameCode || !isSoraGame) {
     return {
       ...packageData,

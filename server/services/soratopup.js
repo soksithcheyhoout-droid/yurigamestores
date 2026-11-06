@@ -17,9 +17,9 @@ const PROVIDER_GAME_CODE_MAP = {
   ml: 'mlbb',
   mlbb: 'mlbb',
   'mobile-legends': 'mlbb',
-  ff: 'freefire_global',
-  freefire: 'freefire_global',
-  'free-fire': 'freefire_global',
+  ff: 'freefire_sg',
+  freefire: 'freefire_sg',
+  'free-fire': 'freefire_sg',
   roslegacy: 'ros_legacy',
   ros: 'ros_legacy',
   // robuxsend/roblox is NOT offered by Bay2Game; handled locally via fallback packages.

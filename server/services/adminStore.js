@@ -176,23 +176,25 @@ const DEFAULT_GAMES = [
 
     packages: [
 
-      { id: 'ff_110', code: '110', name: '110 Diamonds', diamonds: 110, price: 0.98, bonus: 'Starter Pack', popular: false, inStock: true, image: '' },
+      { id: 'ff_25', code: 'FREEFIRE_SG_25', name: '25 Diamonds', diamonds: 25, price: 0.29, bonus: 'Starter Pack', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_341', code: '341', name: '341 Diamonds', diamonds: 341, price: 2.99, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'ff_100', code: 'FREEFIRE_SG_100', name: '100 Diamonds', diamonds: 100, price: 0.98, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_572', code: '572', name: '572 Diamonds', diamonds: 572, price: 4.80, bonus: '', popular: true, inStock: true, image: '' },
+      { id: 'ff_310', code: 'FREEFIRE_SG_310', name: '310 Diamonds', diamonds: 310, price: 2.99, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_1166', code: '1166', name: '1,166 Diamonds', diamonds: 1166, price: 9.39, bonus: '', popular: true, inStock: true, image: '' },
+      { id: 'ff_520', code: 'FREEFIRE_SG_520', name: '520 Diamonds', diamonds: 520, price: 4.80, bonus: '', popular: true, inStock: true, image: '' },
 
-      { id: 'ff_2398', code: '2398', name: '2,398 Diamonds', diamonds: 2398, price: 18.49, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'ff_1060', code: 'FREEFIRE_SG_1060', name: '1,060 Diamonds', diamonds: 1060, price: 9.39, bonus: '', popular: true, inStock: true, image: '' },
 
-      { id: 'ff_6160', code: '6160', name: '6,160 Diamonds', diamonds: 6160, price: 47.99, bonus: '', popular: true, inStock: true, image: '' },
+      { id: 'ff_2180', code: 'FREEFIRE_SG_2180', name: '2,180 Diamonds', diamonds: 2180, price: 18.49, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_weeklylite', code: 'FREEFIRE_GLOBAL_Weekly_Lite', name: 'Weekly Lite', diamonds: 100, price: 0.39, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'ff_5600', code: 'FREEFIRE_SG_5600', name: '5,600 Diamonds', diamonds: 5600, price: 47.99, bonus: '', popular: true, inStock: true, image: '' },
 
-      { id: 'ff_weekly', code: 'FREEFIRE_GLOBAL_Weekly_Membership', name: 'Weekly Pass', diamonds: 100, price: 1.69, bonus: '', popular: true, inStock: true, image: '' },
+      { id: 'ff_11500', code: 'FREEFIRE_SG_11500', name: '11,500 Diamonds', diamonds: 11500, price: 95.00, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_monthly', code: 'FREEFIRE_GLOBAL_Monthly_Membership', name: 'Monthly Pass', diamonds: 100, price: 7.50, bonus: '', popular: true, inStock: true, image: '' }
+      { id: 'ff_weeklylite', code: 'FREEFIRE_SG_Weekly_Lite', name: 'Weekly Lite', diamonds: 100, price: 0.39, bonus: '', popular: false, inStock: true, image: '' },
+
+      { id: 'ff_monthly', code: 'FREEFIRE_SG_Monthly_Membership', name: 'Monthly Pass', diamonds: 100, price: 7.50, bonus: '', popular: true, inStock: true, image: '' }
 
     ]
 

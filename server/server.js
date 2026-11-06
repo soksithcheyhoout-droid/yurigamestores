@@ -60,6 +60,7 @@ import {
   getPublicSiteConfig,
   getAdminClientConfig,
   getAdminFullConfig,
+  loadAdminConfigFromDb,
   consumeAdminToken,
   createAdminSession,
   requestAdminOtp,
@@ -1714,10 +1715,11 @@ app.get('/api/soratopup/catalogue', async (req, res) => {
           const down = !h.ok || pub.adminMaintenance === true;
           return { ...pub, maintenance: down, maintenanceReason: pub.adminMaintenance ? 'Temporarily disabled by admin' : (h.reason || '') };
         }),
-        // Admin-imported games (anything beyond the 4 core games).
+        // Admin-imported games (anything beyond the 4 core games). Resilient: a bad entry can't break the list.
         ...((getAdminFullConfig()?.games || [])
           .filter((g) => !CORE_GAME_CODES.has(String(g.id || g.providerCode || '').toLowerCase()))
-          .map(publicImportedGame)),
+          .map((g) => { try { return publicImportedGame(g); } catch { return null; } })
+          .filter(Boolean)),
       ],
     });
   } catch (error) {
@@ -3573,6 +3575,8 @@ if (fs.existsSync(distPath)) {
 export const httpServer = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 YuriGame Store API Server running at http://localhost:${PORT}`);
   await ensureDatabaseSchema();
+  // Load the durable admin config (imported games, prices, logos) from MySQL so it survives redeploys.
+  await loadAdminConfigFromDb().catch((e) => console.warn('[Admin Store] DB config load skipped:', e.message));
   if (process.env.SORA_STARTUP_SYNC_DISABLED !== 'true') {
     syncConfiguredPackagesWithSora()
       .then((result) => {

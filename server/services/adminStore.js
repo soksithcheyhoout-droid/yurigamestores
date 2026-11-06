@@ -6,6 +6,8 @@ import path from 'node:path';
 
 import crypto from 'node:crypto';
 
+import { pool } from '../config/db.js';
+
 
 
 // Store configuration file in OS temp directory (completely outside the repository)
@@ -582,9 +584,12 @@ export function loadAdminConfig() {
 
 
 
+        const defKeys = new Set(DEFAULT_GAMES.flatMap((g) => [g.id, g.slug].filter(Boolean)));
+        const importedGames = (loaded.games || []).filter((g) => g && !defKeys.has(g.id) && !defKeys.has(g.slug));
+
         adminConfig = {
 
-          games: gamesMerged,
+          games: [...gamesMerged, ...importedGames],
 
           mlbbEvents: Array.isArray(loaded.mlbbEvents) ? loaded.mlbbEvents : DEFAULT_MLBB_EVENTS,
 
@@ -653,6 +658,72 @@ export function saveAdminConfig() {
 
   }
 
+  // Also persist to MySQL so the config (incl. imported games) survives Railway redeploys.
+  saveAdminConfigToDb();
+}
+
+// ---- Durable persistence in MySQL (survives container redeploys) ----
+function mergeLoadedConfig(loaded) {
+  const gamesMerged = DEFAULT_GAMES.map((defGame) => {
+    const found = (loaded.games || []).find((g) => g.id === defGame.id || g.slug === defGame.slug);
+    if (!found) return defGame;
+    return {
+      ...defGame,
+      ...found,
+      fields: defGame.fields,
+      packages: Array.isArray(found.packages) && found.packages.length > 0 ? found.packages : defGame.packages,
+    };
+  });
+  const defKeys = new Set(DEFAULT_GAMES.flatMap((g) => [g.id, g.slug].filter(Boolean)));
+  const importedGames = (loaded.games || []).filter((g) => g && !defKeys.has(g.id) && !defKeys.has(g.slug));
+  return {
+    games: [...gamesMerged, ...importedGames],
+    mlbbEvents: Array.isArray(loaded.mlbbEvents) ? loaded.mlbbEvents : adminConfig.mlbbEvents,
+    contacts: { ...adminConfig.contacts, ...(loaded.contacts || {}), telegramBotToken: '' },
+    banners: Array.isArray(loaded.banners) ? loaded.banners : adminConfig.banners,
+    updatedAt: loaded.updatedAt || new Date().toISOString(),
+  };
+}
+
+async function saveAdminConfigToDb() {
+  try {
+    if (!pool) return;
+    const json = JSON.stringify({
+      ...adminConfig,
+      contacts: { ...(adminConfig.contacts || {}), telegramBotToken: '' },
+    });
+    await pool.query(
+      'INSERT INTO `app_config` (config_key, config_json) VALUES (?, ?) ON DUPLICATE KEY UPDATE config_json = VALUES(config_json)',
+      ['admin_config', json]
+    );
+  } catch (err) {
+    console.warn('[Admin Store] DB config save notice:', err.message);
+  }
+}
+
+// Called at startup (after the DB schema is ready) to override the in-memory config with the durable copy.
+export async function loadAdminConfigFromDb() {
+  try {
+    if (!pool) return false;
+    await pool.query(
+      'CREATE TABLE IF NOT EXISTS `app_config` (`config_key` VARCHAR(64) PRIMARY KEY, `config_json` LONGTEXT, `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+    const [rows] = await pool.query('SELECT config_json FROM `app_config` WHERE config_key = ? LIMIT 1', ['admin_config']);
+    if (!rows.length) {
+      // No durable copy yet — seed it from whatever we loaded from disk/defaults.
+      await saveAdminConfigToDb();
+      return false;
+    }
+    const loaded = JSON.parse(rows[0].config_json);
+    if (loaded && Array.isArray(loaded.games)) {
+      adminConfig = mergeLoadedConfig(loaded);
+      console.log('[Admin Store] Admin config loaded from database (durable).');
+      return true;
+    }
+  } catch (err) {
+    console.warn('[Admin Store] DB config load notice:', err.message);
+  }
+  return false;
 }
 
 

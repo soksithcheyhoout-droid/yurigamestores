@@ -63,6 +63,9 @@ export default function GameDetailPage({
   const isManualGame = isRoS;
   const isLiveProvider = game?.provider === 'soratopup' && !isManualGame;
   const providerOrderingEnabled = true;
+  // Imported/custom provider games (anything beyond the 4 core games) use format-only verification.
+  const _ffCore = game?.providerCode === 'ff' || game?.id === 'ff';
+  const isImportedGame = game?.provider === 'soratopup' && !isRoS && !isRoblox && !isMobileLegends && !_ffCore;
   const verificationButtonLabel = isRoblox
     ? 'Check Roblox username'
     : isRoS
@@ -92,6 +95,7 @@ export default function GameDetailPage({
   const isAccountVerified = Boolean(
     verifiedProfile?.verified === true ||
     (isManualGame && (verifiedProfile?.formatValid === true || verifiedProfile?.verified === true)) ||
+    (isImportedGame && (verifiedProfile?.formatValid === true || verifiedProfile?.verified === true)) ||
     (isRoS && formData.account && formData.password) ||
     (isRoblox && formData.userId && formData.userId.trim().length >= 3)
   );
@@ -356,7 +360,7 @@ export default function GameDetailPage({
       const providerGameCode = game.providerCode || game.id || 'ml';
       const result = await verifySoraPlayer(providerGameCode, fieldValues);
 
-      const allowFormatOnly = providerGameCode === 'roslegacy';
+      const allowFormatOnly = providerGameCode === 'roslegacy' || isImportedGame;
       if (!result.verified && (!allowFormatOnly || !result.formatValid)) {
         setFormError(result.message || 'Player account was not found on official game servers. Please double-check your ID.');
         setVerifiedProfile(null);

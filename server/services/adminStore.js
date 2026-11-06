@@ -1025,6 +1025,100 @@ export function getAdminFullConfig() {
   return adminConfig;
 }
 
+// Import a game from the provider catalog: auto-creates the game entry with all packages + fields.
+export function importProviderGame(providerGame = {}) {
+  const code = String(providerGame.code || '').trim().toLowerCase();
+  if (!code || !/^[a-z0-9_-]{1,80}$/.test(code)) return null;
+
+  const rawFields = Array.isArray(providerGame.fields) && providerGame.fields.length ? providerGame.fields : ['userid'];
+  const fields = rawFields.map((f, i) => {
+    const raw = String(f).toLowerCase();
+    const label = raw === 'userid' ? 'User ID'
+      : raw === 'serverid' ? 'Server ID'
+      : raw === 'zoneid' ? 'Zone ID'
+      : raw === 'charname' ? 'Character Name'
+      : (String(f).charAt(0).toUpperCase() + String(f).slice(1));
+    const key = raw === 'userid' ? 'userId' : (raw === 'serverid' || raw === 'zoneid') ? 'zoneId' : (raw || `field_${i}`);
+    return { key, label, placeholder: `Enter ${label}`, type: 'text', required: true };
+  });
+
+  const packages = (Array.isArray(providerGame.packages) ? providerGame.packages : []).map((p) => {
+    const diamonds = Number(String(p.name || '').match(/\d[\d,]*/)?.[0]?.replace(/,/g, '')) || 0;
+    const price = Number(p.price) || 0;
+    return {
+      id: `${code}_${String(p.code)}`.replace(/[^a-z0-9_]+/gi, '_').slice(0, 80),
+      code: p.code,
+      providerCode: p.code,
+      name: p.name || String(p.code),
+      diamonds,
+      price,
+      providerPrice: price,
+      providerConnected: true,
+      bonus: '',
+      popular: false,
+      inStock: true,
+      image: '',
+    };
+  });
+
+  const entry = {
+    id: code,
+    slug: code,
+    providerCode: code,
+    code,
+    name: providerGame.name || code,
+    publisher: providerGame.publisher || 'Bay2Game',
+    currency: 'Diamonds',
+    stockOpen: true,
+    maintenance: false,
+    verificationMode: 'format',
+    banner: providerGame.image || '',
+    image: providerGame.image || '',
+    badge: 'Official Top-Up',
+    description: providerGame.description || `${providerGame.name || code} direct top-up.`,
+    fields,
+    packages,
+  };
+
+  const idx = adminConfig.games.findIndex((g) =>
+    String(g.id || '').toLowerCase() === code || String(g.providerCode || '').toLowerCase() === code
+  );
+  if (idx >= 0) {
+    // Already exists: refresh name/image/fields + merge any NEW packages, keep admin's prices/stock.
+    const existing = adminConfig.games[idx];
+    const existingCodes = new Set((existing.packages || []).map((p) => String(p.providerCode || p.code).toLowerCase()));
+    const newPkgs = packages.filter((p) => !existingCodes.has(String(p.providerCode).toLowerCase()));
+    adminConfig.games[idx] = {
+      ...existing,
+      name: entry.name,
+      image: existing.image || entry.image,
+      banner: existing.banner || entry.banner,
+      fields: existing.fields && existing.fields.length ? existing.fields : fields,
+      packages: [...(existing.packages || []), ...newPkgs],
+    };
+    saveAdminConfig();
+    return adminConfig.games[idx];
+  }
+
+  adminConfig.games.push(entry);
+  saveAdminConfig();
+  return entry;
+}
+
+// Remove a game entirely (used to delete an imported game).
+export function removeGame(gameId) {
+  const target = String(gameId || '').trim().toLowerCase();
+  const before = adminConfig.games.length;
+  adminConfig.games = adminConfig.games.filter((g) =>
+    !(String(g.id || '').toLowerCase() === target || String(g.providerCode || '').toLowerCase() === target)
+  );
+  if (adminConfig.games.length !== before) {
+    saveAdminConfig();
+    return true;
+  }
+  return false;
+}
+
 
 
 // Game Stock & Logo Update

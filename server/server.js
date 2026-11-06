@@ -36,6 +36,8 @@ import {
   getSoraStatus,
   getProviderHealth,
   getAllProviderHealth,
+  getProviderCatalog,
+  getProviderGame,
   MAX_ORDER_QUANTITY,
   normalizeOrderQuantity,
   resolveSoraPackage,
@@ -66,6 +68,8 @@ import {
   verifyAdminSession,
   revokeAdminSession,
   updateGameConfig,
+  importProviderGame,
+  removeGame,
   addPackageToGame,
   updatePackageInGame,
   deletePackageFromGame,
@@ -1607,6 +1611,45 @@ function publicSoraGame(game) {
   };
 }
 
+const CORE_GAME_CODES = new Set(['robuxsend', 'ml', 'ff', 'roslegacy']);
+
+// Convert an admin-config (imported) game into the public storefront shape.
+function publicImportedGame(g) {
+  const code = String(g.providerCode || g.id || '').toLowerCase();
+  const h = getProviderHealth(code);
+  return {
+    id: `sora_${code}`,
+    code,
+    slug: g.slug || code,
+    provider: 'soratopup',
+    providerCode: code,
+    name: g.name || code,
+    publisher: g.publisher || 'Bay2Game',
+    category: 'popular',
+    badge: g.badge || 'Official Top-Up',
+    image: g.image || '/assets/games/mlbb_tile_4k.jpg',
+    banner: g.banner || g.image || '/assets/games/mlbb_hero_4k.jpg',
+    description: g.description || '',
+    currency: g.currency || 'Diamonds',
+    needServer: Array.isArray(g.fields) && g.fields.length > 1,
+    verificationMode: g.verificationMode || 'format',
+    fields: (Array.isArray(g.fields) ? g.fields : []).map((f, i) => ({
+      key: f.key || `field_${i}`,
+      name: f.label || f.name || `Field ${i + 1}`,
+      label: f.label || f.name || `Field ${i + 1}`,
+      type: 'text',
+      required: f.required !== false,
+      options: [],
+      placeholder: f.placeholder || `Enter ${f.label || f.name || 'value'}`,
+    })),
+    stockOpen: g.stockOpen !== false,
+    maintenance: !h.ok || g.maintenance === true,
+    maintenanceReason: g.maintenance === true ? 'Temporarily disabled by admin' : (h.reason || ''),
+    rating: 'Live',
+    sales: 'API',
+  };
+}
+
 app.get('/api/soratopup/status', async (req, res) => {
   try {
     const status = await getSoraStatus();
@@ -1664,12 +1707,18 @@ app.get('/api/soratopup/catalogue', async (req, res) => {
       provider: 'soratopup',
       count: catalogue.count,
       fetchedAt: catalogue.fetchedAt,
-      games: catalogue.games.map((g) => {
-        const h = getProviderHealth(g.code);
-        const pub = publicSoraGame(g);
-        const down = !h.ok || pub.adminMaintenance === true;
-        return { ...pub, maintenance: down, maintenanceReason: pub.adminMaintenance ? 'Temporarily disabled by admin' : (h.reason || '') };
-      }),
+      games: [
+        ...catalogue.games.map((g) => {
+          const h = getProviderHealth(g.code);
+          const pub = publicSoraGame(g);
+          const down = !h.ok || pub.adminMaintenance === true;
+          return { ...pub, maintenance: down, maintenanceReason: pub.adminMaintenance ? 'Temporarily disabled by admin' : (h.reason || '') };
+        }),
+        // Admin-imported games (anything beyond the 4 core games).
+        ...((getAdminFullConfig()?.games || [])
+          .filter((g) => !CORE_GAME_CODES.has(String(g.id || g.providerCode || '').toLowerCase()))
+          .map(publicImportedGame)),
+      ],
     });
   } catch (error) {
     return sendSoraTopupError(res, error);
@@ -1698,7 +1747,6 @@ app.get('/api/provider-health', (req, res) => {
 app.get('/api/soratopup/packages', async (req, res) => {
   try {
     const gameCode = req.query.game;
-    const result = await getSoraPackages(gameCode);
     const adminCfg = getAdminFullConfig();
     const adminGame = adminCfg?.games?.find(g =>
       String(g.id || g.code || '').toLowerCase() === String(gameCode || '').toLowerCase() ||
@@ -1706,33 +1754,44 @@ app.get('/api/soratopup/packages', async (req, res) => {
       String(g.providerCode || '').toLowerCase() === String(gameCode || '').toLowerCase()
     );
 
-    let finalPackages = result.packages;
-    if (adminGame && Array.isArray(adminGame.packages) && adminGame.packages.length > 0) {
-      finalPackages = adminGame.packages.map(p => ({
-        id: p.id,
-        code: p.providerCode || p.code || p.id,
-        providerCode: p.providerCode || p.code || p.id,
-        providerConnected: Boolean(p.providerConnected || p.providerCode),
-        name: p.name,
-        price: p.price,
-        originalPrice: p.originalPrice || p.price,
-        bonus: p.bonus || '',
-        image: p.image || '',
-        inStock: p.inStock !== false,
-        popular: p.popular || false,
-      }));
+    // Core games use getSoraPackages; imported games aren't in the storefront list, so that may throw.
+    let result = null;
+    try {
+      result = await getSoraPackages(gameCode);
+    } catch (err) {
+      if (!adminGame) throw err; // unknown game with no admin config → real error
     }
 
-    const health = getProviderHealth(result.game?.code || gameCode);
-    const pubGame = publicSoraGame(result.game);
-    const gameDown = !health.ok || pubGame.adminMaintenance === true;
+    let finalPackages = result?.packages || [];
+    if (adminGame && Array.isArray(adminGame.packages) && adminGame.packages.length > 0) {
+      finalPackages = adminGame.packages
+        .filter(p => p.inStock !== false)
+        .map(p => ({
+          id: p.id,
+          code: p.providerCode || p.code || p.id,
+          providerCode: p.providerCode || p.code || p.id,
+          providerConnected: Boolean(p.providerConnected || p.providerCode),
+          name: p.name,
+          price: p.price,
+          originalPrice: p.originalPrice || p.price,
+          bonus: p.bonus || '',
+          image: p.image || '',
+          inStock: p.inStock !== false,
+          popular: p.popular || false,
+        }));
+    }
+
+    const health = getProviderHealth(result?.game?.code || gameCode);
+    const pubGame = result?.game ? publicSoraGame(result.game) : publicImportedGame(adminGame);
+    const adminMaint = adminGame?.maintenance === true;
+    const gameDown = !health.ok || adminMaint;
     res.set('Cache-Control', 'no-cache, must-revalidate');
     return res.json({
       success: true,
       provider: 'soratopup',
       count: finalPackages.length,
-      fetchedAt: result.fetchedAt,
-      game: { ...pubGame, maintenance: gameDown, maintenanceReason: pubGame.adminMaintenance ? 'Temporarily disabled by admin' : (health.reason || '') },
+      fetchedAt: result?.fetchedAt || new Date().toISOString(),
+      game: { ...pubGame, maintenance: gameDown, maintenanceReason: adminMaint ? 'Temporarily disabled by admin' : (health.reason || '') },
       packages: finalPackages,
     });
   } catch (error) {
@@ -3123,6 +3182,45 @@ app.post('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
     return res.status(404).json({ success: false, error: 'Game not found' });
   }
   return res.json({ success: true, game: updated });
+});
+
+// 4a. Provider catalog — list ALL Bay2Game games for the admin "Add Game" picker.
+app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {
+  try {
+    const games = await getProviderCatalog();
+    return res.json({ success: true, count: games.length, games });
+  } catch (error) {
+    return res.status(502).json({ success: false, error: error.message || 'Could not load provider catalog.' });
+  }
+});
+
+// 4b. Import a game from the provider — auto-creates it with all packages + fields.
+app.post('/api/admin/games/import', requireAdminAuth, async (req, res) => {
+  try {
+    const gameCode = String(req.body?.gameCode || '').trim();
+    if (!gameCode) return res.status(400).json({ success: false, error: 'gameCode is required.' });
+    const { game, products } = await getProviderGame(gameCode);
+    if (!products.length) {
+      return res.status(404).json({ success: false, error: 'That game has no purchasable packages.' });
+    }
+    const imported = importProviderGame({ ...game, packages: products });
+    if (!imported) return res.status(400).json({ success: false, error: 'Could not import that game.' });
+    return res.json({ success: true, game: imported, packageCount: imported.packages?.length || 0 });
+  } catch (error) {
+    return res.status(502).json({ success: false, error: error.message || 'Import failed.' });
+  }
+});
+
+// 4c. Remove an (imported) game.
+app.delete('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
+  const protectedCore = ['robuxsend', 'ml', 'ff', 'roslegacy'];
+  const gameId = String(req.params.gameId || '').toLowerCase();
+  if (protectedCore.includes(gameId)) {
+    return res.status(400).json({ success: false, error: 'Core games cannot be removed (use the stock/maintenance toggle instead).' });
+  }
+  const removed = removeGame(gameId);
+  if (!removed) return res.status(404).json({ success: false, error: 'Game not found' });
+  return res.json({ success: true });
 });
 
 // 5. Products / Packages CRUD (Option 1)

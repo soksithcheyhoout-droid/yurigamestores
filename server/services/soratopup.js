@@ -477,17 +477,50 @@ export async function getSoraCatalogue({ force = false } = {}) {
   return value;
 }
 
+// Raw provider catalog (ALL Bay2Game games) for the admin "Add Game" picker — not restricted to storefront codes.
+export async function getProviderCatalog() {
+  const payload = await providerRequest('/categories', { provider: 'bay2game' });
+  const cats = Array.isArray(payload?.categories) ? payload.categories : [];
+  return cats
+    .map((c) => ({
+      code: cleanString(c.game_code, 80),
+      name: cleanString(c.name, 160),
+      image: safeImageUrl(c.image_url),
+      description: cleanString(c.description, 500),
+      fields: Array.isArray(c.game_fields) ? c.game_fields.map((f) => String(f)) : [],
+    }))
+    .filter((c) => c.code)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Raw provider game + its products, for importing a new game into the admin store.
+export async function getProviderGame(gameCode) {
+  const code = cleanString(gameCode, 80);
+  if (!/^[a-zA-Z0-9_-]{1,80}$/.test(code)) {
+    throw new SoraTopupError('A valid game code is required.', { status: 400, code: 'invalid_game_code' });
+  }
+  const payload = await providerRequest(`/products?game_code=${encodeURIComponent(code)}`, { provider: 'bay2game' });
+  const g = payload?.game || {};
+  const products = (Array.isArray(payload?.products) ? payload.products : [])
+    .map((p) => normalizePackage(p, code))
+    .filter(Boolean);
+  return {
+    game: {
+      code,
+      name: cleanString(g.name || code, 160),
+      image: safeImageUrl(g.image_url),
+      description: cleanString(g.description, 1000),
+      fields: Array.isArray(g.game_fields) ? g.game_fields.map((f) => String(f)) : [],
+    },
+    products,
+  };
+}
+
 export async function getLiveSoraPackages(gameCode, { force = false } = {}) {
   let code = validGameCode(gameCode);
   if (code === 'roblox') code = 'robuxsend';
 
   const provider = providerForGame(code);
-  if (provider === 'bay2game' && !PROVIDER_GAME_CODE_MAP[code]) {
-    throw new SoraTopupError('This game has no live provider catalogue.', {
-      status: 404,
-      code: 'no_live_catalogue',
-    });
-  }
 
   const cacheKey = `live:${code}`;
   const now = Date.now();
@@ -862,8 +895,8 @@ export async function createSoraOrder({ game, code, fieldValues = [], orderRef =
       reference,
     };
     // Second field for games that need it — Bay2Game reads it as `game_zone_id`.
-    // Mobile Legends: zone/server id. RoS Legacy: the account password (userid=username, zone=password).
-    if (PROVIDER_SERVER_GAMES.has(providerGame) && cleanString(fieldValues[1])) {
+    // ML: zone/server id. RoS Legacy: account password. Any imported 2-field game: the 2nd field.
+    if (cleanString(fieldValues[1])) {
       body.game_zone_id = cleanString(fieldValues[1], 120);
     }
 

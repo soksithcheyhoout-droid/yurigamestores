@@ -60,6 +60,13 @@ export default function AdminDashboard({ onBackToStore }) {
   // Active Tab
   const [activeTab, setActiveTab] = useState('analytics'); // analytics, products, orders, contacts, banners, stock, telegram
 
+  // "Add Game from Bay2Game" picker state
+  const [showAddGame, setShowAddGame] = useState(false);
+  const [providerCatalog, setProviderCatalog] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [importingCode, setImportingCode] = useState('');
+
   // Master Data
   const [config, setConfig] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -645,6 +652,67 @@ export default function AdminDashboard({ onBackToStore }) {
       }
     } catch {
       showToast('Error updating stock status');
+    }
+  };
+
+  const openAddGameModal = async () => {
+    setShowAddGame(true);
+    setCatalogSearch('');
+    if (providerCatalog.length) return;
+    setCatalogLoading(true);
+    try {
+      const res = await fetch('/api/admin/provider-catalog', { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (data.success) setProviderCatalog(data.games || []);
+      else showToast(data.error || 'Could not load provider games.');
+    } catch {
+      showToast('Could not load provider games.');
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
+  const handleImportGame = async (gameCode) => {
+    setImportingCode(gameCode);
+    try {
+      const res = await fetch('/api/admin/games/import', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ gameCode }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Imported ${data.game.name} with ${data.packageCount} packages! Set your prices + logo.`);
+        await fetchFullConfig();
+        setSelectedGameId(data.game.id);
+        setShowAddGame(false);
+      } else {
+        showToast(data.error || 'Import failed.');
+      }
+    } catch {
+      showToast('Import failed.');
+    } finally {
+      setImportingCode('');
+    }
+  };
+
+  const handleRemoveGame = async (gameId, gameName) => {
+    if (!window.confirm(`Remove "${gameName}" from the store? (This deletes the imported game and its packages.)`)) return;
+    try {
+      const res = await fetch(`/api/admin/games/${encodeURIComponent(gameId)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Removed ${gameName}.`);
+        await fetchFullConfig();
+        setSelectedGameId((config?.games || [])[0]?.id || null);
+      } else {
+        showToast(data.error || 'Could not remove game.');
+      }
+    } catch {
+      showToast('Could not remove game.');
     }
   };
 
@@ -1870,8 +1938,75 @@ export default function AdminDashboard({ onBackToStore }) {
                     <span className={`w-2 h-2 rounded-full ${game.stockOpen ? 'bg-emerald-400' : 'bg-rose-500'}`} />
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={openAddGameModal}
+                  className="px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 border border-dashed border-emerald-500/50 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 cursor-pointer transition-all shrink-0"
+                >
+                  <Plus size={14} />
+                  <span>Add Game</span>
+                </button>
               </div>
             </div>
+
+            {/* Add Game from Bay2Game modal */}
+            {showAddGame && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowAddGame(false)}>
+                <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-slate-700 bg-[#0e1017] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between p-4 border-b border-slate-800">
+                    <div>
+                      <h3 className="text-base font-black text-white m-0">Add Game from Bay2Game</h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5 m-0">Pick a game — all packages import automatically. Then set your prices &amp; logo.</p>
+                    </div>
+                    <button type="button" onClick={() => setShowAddGame(false)} className="text-slate-400 hover:text-white cursor-pointer bg-transparent border-0 text-lg font-black">✕</button>
+                  </div>
+                  <div className="p-3 border-b border-slate-800">
+                    <input
+                      type="text"
+                      value={catalogSearch}
+                      onChange={(e) => setCatalogSearch(e.target.value)}
+                      placeholder="Search games (e.g. PUBG, Genshin, Valorant, HOK)..."
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-[#E3062F]"
+                    />
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                    {catalogLoading ? (
+                      <div className="py-10 text-center text-slate-400 text-sm">Loading games…</div>
+                    ) : (
+                      providerCatalog
+                        .filter((g) => {
+                          const q = catalogSearch.trim().toLowerCase();
+                          return !q || g.name.toLowerCase().includes(q) || g.code.toLowerCase().includes(q);
+                        })
+                        .slice(0, 150)
+                        .map((g) => {
+                          const already = (config?.games || []).some((cg) => String(cg.id || cg.providerCode || '').toLowerCase() === g.code.toLowerCase());
+                          return (
+                            <div key={g.code} className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-2.5">
+                              <img src={g.image} alt="" className="h-10 w-10 rounded-lg object-cover border border-slate-700 bg-slate-800 shrink-0" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-bold text-white">{g.name}</div>
+                                <div className="truncate text-[10px] text-slate-500 font-mono">{g.code} · {(g.fields || []).join(', ') || 'userid'}</div>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={already || importingCode === g.code}
+                                onClick={() => handleImportGame(g.code)}
+                                className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-black border-0 ${already ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : importingCode === g.code ? 'bg-emerald-800 text-white cursor-wait' : 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer'}`}
+                              >
+                                {already ? 'Added' : importingCode === g.code ? 'Importing…' : 'Import'}
+                              </button>
+                            </div>
+                          );
+                        })
+                    )}
+                    {!catalogLoading && providerCatalog.length === 0 && (
+                      <div className="py-10 text-center text-slate-400 text-sm">No games available right now.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Selected Game Packages Header */}
             {selectedGame && (

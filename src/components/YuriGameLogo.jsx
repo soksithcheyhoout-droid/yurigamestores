@@ -45,9 +45,9 @@ export default function YuriGameLogo({
         aria-hidden="true"
       >
         <img
-          src="/assets/brand/yurigame-mark.webp"
+          src="/assets/brand/yurigame-logo.png"
           alt=""
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover object-top"
           draggable="false"
         />
         <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[#e3062f]" />

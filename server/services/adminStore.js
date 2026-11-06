@@ -1045,7 +1045,8 @@ export function updateGameConfig(gameId, updateData = {}) {
     image: updateData.image || current.image,
     banner: updateData.banner || current.banner,
     badge: updateData.badge || current.badge,
-    stockOpen: typeof updateData.stockOpen === 'boolean' ? updateData.stockOpen : current.stockOpen
+    stockOpen: typeof updateData.stockOpen === 'boolean' ? updateData.stockOpen : current.stockOpen,
+    maintenance: typeof updateData.maintenance === 'boolean' ? updateData.maintenance : (current.maintenance || false)
   };
 
   saveAdminConfig();

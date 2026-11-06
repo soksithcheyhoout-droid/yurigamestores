@@ -648,6 +648,23 @@ export default function AdminDashboard({ onBackToStore }) {
     }
   };
 
+  const handleToggleGameMaintenance = async (gameId, currentMaintenance) => {
+    try {
+      const res = await fetch(`/api/admin/games/${gameId}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ maintenance: !currentMaintenance })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`${data.game.name} top-up ${!currentMaintenance ? 'marked UNAVAILABLE — customers cannot pay' : 'marked AVAILABLE again'}`);
+        fetchFullConfig();
+      }
+    } catch {
+      showToast('Could not update maintenance status.');
+    }
+  };
+
   const handleUpdateGameInfo = async (gameId, updateFields) => {
     try {
       const res = await fetch(`/api/admin/games/${encodeURIComponent(gameId)}`, {
@@ -2725,6 +2742,20 @@ export default function AdminDashboard({ onBackToStore }) {
                       >
                         <Power size={14} />
                         <span>{game.stockOpen ? 'Click to Close Stock' : 'Click to Open Stock'}</span>
+                      </button>
+
+                      {/* Maintenance / Cannot Top-Up toggle (use when the provider/game server is down) */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleGameMaintenance(game.id, game.maintenance === true)}
+                        className={`w-full py-2.5 px-3 rounded-xl font-black text-xs cursor-pointer border-0 transition-transform active:scale-[0.98] flex items-center justify-center gap-1.5 ${
+                          game.maintenance === true
+                            ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-lg'
+                            : 'bg-amber-600/15 text-amber-300 hover:bg-amber-600/25 border border-amber-500/40'
+                        }`}
+                      >
+                        <AlertCircle size={14} />
+                        <span>{game.maintenance === true ? 'Maintenance ON — click to allow top-up' : 'Mark "Cannot Top-Up" (Maintenance)'}</span>
                       </button>
 
                       {/* Native Device File Input for Game Logo */}

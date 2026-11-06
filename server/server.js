@@ -1601,6 +1601,7 @@ function publicSoraGame(game) {
     name: adminGame?.name || game.name,
     publisher: adminGame?.publisher || publisherMap[game.code] || 'Official Publisher',
     stockOpen: adminGame?.stockOpen !== false,
+    adminMaintenance: adminGame?.maintenance === true,
     image: customImage || LOCAL_GAME_IMAGES[game.code] || (game.image ? `/api/soratopup/image/${encodeURIComponent(game.code)}` : '/assets/games/mlbb_tile_4k.jpg'),
     banner: customBanner || LOCAL_GAME_BANNERS[game.code] || customImage || LOCAL_GAME_IMAGES[game.code] || (game.banner || game.image || '/assets/games/mlbb_hero_4k.jpg'),
   };
@@ -1665,7 +1666,9 @@ app.get('/api/soratopup/catalogue', async (req, res) => {
       fetchedAt: catalogue.fetchedAt,
       games: catalogue.games.map((g) => {
         const h = getProviderHealth(g.code);
-        return { ...publicSoraGame(g), maintenance: !h.ok, maintenanceReason: h.reason || '' };
+        const pub = publicSoraGame(g);
+        const down = !h.ok || pub.adminMaintenance === true;
+        return { ...pub, maintenance: down, maintenanceReason: pub.adminMaintenance ? 'Temporarily disabled by admin' : (h.reason || '') };
       }),
     });
   } catch (error) {
@@ -1677,7 +1680,16 @@ app.get('/api/soratopup/catalogue', async (req, res) => {
 app.get('/api/provider-health', (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
-    return res.json({ success: true, health: getAllProviderHealth() });
+    const health = getAllProviderHealth();
+    // Admin's manual maintenance toggle overrides to "down".
+    const adminCfg = getAdminFullConfig();
+    for (const g of (adminCfg?.games || [])) {
+      const key = String(g.providerCode || g.id || '').toLowerCase();
+      if (key && g.maintenance === true) {
+        health[key] = { ok: false, reason: 'Temporarily disabled by admin', at: Date.now() };
+      }
+    }
+    return res.json({ success: true, health });
   } catch {
     return res.json({ success: true, health: {} });
   }
@@ -1712,13 +1724,15 @@ app.get('/api/soratopup/packages', async (req, res) => {
     }
 
     const health = getProviderHealth(result.game?.code || gameCode);
+    const pubGame = publicSoraGame(result.game);
+    const gameDown = !health.ok || pubGame.adminMaintenance === true;
     res.set('Cache-Control', 'no-cache, must-revalidate');
     return res.json({
       success: true,
       provider: 'soratopup',
       count: finalPackages.length,
       fetchedAt: result.fetchedAt,
-      game: { ...publicSoraGame(result.game), maintenance: !health.ok, maintenanceReason: health.reason || '' },
+      game: { ...pubGame, maintenance: gameDown, maintenanceReason: pubGame.adminMaintenance ? 'Temporarily disabled by admin' : (health.reason || '') },
       packages: finalPackages,
     });
   } catch (error) {

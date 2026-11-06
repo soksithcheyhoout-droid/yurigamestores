@@ -52,25 +52,17 @@ const DEFAULT_GAMES = [
 
     packages: [
 
-      { id: 'rblx_10', code: '10', name: '10 Robux', diamonds: 10, price: 0.10, bonus: 'Instant 5s', popular: false, inStock: true, image: '' },
+      { id: 'rblx_100', code: '100', name: '100 Robux', diamonds: 100, price: 1.00, bonus: 'Hot Pack', popular: true, inStock: true, image: '' },
 
-      { id: 'rblx_20', code: '20', name: '20 Robux', diamonds: 20, price: 0.19, bonus: '+5% Value', popular: false, inStock: true, image: '' },
+      { id: 'rblx_200', code: '200', name: '200 Robux', diamonds: 200, price: 2.00, bonus: 'Bonus Value', popular: false, inStock: true, image: '' },
 
-      { id: 'rblx_50', code: '50', name: '50 Robux', diamonds: 50, price: 0.45, bonus: 'Popular', popular: false, inStock: true, image: '' },
+      { id: 'rblx_300', code: '300', name: '300 Robux', diamonds: 300, price: 3.00, bonus: 'Best Seller', popular: true, inStock: true, image: '' },
 
-      { id: 'rblx_80', code: '80', name: '80 Robux', diamonds: 80, price: 0.74, bonus: 'Best Value', popular: true, inStock: true, image: '' },
+      { id: 'rblx_400', code: '400', name: '400 Robux', diamonds: 400, price: 4.00, bonus: '+10 Bonus', popular: false, inStock: true, image: '' },
 
-      { id: 'rblx_100', code: '100', name: '100 Robux', diamonds: 100, price: 0.89, bonus: 'Hot Pack', popular: true, inStock: true, image: '' },
+      { id: 'rblx_500', code: '500', name: '500 Robux', diamonds: 500, price: 4.50, bonus: 'VIP Pack', popular: true, inStock: true, image: '' },
 
-      { id: 'rblx_200', code: '200', name: '200 Robux', diamonds: 200, price: 1.78, bonus: 'Bonus Value', popular: false, inStock: true, image: '' },
-
-      { id: 'rblx_400', code: '400', name: '400 Robux', diamonds: 400, price: 3.55, bonus: 'Best Seller', popular: true, inStock: true, image: '' },
-
-      { id: 'rblx_800', code: '800', name: '800 Robux', diamonds: 800, price: 6.99, bonus: '+50 Bonus', popular: true, inStock: true, image: '' },
-
-      { id: 'rblx_1000', code: '1000', name: '1,000 Robux', diamonds: 1000, price: 8.75, bonus: 'VIP Pack', popular: false, inStock: true, image: '' },
-
-      { id: 'rblx_2000', code: '2000', name: '2,000 Robux', diamonds: 2000, price: 17.50, bonus: 'Mega Pack', popular: true, inStock: true, image: '' }
+      { id: 'rblx_1000', code: '1000', name: '1,000 Robux', diamonds: 1000, price: 9.00, bonus: 'Mega Pack', popular: true, inStock: true, image: '' }
 
     ]
 
@@ -110,25 +102,51 @@ const DEFAULT_GAMES = [
 
     packages: [
 
-      { id: 'ml_weekly', code: 'weekly', name: 'Weekly Diamond Pass', diamonds: 210, price: 1.81, bonus: 'Save 60%', popular: true, inStock: true, image: '' },
+      { id: 'ml_55', code: '55', name: '55 Diamonds', diamonds: 55, price: 0.90, bonus: 'Fast Delivery', popular: false, inStock: true, image: '' },
 
-      { id: 'ml_55', code: '55', name: '55 Diamonds', diamonds: 55, price: 0.77, bonus: 'Fast Delivery', popular: false, inStock: true, image: '' },
+      { id: 'ml_86', code: '86', name: '86 Diamonds', diamonds: 86, price: 1.35, bonus: '+9 Bonus', popular: false, inStock: true, image: '' },
 
-      { id: 'ml_86', code: '86', name: '86 Diamonds', diamonds: 86, price: 1.25, bonus: '+9 Bonus', popular: false, inStock: true, image: '' },
+      { id: 'ml_165', code: '165', name: '165 Diamonds', diamonds: 165, price: 2.50, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ml_172', code: '172', name: '172 Diamonds', diamonds: 172, price: 2.45, bonus: '+16 Bonus', popular: false, inStock: true, image: '' },
+      { id: 'ml_172', code: '172', name: '172 Diamonds', diamonds: 172, price: 2.60, bonus: '+16 Bonus', popular: false, inStock: true, image: '' },
 
-      { id: 'ml_257', code: '257', name: '257 Diamonds', diamonds: 257, price: 3.65, bonus: '+27 Bonus', popular: true, inStock: true, image: '' },
+      { id: 'ml_275', code: '275', name: '275 Diamonds', diamonds: 275, price: 3.85, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ml_343', code: '343', name: '343 Diamonds', diamonds: 343, price: 4.85, bonus: '+37 Bonus', popular: false, inStock: true, image: '' },
+      { id: 'ml_343', code: '343', name: '343 Diamonds', diamonds: 343, price: 4.96, bonus: '+37 Bonus', popular: true, inStock: true, image: '' },
+
+      { id: 'ml_429', code: '429', name: '429 Diamonds', diamonds: 429, price: 6.08, bonus: '', popular: false, inStock: true, image: '' },
+
+      { id: 'ml_514', code: '514', name: '514 Diamonds', diamonds: 514, price: 7.15, bonus: '', popular: false, inStock: true, image: '' },
+
+      { id: 'ml_565', code: '565', name: '565 Diamonds', diamonds: 565, price: 7.80, bonus: '', popular: false, inStock: true, image: '' },
+
+      { id: 'ml_600', code: '600', name: '600 Diamonds', diamonds: 600, price: 8.48, bonus: '', popular: false, inStock: true, image: '' },
 
       { id: 'ml_706', code: '706', name: '706 Diamonds', diamonds: 706, price: 9.80, bonus: '+88 Bonus', popular: true, inStock: true, image: '' },
 
-      { id: 'ml_2195', code: '2195', name: '2,195 Diamonds', diamonds: 2195, price: 30.50, bonus: '+320 Bonus', popular: true, inStock: true, image: '' },
+      { id: 'ml_878', code: '878', name: '878 Diamonds', diamonds: 878, price: 12.15, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ml_3688', code: '3688', name: '3,688 Diamonds', diamonds: 3688, price: 50.80, bonus: '+550 Bonus', popular: false, inStock: true, image: '' },
+      { id: 'ml_963', code: '963', name: '963 Diamonds', diamonds: 963, price: 13.21, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ml_5532', code: '5532', name: '5,532 Diamonds', diamonds: 5532, price: 76.50, bonus: '+800 Bonus', popular: true, inStock: true, image: '' }
+      { id: 'ml_1049', code: '1049', name: '1,049 Diamonds', diamonds: 1049, price: 14.89, bonus: '', popular: false, inStock: true, image: '' },
+
+      { id: 'ml_1135', code: '1135', name: '1,135 Diamonds', diamonds: 1135, price: 15.78, bonus: '', popular: false, inStock: true, image: '' },
+
+      { id: 'ml_1584', code: '1584', name: '1,584 Diamonds', diamonds: 1584, price: 21.99, bonus: '', popular: false, inStock: true, image: '' },
+
+      { id: 'ml_1755', code: '1755', name: '1,755 Diamonds', diamonds: 1755, price: 24.55, bonus: '', popular: false, inStock: true, image: '' },
+
+      { id: 'ml_2195', code: '2195', name: '2,195 Diamonds', diamonds: 2195, price: 29.50, bonus: '+320 Bonus', popular: true, inStock: true, image: '' },
+
+      { id: 'ml_2901', code: '2901', name: '2,901 Diamonds', diamonds: 2901, price: 39.88, bonus: '', popular: false, inStock: true, image: '' },
+
+      { id: 'ml_3688', code: '3688', name: '3,688 Diamonds', diamonds: 3688, price: 49.30, bonus: '+550 Bonus', popular: false, inStock: true, image: '' },
+
+      { id: 'ml_4390', code: '4390', name: '4,390 Diamonds', diamonds: 4390, price: 58.30, bonus: '', popular: false, inStock: true, image: '' },
+
+      { id: 'ml_5532', code: '5532', name: '5,532 Diamonds', diamonds: 5532, price: 73.00, bonus: '+800 Bonus', popular: true, inStock: true, image: '' },
+
+      { id: 'ml_9288', code: '9288', name: '9,288 Diamonds', diamonds: 9288, price: 124.00, bonus: '', popular: true, inStock: true, image: '' }
 
     ]
 
@@ -166,25 +184,27 @@ const DEFAULT_GAMES = [
 
     packages: [
 
-      { id: 'ff_25', code: '25', name: '25 Diamonds', diamonds: 25, price: 0.25, bonus: 'Starter Pack', popular: false, inStock: true, image: '' },
+      { id: 'ff_25', code: '25', name: '25 Diamonds', diamonds: 25, price: 0.29, bonus: 'Starter Pack', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_50', code: '50', name: '50 Diamonds', diamonds: 50, price: 0.48, bonus: '+5 Bonus', popular: false, inStock: true, image: '' },
+      { id: 'ff_100', code: '100', name: '100 Diamonds', diamonds: 100, price: 0.98, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_100', code: '100', name: '100 Diamonds', diamonds: 100, price: 0.88, bonus: '+10 Bonus', popular: false, inStock: true, image: '' },
+      { id: 'ff_310', code: '310', name: '310 Diamonds', diamonds: 310, price: 2.99, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_weekly', code: 'weekly', name: 'Weekly Membership', diamonds: 450, price: 1.80, bonus: '450 Total', popular: true, inStock: true, image: '' },
+      { id: 'ff_520', code: '520', name: '520 Diamonds', diamonds: 520, price: 4.80, bonus: '', popular: true, inStock: true, image: '' },
 
-      { id: 'ff_310', code: '310', name: '310 Diamonds', diamonds: 310, price: 2.65, bonus: '+31 Bonus', popular: false, inStock: true, image: '' },
+      { id: 'ff_1060', code: '1060', name: '1,060 Diamonds', diamonds: 1060, price: 9.39, bonus: '', popular: true, inStock: true, image: '' },
 
-      { id: 'ff_520', code: '520', name: '520 Diamonds', diamonds: 520, price: 4.40, bonus: '+52 Bonus', popular: true, inStock: true, image: '' },
+      { id: 'ff_2180', code: '2180', name: '2,180 Diamonds', diamonds: 2180, price: 18.49, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_monthly', code: 'monthly', name: 'Monthly Membership', diamonds: 2600, price: 7.20, bonus: '2600 Total', popular: true, inStock: true, image: '' },
+      { id: 'ff_5600', code: '5600', name: '5,600 Diamonds', diamonds: 5600, price: 47.99, bonus: '', popular: true, inStock: true, image: '' },
 
-      { id: 'ff_1060', code: '1060', name: '1,060 Diamonds', diamonds: 1060, price: 8.75, bonus: '+106 Bonus', popular: true, inStock: true, image: '' },
+      { id: 'ff_11500', code: '11500', name: '11,500 Diamonds', diamonds: 11500, price: 95.00, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_2180', code: '2180', name: '2,180 Diamonds', diamonds: 2180, price: 17.80, bonus: '+218 Bonus', popular: false, inStock: true, image: '' },
+      { id: 'ff_weeklylite', code: 'weeklylite', name: 'Weekly Lite', diamonds: 100, price: 0.39, bonus: '', popular: false, inStock: true, image: '' },
 
-      { id: 'ff_5600', code: '5600', name: '5,600 Diamonds', diamonds: 5600, price: 44.50, bonus: '+560 Bonus', popular: true, inStock: true, image: '' }
+      { id: 'ff_weekly', code: 'weekly', name: 'Weekly Pass', diamonds: 100, price: 1.69, bonus: '', popular: true, inStock: true, image: '' },
+
+      { id: 'ff_monthly', code: 'monthly', name: 'Monthly Pass', diamonds: 100, price: 7.50, bonus: '', popular: true, inStock: true, image: '' }
 
     ]
 

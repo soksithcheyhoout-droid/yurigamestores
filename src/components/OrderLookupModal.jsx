@@ -284,7 +284,7 @@ export default function OrderLookupModal({
             {[
               { id: 'all', label: 'All Orders' },
               { id: 'delivered', label: 'Delivered' },
-              { id: 'pending', label: 'In Processing' },
+              { id: 'pending', label: 'Paid' },
               { id: 'refunded', label: 'Refunded / Failed' },
             ].map((tab) => (
               <button
@@ -366,12 +366,12 @@ export default function OrderLookupModal({
                             : isRefunded
                             ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                             : isPending
-                            ? 'bg-amber-500/15 text-amber-300 border border-amber-500/40 shadow-xs'
+                            ? 'bg-sky-500/15 text-sky-300 border border-sky-500/40 shadow-xs'
                             : 'bg-slate-700/30 text-slate-300 border border-slate-600'
                         }`}
                       >
-                        {isPending && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping inline-block" />}
-                        <span>{isPending ? 'Processing' : isSuccess ? 'Delivered' : isFailed ? 'Cancelled' : order.status}</span>
+                        {isPending && <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" />}
+                        <span>{isPending ? 'Paid' : isSuccess ? 'Delivered' : isFailed ? 'Cancelled' : order.status}</span>
                       </span>
                     </div>
                   </div>

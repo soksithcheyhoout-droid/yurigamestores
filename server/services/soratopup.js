@@ -1,5 +1,35 @@
-const DEFAULT_BASE_URL = 'https://app.soratopup.com/api/v1';
+// Provider: Bay2Game Reseller API (https://api.bay2game.xyz/api)
+// Auth: api_key passed as a query param (GET) or body field (POST).
+// Endpoints used: /profile, /categories, /products?game_code=, /create_order (POST), /check_order?reference=
+const DEFAULT_BASE_URL = 'https://api.bay2game.xyz/api';
 const REQUEST_TIMEOUT_MS = 15_000;
+
+// Map our internal storefront codes to Bay2Game game codes.
+const PROVIDER_GAME_CODE_MAP = {
+  ml: 'mlbb',
+  mlbb: 'mlbb',
+  'mobile-legends': 'mlbb',
+  ff: 'freefire_global',
+  freefire: 'freefire_global',
+  'free-fire': 'freefire_global',
+  roslegacy: 'ros_legacy',
+  ros: 'ros_legacy',
+  // robuxsend/roblox is NOT offered by Bay2Game; handled locally via fallback packages.
+};
+
+// Games that require a server/zone id as the second player field on Bay2Game.
+const PROVIDER_SERVER_GAMES = new Set(['mlbb', 'ros_legacy', 'mla', 'mlbb_global', 'mlbb_br', 'mlbb_tr', 'mlbb_ru', 'mlbb_exclusive']);
+
+function toProviderGameCode(code) {
+  const clean = cleanString(code, 80).toLowerCase();
+  return PROVIDER_GAME_CODE_MAP[clean] || clean;
+}
+
+// Extract a trailing numeric token from a Bay2Game product_code, e.g. MLBB_55 -> "55", ROS_200DM -> "200".
+function trailingNumber(code) {
+  const matches = String(code || '').match(/\d+/g);
+  return matches && matches.length ? matches[matches.length - 1] : '';
+}
 const CATALOGUE_TTL_MS = 5 * 60_000;
 const PACKAGE_TTL_MS = 2 * 60_000;
 export const MAX_ORDER_QUANTITY = 10;
@@ -42,10 +72,19 @@ const STOREFRONT_GAME_OVERRIDES = {
   ml: {
     name: 'Mobile Legends KH',
     verificationMode: 'live',
+    needServer: true,
+    fields: [
+      { name: 'User ID', required: true, type: 'text', options: [] },
+      { name: 'Server ID', required: true, type: 'text', options: [] },
+    ],
   },
   ff: {
     name: 'Free Fire',
     verificationMode: 'live',
+    needServer: false,
+    fields: [
+      { name: 'Player ID', required: true, type: 'text', options: [] },
+    ],
   },
   robuxsend: {
     name: 'Roblox',
@@ -72,11 +111,11 @@ export class SoraTopupError extends Error {
 }
 
 function getConfig() {
-  const rawBaseUrl = (process.env.SORATOPUP_BASE_URL || DEFAULT_BASE_URL).trim();
-  const apiKey = (process.env.SORATOPUP_API_KEY || '').trim();
+  const rawBaseUrl = (process.env.BAY2GAME_BASE_URL || process.env.SORATOPUP_BASE_URL || DEFAULT_BASE_URL).trim();
+  const apiKey = (process.env.BAY2GAME_API_KEY || process.env.SORATOPUP_API_KEY || '').trim();
 
   if (!apiKey) {
-    throw new SoraTopupError('SoraTopup is not configured.', {
+    throw new SoraTopupError('Game provider is not configured.', {
       status: 503,
       code: 'provider_not_configured',
     });
@@ -110,16 +149,20 @@ async function providerRequest(path, { method = 'GET', body, headers = {} } = {}
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
+  // Bay2Game authenticates with api_key as a query param (and in the JSON body for POST).
+  const url = new URL(`${baseUrl}${path}`);
+  url.searchParams.set('api_key', apiKey);
+  const outboundBody = body ? { api_key: apiKey, ...body } : undefined;
+
   try {
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetch(url.toString(), {
       method,
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(outboundBody ? { 'Content-Type': 'application/json' } : {}),
         ...headers,
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: outboundBody ? JSON.stringify(outboundBody) : undefined,
       signal: controller.signal,
     });
 
@@ -128,21 +171,22 @@ async function providerRequest(path, { method = 'GET', body, headers = {} } = {}
     try {
       payload = text ? JSON.parse(text) : {};
     } catch {
-      throw new SoraTopupError('SoraTopup returned an invalid response.', {
+      throw new SoraTopupError('Game provider returned an invalid response.', {
         status: 502,
         code: 'provider_invalid_response',
       });
     }
 
-    if (!response.ok || payload?.ok === false) {
-      const upstreamCode = String(payload?.error || 'provider_request_failed');
-      const upstreamMsg = payload?.msg || payload?.error || 'SoraTopup could not complete the request.';
-      const publicStatus = response.status === 429 ? 429 : response.status === 400 ? 400 : 502;
+    // Bay2Game returns HTTP 200 with { status: "success" | "error" | "failed", message }.
+    const logicalError = payload?.status === 'error' || payload?.status === 'failed' || payload?.ok === false;
+    if (!response.ok || logicalError) {
+      const upstreamMsg = payload?.message || payload?.msg || payload?.error || 'Game provider could not complete the request.';
+      const publicStatus = response.status === 429 ? 429 : (response.status === 400 || logicalError) ? 400 : 502;
       throw new SoraTopupError(
         response.status === 429
-          ? 'SoraTopup request limit reached. Please try again shortly.'
+          ? 'Provider request limit reached. Please try again shortly.'
           : upstreamMsg,
-        { status: publicStatus, code: upstreamCode },
+        { status: publicStatus, code: 'provider_request_failed' },
       );
     }
 
@@ -245,12 +289,14 @@ function normalizeGame(game) {
 }
 
 function normalizePackage(item, gameCode) {
-  const code = cleanString(item?.code, 100);
-  const price = Number(item?.price);
+  // Bay2Game products: { id, product_code, name, sell_price }. Fall back to legacy { code, price }.
+  const code = cleanString(item?.product_code || item?.code, 100);
+  const price = Number(item?.sell_price ?? item?.price);
   if (!code || !Number.isFinite(price) || price < 0) return null;
 
   return {
     code,
+    providerCode: code,
     gameCode,
     name: cleanString(item?.name || code, 180),
     price,
@@ -288,9 +334,23 @@ export async function getSoraCatalogue({ force = false } = {}) {
 
   let normalizedGames = [];
   try {
-    const payload = await providerRequest('/catalogue');
-    normalizedGames = (Array.isArray(payload?.games) ? payload.games : [])
-      .map(normalizeGame)
+    const payload = await providerRequest('/categories');
+    const cats = Array.isArray(payload?.categories) ? payload.categories : [];
+    // Only surface the Bay2Game categories that map back to a storefront game, with live images/names.
+    const reverseMap = { mlbb: 'ml', freefire_global: 'ff', ros_legacy: 'roslegacy' };
+    normalizedGames = cats
+      .map((cat) => {
+        const storeCode = reverseMap[cat?.game_code];
+        if (!storeCode) return null;
+        return normalizeGame({
+          code: storeCode,
+          name: cat.name,
+          image: cat.image_url,
+          description: cat.description,
+          fields: Array.isArray(cat.game_fields) ? cat.game_fields : [],
+          needServer: PROVIDER_SERVER_GAMES.has(cat.game_code),
+        });
+      })
       .filter(Boolean);
   } catch (err) {
     console.warn('Upstream catalogue fetch warning:', err.message);
@@ -372,14 +432,32 @@ export async function getSoraCatalogue({ force = false } = {}) {
 export async function getLiveSoraPackages(gameCode, { force = false } = {}) {
   let code = validGameCode(gameCode);
   if (code === 'roblox') code = 'robuxsend';
+
+  // Bay2Game has no Roblox catalogue and no live catalogue for locally-fulfilled games.
+  const providerCode = toProviderGameCode(code);
+  if (!PROVIDER_GAME_CODE_MAP[code]) {
+    throw new SoraTopupError('This game has no live provider catalogue.', {
+      status: 404,
+      code: 'no_live_catalogue',
+    });
+  }
+
   const cacheKey = `live:${code}`;
   const now = Date.now();
   const cached = packageCache.get(cacheKey);
   if (!force && cached && cached.expiresAt > now) return cached.value;
 
-  const payload = await providerRequest(`/packages?game=${encodeURIComponent(code)}`);
-  const game = normalizeGame(payload?.gameInfo || { code, name: payload?.game || code });
-  const packages = (Array.isArray(payload?.packages) ? payload.packages : [])
+  const payload = await providerRequest(`/products?game_code=${encodeURIComponent(providerCode)}`);
+  const g = payload?.game || {};
+  const game = normalizeGame({
+    code, // keep storefront code so STOREFRONT_GAME_OVERRIDES (labels/fields) apply
+    name: g.name,
+    image: g.image_url,
+    description: g.description,
+    fields: Array.isArray(g.game_fields) ? g.game_fields : [],
+    needServer: PROVIDER_SERVER_GAMES.has(providerCode),
+  });
+  const packages = (Array.isArray(payload?.products) ? payload.products : [])
     .map((item) => normalizePackage(item, code))
     .filter(Boolean);
   const value = {
@@ -524,12 +602,29 @@ export async function resolveSoraPackage(gameCode, packageData = {}, { force = f
   const packages = Array.isArray(result?.packages) ? result.packages : [];
   if (packages.length === 0) return null;
 
+  // Match a requested code against Bay2Game product_codes, e.g. "55" or "MLBB_55" -> MLBB_55.
+  const smartFind = (requested) => {
+    const want = cleanString(requested, 100).toLowerCase();
+    if (!want) return null;
+    const exact = findPackageByCode(packages, want);
+    if (exact) return exact;
+    const wantNum = trailingNumber(want);
+    return packages.find((item) => {
+      const have = String(item.code || '').toLowerCase();
+      if (have === want) return true;
+      if (have.endsWith(`_${want}`)) return true;
+      if (wantNum && trailingNumber(have) === wantNum && (have.includes(want) || have.endsWith(`_${wantNum}`))) return true;
+      return false;
+    }) || null;
+  };
+
   const explicitProviderCode = packageData.providerCode || packageData.soraCode;
   if (explicitProviderCode) {
-    return findPackageByCode(packages, explicitProviderCode);
+    const explicitMatch = smartFind(explicitProviderCode);
+    if (explicitMatch) return explicitMatch;
   }
 
-  const legacyCodeMatch = findPackageByCode(packages, packageData.code);
+  const legacyCodeMatch = smartFind(packageData.code);
   if (legacyCodeMatch) return legacyCodeMatch;
 
   const requestedName = normalizePackageLookup(packageData.name);
@@ -566,7 +661,7 @@ export async function resolveSoraPackage(gameCode, packageData = {}, { force = f
   const diamondCount = Number(packageData.diamonds);
   if (Number.isFinite(diamondCount) && diamondCount > 0) {
     const normalizedDiamondCount = Math.trunc(diamondCount);
-    const exactDiamondMatch = findPackageByCode(packages, String(normalizedDiamondCount));
+    const exactDiamondMatch = smartFind(String(normalizedDiamondCount));
     if (exactDiamondMatch) return exactDiamondMatch;
 
     const suffixedDiamondMatches = packages.filter((item) => {
@@ -578,7 +673,7 @@ export async function resolveSoraPackage(gameCode, packageData = {}, { force = f
 
   const numbersInName = String(packageData.name || '').match(/\d[\d,]*/g) || [];
   if (numbersInName.length === 1) {
-    const exactNameQuantityMatch = findPackageByCode(packages, numbersInName[0].replaceAll(',', ''));
+    const exactNameQuantityMatch = smartFind(numbersInName[0].replaceAll(',', ''));
     if (exactNameQuantityMatch) return exactNameQuantityMatch;
   }
 
@@ -600,28 +695,9 @@ export async function getSoraOrders({ limit = 50, query = '' } = {}) {
     }
   }
 
-  const payload = await providerRequest(`/orders?limit=${safeLimit}`);
-  const orders = Array.isArray(payload?.orders) ? payload.orders : [];
-
-  if (!cleanQ) return orders;
-
-  return orders.filter((o) => {
-    const ref = cleanString(o.refid || o.ref).toLowerCase();
-    const player = cleanString(o.player).toLowerCase();
-    const nick = cleanString(o.nickname).toLowerCase();
-    const game = cleanString(o.gameId || o.gameLabel).toLowerCase();
-    const item = cleanString(o.item).toLowerCase();
-    const reason = cleanString(o.reason).toLowerCase();
-
-    return (
-      ref.includes(cleanQ) ||
-      player.includes(cleanQ) ||
-      nick.includes(cleanQ) ||
-      game.includes(cleanQ) ||
-      item.includes(cleanQ) ||
-      reason.includes(cleanQ)
-    );
-  });
+  // Bay2Game exposes no bulk order-list endpoint; provider order history is tracked in our own store.
+  void safeLimit;
+  return [];
 }
 
 export async function getSoraOrder(ref) {
@@ -632,36 +708,60 @@ export async function getSoraOrder(ref) {
       code: 'missing_ref',
     });
   }
-  return await providerRequest(`/order?ref=${encodeURIComponent(cleanRef)}`);
+  const payload = await providerRequest(`/check_order?reference=${encodeURIComponent(cleanRef)}`);
+  const order = payload?.order || payload?.data || payload || {};
+  return {
+    ok: true,
+    refid: order?.reference || cleanRef,
+    ref: cleanRef,
+    status: order?.status,
+    player: order?.game_user_id,
+    item: order?.product_name || order?.product_code,
+    amount: order?.price ?? order?.cost,
+    raw: payload,
+    ...order,
+  };
 }
 
 export async function createSoraOrder({ game, code, fieldValues = [], orderRef = '' }) {
   const cleanGame = cleanString(game, 40);
-  const cleanCode = cleanString(code, 40);
+  const cleanCode = cleanString(code, 100);
   if (!cleanGame) throw new SoraTopupError('Game code is required.', { status: 400, code: 'game_required' });
   if (!cleanCode) throw new SoraTopupError('Item/package code is required.', { status: 400, code: 'code_required' });
-  if (!Array.isArray(fieldValues) || fieldValues.length === 0) {
+  if (!Array.isArray(fieldValues) || fieldValues.length === 0 || !cleanString(fieldValues[0])) {
     throw new SoraTopupError('Player details (fieldValues) are required.', { status: 400, code: 'missing_fields' });
   }
 
-  // SoraTopup requires an idempotency key to prevent accidental duplicate orders
-  const idempotencyKey = cleanString(orderRef, 80) || `YGS_${cleanGame}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const providerGame = toProviderGameCode(cleanGame);
+  // Bay2Game requires a unique `reference`; it doubles as our idempotency key and status lookup handle.
+  const reference = cleanString(orderRef, 80) || `YGS_${providerGame}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-  return await providerRequest('/order', {
-    method: 'POST',
-    headers: {
-      'Idempotency-Key': idempotencyKey,
-      'X-Idempotency-Key': idempotencyKey,
-    },
-    body: {
-      game: cleanGame,
-      code: cleanCode,
-      fieldValues: fieldValues.map((v) => cleanString(v, 120)),
-      idempotency_key: idempotencyKey,
-      idempotencyKey: idempotencyKey,
-      ...(orderRef ? { orderRef: cleanString(orderRef, 80) } : {}),
-    },
-  });
+  const body = {
+    game_code: providerGame,
+    product_code: cleanCode,
+    game_user_id: cleanString(fieldValues[0], 120),
+    reference,
+  };
+  // Server/zone id is the second field for games that need it (e.g. Mobile Legends, RoS Legacy).
+  if (PROVIDER_SERVER_GAMES.has(providerGame) && cleanString(fieldValues[1])) {
+    body.game_server_id = cleanString(fieldValues[1], 120);
+  }
+
+  const payload = await providerRequest('/create_order', { method: 'POST', body });
+
+  // Normalize to the shape the fulfillment layer expects (refid/ref/status/item/amount).
+  const order = payload?.order || payload?.data || payload || {};
+  const providerRef = order?.reference || payload?.reference || reference;
+  return {
+    ok: true,
+    refid: providerRef,
+    ref: reference,
+    reference: providerRef,
+    status: order?.status || payload?.status || 'submitted',
+    item: order?.product_name || order?.product_code || payload?.product_name,
+    amount: order?.price ?? order?.cost ?? payload?.price,
+    raw: payload,
+  };
 }
 
 export function normalizeOrderQuantity(value) {
@@ -740,14 +840,17 @@ export async function createSoraOrderBatch(
 
 export async function getSoraStatus() {
   const [account, catalogue] = await Promise.all([
-    providerRequest('/balance'),
+    providerRequest('/profile'),
     getSoraCatalogue(),
   ]);
 
+  const user = account?.user || account || {};
   return {
     configured: true,
     connected: true,
-    currency: cleanString(account?.currency, 12),
+    balance: Number(user?.balance ?? 0),
+    username: cleanString(user?.username, 80),
+    currency: 'USD',
     gameCount: catalogue.count,
     catalogueFetchedAt: catalogue.fetchedAt,
   };
@@ -769,7 +872,8 @@ export async function getSoraGameImageSource(gameCode) {
   }
 
   const imageUrl = new URL(game.image);
-  const allowedHost = imageUrl.hostname === 'soratopup.com' || imageUrl.hostname.endsWith('.soratopup.com');
+  const allowedHosts = ['soratopup.com', 'cdn.camrapidsecure.com', 'camrapidsecure.com', 'bay2game.xyz', 'api.bay2game.xyz'];
+  const allowedHost = allowedHosts.some((host) => imageUrl.hostname === host || imageUrl.hostname.endsWith(`.${host}`));
   if (imageUrl.protocol !== 'https:' || !allowedHost) {
     throw new SoraTopupError('Game image source is not allowed.', {
       status: 400,

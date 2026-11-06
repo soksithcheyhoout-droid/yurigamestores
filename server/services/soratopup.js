@@ -38,6 +38,37 @@ function trailingNumber(code) {
   const matches = String(code || '').match(/\d+/g);
   return matches && matches.length ? matches[matches.length - 1] : '';
 }
+
+// ---- Provider health tracking (derived from real order outcomes) ----
+// When an order fails because the upstream game supplier is unreachable, we flag that game as
+// "down" so the storefront can disable buying and mark the tile. It auto-recovers after a cooldown
+// (so customers can retry) and is cleared immediately on the next successful order.
+const PROVIDER_DOWN_COOLDOWN_MS = 5 * 60_000;
+const SUPPLIER_DOWN_PATTERNS = /can'?t reach|cannot reach|unreachable|try again|temporarily|maintenance|mirae|timed ?out|timeout|unavailable|not allowed at the moment|currently inactive/i;
+const providerHealth = new Map(); // storefront code -> { ok, reason, at }
+
+function markProviderHealth(code, ok, reason = '') {
+  const key = String(code || '').trim().toLowerCase();
+  if (!key) return;
+  providerHealth.set(key, { ok, reason: ok ? '' : String(reason || '').slice(0, 200), at: Date.now() });
+}
+
+export function getProviderHealth(code) {
+  const key = String(code || '').trim().toLowerCase();
+  const h = providerHealth.get(key);
+  if (!h) return { ok: true, reason: '', at: 0 };
+  // Optimistically recover after the cooldown so a customer order can re-test the supplier.
+  if (!h.ok && Date.now() - h.at > PROVIDER_DOWN_COOLDOWN_MS) {
+    return { ok: true, reason: '', at: h.at, recovering: true };
+  }
+  return { ok: h.ok, reason: h.reason, at: h.at };
+}
+
+export function getAllProviderHealth() {
+  const out = {};
+  for (const code of getStorefrontCodes()) out[code] = getProviderHealth(code);
+  return out;
+}
 const CATALOGUE_TTL_MS = 5 * 60_000;
 const PACKAGE_TTL_MS = 2 * 60_000;
 export const MAX_ORDER_QUANTITY = 10;
@@ -799,55 +830,66 @@ export async function createSoraOrder({ game, code, fieldValues = [], orderRef =
 
   const reference = cleanString(orderRef, 80) || `YGS_${cleanGame}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-  // Legacy SoraTopup provider (Roblox / robuxsend) keeps its original order contract.
-  if (providerForGame(cleanGame) === 'soratopup') {
-    return await providerRequest('/order', {
-      provider: 'soratopup',
-      method: 'POST',
-      headers: {
-        'Idempotency-Key': reference,
-        'X-Idempotency-Key': reference,
-      },
-      body: {
-        game: cleanGame,
-        code: cleanCode,
-        fieldValues: fieldValues.map((v) => cleanString(v, 120)),
-        idempotency_key: reference,
-        idempotencyKey: reference,
-        orderRef: reference,
-      },
-    });
+  try {
+    // Legacy SoraTopup provider (Roblox / robuxsend) keeps its original order contract.
+    if (providerForGame(cleanGame) === 'soratopup') {
+      const res = await providerRequest('/order', {
+        provider: 'soratopup',
+        method: 'POST',
+        headers: {
+          'Idempotency-Key': reference,
+          'X-Idempotency-Key': reference,
+        },
+        body: {
+          game: cleanGame,
+          code: cleanCode,
+          fieldValues: fieldValues.map((v) => cleanString(v, 120)),
+          idempotency_key: reference,
+          idempotencyKey: reference,
+          orderRef: reference,
+        },
+      });
+      markProviderHealth(cleanGame, true);
+      return res;
+    }
+
+    // Bay2Game provider (ML / FF / RoS): reference is required, unique, and doubles as the status handle.
+    const providerGame = toProviderGameCode(cleanGame);
+    const body = {
+      game_code: providerGame,
+      product_code: cleanCode,
+      game_user_id: cleanString(fieldValues[0], 120),
+      reference,
+    };
+    // Second field for games that need it — Bay2Game reads it as `game_zone_id`.
+    // Mobile Legends: zone/server id. RoS Legacy: the account password (userid=username, zone=password).
+    if (PROVIDER_SERVER_GAMES.has(providerGame) && cleanString(fieldValues[1])) {
+      body.game_zone_id = cleanString(fieldValues[1], 120);
+    }
+
+    const payload = await providerRequest('/create_order', { provider: 'bay2game', method: 'POST', body });
+    markProviderHealth(cleanGame, true);
+
+    // Normalize to the shape the fulfillment layer expects (refid/ref/status/item/amount).
+    const order = payload?.order || payload?.data || payload || {};
+    const providerRef = order?.reference || payload?.reference || reference;
+    return {
+      ok: true,
+      refid: providerRef,
+      ref: reference,
+      reference: providerRef,
+      status: order?.status || payload?.status || 'submitted',
+      item: order?.product_name || order?.product_code || payload?.product_name,
+      amount: order?.price ?? order?.cost ?? payload?.price,
+      raw: payload,
+    };
+  } catch (err) {
+    // Flag the game as "down" only for upstream-supplier outages (not for bad credentials).
+    if (err instanceof SoraTopupError && SUPPLIER_DOWN_PATTERNS.test(err.message || '')) {
+      markProviderHealth(cleanGame, false, err.message);
+    }
+    throw err;
   }
-
-  // Bay2Game provider (ML / FF): reference is required, unique, and doubles as the status handle.
-  const providerGame = toProviderGameCode(cleanGame);
-  const body = {
-    game_code: providerGame,
-    product_code: cleanCode,
-    game_user_id: cleanString(fieldValues[0], 120),
-    reference,
-  };
-  // Second field for games that need it — Bay2Game reads it as `game_zone_id`.
-  // Mobile Legends: zone/server id. RoS Legacy: the account password (userid=username, zone=password).
-  if (PROVIDER_SERVER_GAMES.has(providerGame) && cleanString(fieldValues[1])) {
-    body.game_zone_id = cleanString(fieldValues[1], 120);
-  }
-
-  const payload = await providerRequest('/create_order', { provider: 'bay2game', method: 'POST', body });
-
-  // Normalize to the shape the fulfillment layer expects (refid/ref/status/item/amount).
-  const order = payload?.order || payload?.data || payload || {};
-  const providerRef = order?.reference || payload?.reference || reference;
-  return {
-    ok: true,
-    refid: providerRef,
-    ref: reference,
-    reference: providerRef,
-    status: order?.status || payload?.status || 'submitted',
-    item: order?.product_name || order?.product_code || payload?.product_name,
-    amount: order?.price ?? order?.cost ?? payload?.price,
-    raw: payload,
-  };
 }
 
 export function normalizeOrderQuantity(value) {

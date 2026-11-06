@@ -152,11 +152,36 @@ export default function GameDetailPage({
 
   // Dynamic Config, Stock & MLBB Events from Backend
   const [isStockOpen, setIsStockOpen] = useState(true);
+  const [providerDown, setProviderDown] = useState(Boolean(game?.maintenance));
+  const [providerDownReason, setProviderDownReason] = useState(game?.maintenanceReason || '');
   const [dynamicPackages, setDynamicPackages] = useState(game.packages || []);
   const [customGameImage, setCustomGameImage] = useState(propGame?.image || game?.image || '');
   const [customGameBanner, setCustomGameBanner] = useState(propGame?.banner || game?.banner || '');
   const [mlbbEvents, setMlbbEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState('regular'); // Tracks which visible package group owns the selection
+
+  // Live provider health: auto-check so the game is marked unavailable while its supplier is down.
+  useEffect(() => {
+    const codeKey = String(game.providerCode || game.id || '').toLowerCase();
+    if (!codeKey) return undefined;
+    let active = true;
+    const check = () => {
+      fetch('/api/provider-health', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((d) => {
+          if (!active || !d?.health) return;
+          const h = d.health[codeKey];
+          if (h) {
+            setProviderDown(!h.ok);
+            setProviderDownReason(h.ok ? '' : (h.reason || ''));
+          }
+        })
+        .catch(() => {});
+    };
+    check();
+    const id = setInterval(check, 30_000);
+    return () => { active = false; clearInterval(id); };
+  }, [game.providerCode, game.id]);
 
   useEffect(() => {
     fetch('/api/site-config')
@@ -383,6 +408,12 @@ export default function GameDetailPage({
 
   // Submit Order / Proceed to Payment
   const handleProceedToPayment = () => {
+    if (providerDown) {
+      setFormError(`${game.name} top-up is temporarily unavailable right now (provider maintenance). Please try again later.`);
+      const el = document.getElementById('playerSection');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     if (!isStockOpen) {
       setFormError(`Out of Stock: Top-ups for ${game.name} are currently paused by administration. Please check back later.`);
       return;
@@ -821,6 +852,21 @@ export default function GameDetailPage({
 
             {/* Left Column: Steps (8 Columns) */}
             <div className="lg:col-span-8 flex flex-col gap-4 sm:gap-6">
+
+              {/* Provider Maintenance Alert — upstream supplier temporarily unreachable */}
+              {providerDown && (
+                <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-900 flex items-center gap-3 shadow-xs animate-in fade-in">
+                  <AlertCircle size={24} className="text-amber-600 shrink-0" />
+                  <div>
+                    <div className="font-black text-sm uppercase tracking-wide">
+                      Top-Up Temporarily Unavailable
+                    </div>
+                    <div className="text-xs text-amber-700 mt-0.5">
+                      <strong>{game.name}</strong> top-up is temporarily unavailable due to a provider/server issue. Please try again in a little while — this clears automatically once service is restored.
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Game Stock Closed Alert (Option 5) */}
               {!isStockOpen && (
@@ -1433,7 +1479,7 @@ export default function GameDetailPage({
                 <button
                   type="button"
                   onClick={handleProceedToPayment}
-                  disabled={!providerOrderingEnabled || !isAccountVerified}
+                  disabled={!providerOrderingEnabled || !isAccountVerified || providerDown}
                   className={`w-full text-base py-3.5 mt-2 flex items-center justify-center gap-2 rounded-xl font-black transition-all ${!isAccountVerified
                       ? 'bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed shadow-none'
                       : 'seagm-btn-orange shadow-md active:scale-[0.99] cursor-pointer'

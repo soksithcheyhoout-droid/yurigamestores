@@ -130,6 +130,8 @@ export function mapSoraGame(game) {
     fields: (Array.isArray(game?.fields) ? game.fields : []).map(mapField),
     packages: [],
     stockOpen: game?.stockOpen !== false,
+    maintenance: Boolean(game?.maintenance),
+    maintenanceReason: game?.maintenanceReason || '',
     rating: 'Live',
     sales: 'API',
   };

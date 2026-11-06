@@ -34,6 +34,8 @@ import {
   getSoraOrders,
   getSoraPackages,
   getSoraStatus,
+  getProviderHealth,
+  getAllProviderHealth,
   MAX_ORDER_QUANTITY,
   normalizeOrderQuantity,
   resolveSoraPackage,
@@ -1661,10 +1663,23 @@ app.get('/api/soratopup/catalogue', async (req, res) => {
       provider: 'soratopup',
       count: catalogue.count,
       fetchedAt: catalogue.fetchedAt,
-      games: catalogue.games.map(publicSoraGame),
+      games: catalogue.games.map((g) => {
+        const h = getProviderHealth(g.code);
+        return { ...publicSoraGame(g), maintenance: !h.ok, maintenanceReason: h.reason || '' };
+      }),
     });
   } catch (error) {
     return sendSoraTopupError(res, error);
+  }
+});
+
+// Live provider health per game (down = upstream supplier unreachable). Polled by the storefront.
+app.get('/api/provider-health', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    return res.json({ success: true, health: getAllProviderHealth() });
+  } catch {
+    return res.json({ success: true, health: {} });
   }
 });
 
@@ -1696,13 +1711,14 @@ app.get('/api/soratopup/packages', async (req, res) => {
       }));
     }
 
+    const health = getProviderHealth(result.game?.code || gameCode);
     res.set('Cache-Control', 'no-cache, must-revalidate');
     return res.json({
       success: true,
       provider: 'soratopup',
       count: finalPackages.length,
       fetchedAt: result.fetchedAt,
-      game: publicSoraGame(result.game),
+      game: { ...publicSoraGame(result.game), maintenance: !health.ok, maintenanceReason: health.reason || '' },
       packages: finalPackages,
     });
   } catch (error) {

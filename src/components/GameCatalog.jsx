@@ -118,6 +118,10 @@ export default function GameCatalog({
   };
 
   const openGame = async (game) => {
+    if (game.maintenance) {
+      setProviderError(`${game.name} top-up is temporarily unavailable (provider maintenance). Please try again later.`);
+      return;
+    }
     if (game.stockOpen === false) {
       setProviderError(`${game.name} is currently out of stock. Please check back later!`);
       return;
@@ -247,18 +251,22 @@ export default function GameCatalog({
                     />
                     <span className="pointer-events-none absolute inset-x-0 bottom-0 h-6 sm:h-10 bg-gradient-to-t from-black/65 to-transparent" />
                     <span
-                      className={`absolute left-1 top-1 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-wider backdrop-blur-sm ${game.stockOpen !== false
+                      className={`absolute left-1 top-1 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-wider backdrop-blur-sm ${game.maintenance
+                          ? 'border-amber-500/50 bg-black/85 text-amber-300'
+                          : game.stockOpen !== false
                           ? 'border-emerald-500/40 bg-black/85 text-emerald-300'
                           : 'border-rose-500/50 bg-black/85 text-rose-300'
                         }`}
                     >
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${game.stockOpen !== false
+                        className={`h-1.5 w-1.5 rounded-full ${game.maintenance
+                            ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.9)]'
+                            : game.stockOpen !== false
                             ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]'
                             : 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]'
                           }`}
                       />
-                      {game.stockOpen !== false ? 'In Stock' : 'Out of Stock'}
+                      {game.maintenance ? 'Maintenance' : game.stockOpen !== false ? 'In Stock' : 'Out of Stock'}
                     </span>
                     {isOpening && (
                       <span className="absolute inset-0 flex items-center justify-center bg-black/80 text-[8px] sm:text-[10px] font-bold text-white backdrop-blur-xs">

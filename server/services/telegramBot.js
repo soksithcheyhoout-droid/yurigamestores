@@ -351,38 +351,43 @@ export async function notifyOrderToAdmins(order) {
   let statusHtml = '';
   let inlineKeyboard = null;
 
+  const statusUpper = String(order.status || '').toUpperCase();
+  const autoDelivered = ['DELIVERED', 'COMPLETED', 'SUCCESS'].includes(statusUpper);
+
   if (isRoS) {
-    statusHtml = [
-      `⏳ <b>Order Status:</b> 🟡 <b>IN PROCESSING</b> (Awaiting Diamonds)`,
-      `🕒 <b>Received At:</b> ${timeFormatted}`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `👇 <i>Admins: Please add diamonds to the account, then tap <b>Done</b>:</i>`,
-    ].join('\n');
-
-    inlineKeyboard = {
-      inline_keyboard: [
-        [
-          { text: '✅ Done (Diamonds Added)', callback_data: `ros_done:${order.ref}` },
-          { text: '❌ Cancel Order', callback_data: `ros_cancel:${order.ref}` },
-        ],
-      ],
-    };
+    // RoS Legacy auto-delivers via Bay2Game — informational only, no Done/Cancel buttons.
+    statusHtml = autoDelivered
+      ? [
+          `⚡ <b>Payment Status:</b> 🟢 <b>PAID & CONFIRMED</b>`,
+          `🚀 <b>Fulfillment:</b> <b>Auto-delivered via provider</b>`,
+          `🕒 <b>Delivered At:</b> ${timeFormatted}`,
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+          `✨ <i>Diamonds credited automatically to the RoS account.</i>`,
+        ].join('\n')
+      : [
+          `⚠️ <b>Order Status:</b> 🟠 <b>NEEDS ADMIN ATTENTION</b> (auto-delivery failed)`,
+          `🕒 <b>Received At:</b> ${timeFormatted}`,
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+          `👇 <i>Admins: please top up this RoS account manually using the credentials above.</i>`,
+        ].join('\n');
+    inlineKeyboard = null;
   } else if (isRoblox) {
-    statusHtml = [
-      `⏳ <b>Order Status:</b> 🟡 <b>IN PROCESSING</b> (Awaiting Robux Delivery)`,
-      `🕒 <b>Received At:</b> ${timeFormatted}`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `👇 <i>Admins: Please send Robux to Roblox user <b>${account}</b>, then tap <b>Done</b>:</i>`,
-    ].join('\n');
-
-    inlineKeyboard = {
-      inline_keyboard: [
-        [
-          { text: '✅ Done (Robux Sent)', callback_data: `roblox_done:${order.ref}` },
-          { text: '❌ Cancel Order', callback_data: `roblox_cancel:${order.ref}` },
-        ],
-      ],
-    };
+    // Roblox fulfillment — informational only, no Done/Cancel buttons.
+    statusHtml = autoDelivered
+      ? [
+          `⚡ <b>Payment Status:</b> 🟢 <b>PAID & CONFIRMED</b>`,
+          `🚀 <b>Fulfillment:</b> <b>Auto-delivered</b>`,
+          `🕒 <b>Delivered At:</b> ${timeFormatted}`,
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+          `✨ <i>Robux sent automatically to Roblox user ${account}.</i>`,
+        ].join('\n')
+      : [
+          `⚠️ <b>Order Status:</b> 🟠 <b>NEEDS ADMIN ATTENTION</b> (auto-delivery failed)`,
+          `🕒 <b>Received At:</b> ${timeFormatted}`,
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+          `👇 <i>Admins: please send Robux to Roblox user <b>${account}</b> manually.</i>`,
+        ].join('\n');
+    inlineKeyboard = null;
   } else if (isMLBB && isMlbbEvent) {
     statusHtml = [
       `🌟 <b>MLBB Mode:</b> <b>SPECIAL EVENT PURCHASE (${mlbbEventLabel})</b>`,

@@ -43,7 +43,6 @@ import {
   startTelegramBotPolling,
   notifyRosOrderToAdmins,
   notifyOrderToAdmins,
-  saveRosOrder,
   getRosOrder,
   getAllRosOrders,
   approveOrderFromWeb,
@@ -1945,69 +1944,61 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
   const targetQuantity = normalizeOrderQuantity(orderDetails.quantity || 1);
   const finalRef = orderRef || ref || `YGS-${Math.floor(100000 + Math.random() * 900000)}`;
 
-  // RoS Legacy orders are fulfilled manually via direct Telegram Admin notification with Done/Cancel buttons!
-  if (targetGame === 'roslegacy') {
-    const username = fieldValues[0] || playerDetails?.userId || playerDetails?.username || playerDetails?.account || verifiedPlayer || 'RoS Player';
-    // RoS Legacy form fields are [Username/Gmail, Password]; fieldValues[1] is the account password.
-    const password = fieldValues[1] || playerDetails?.password || '';
-    const gmail = playerDetails?.gmail || '';
-    const prefix = 'ROS';
-    const refFinal = finalRef.startsWith(prefix) ? finalRef : `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+  const cleanTargetGame = targetGame === 'roblox' ? 'robuxsend' : targetGame;
 
-    const manualOrder = {
-      ...orderDetails,
-      ref: refFinal,
-      clientIp: orderDetails.clientIp || '',
-      deviceId: orderDetails.deviceId || '',
-      game: 'roslegacy',
-      gameId: 'roslegacy',
-      gameName: 'RoS Legacy',
-      code: targetCode,
-      packageName: packageName || 'RoS Diamonds',
-      quantity: targetQuantity,
-      totalUsd: Number(totalUsd || 0),
-      totalKhr: totalKhr || (Math.round((Number(totalUsd || 0)) * 4100)).toLocaleString(),
-      paymentMethod: paymentMethod || 'Bakong KHQR',
-      playerDetails: {
-        account: username,
-        userId: username,
-        username,
-        password,
-        gmail,
-      },
-      verifiedPlayer: verifiedPlayer || username,
-      status: 'PROCESSING',
-      createdAt: new Date().toISOString(),
-    };
-
-    await saveRosOrder(manualOrder);
-    notifyOrderToAdmins(manualOrder).catch((e) => console.warn('Failed to notify admins:', e.message));
-
-    return {
-      success: true,
-      provider: 'telegram_admin',
-      refid: manualOrder.ref,
-      orderRef: manualOrder.ref,
-      status: 'PROCESSING',
-      game: manualOrder.game,
-      message: `${manualOrder.gameName} order received and sent to Telegram admins for fulfillment.`,
-      order: manualOrder,
-    };
+  // Player fields per provider. RoS Legacy on Bay2Game maps userid=username and serverid=password.
+  let cleanFieldValues;
+  if (cleanTargetGame === 'roslegacy') {
+    const rosUser = (Array.isArray(fieldValues) && fieldValues[0]) || playerDetails?.account || playerDetails?.userId || playerDetails?.username || verifiedPlayer || 'RoS Player';
+    const rosPass = (Array.isArray(fieldValues) && fieldValues[1]) || playerDetails?.password || '';
+    cleanFieldValues = [rosUser, rosPass];
+  } else {
+    cleanFieldValues = Array.isArray(fieldValues) && fieldValues.length > 0 && fieldValues[0]
+      ? fieldValues
+      : [playerDetails?.userId || playerDetails?.username || playerDetails?.account || verifiedPlayer || 'Player'];
   }
 
-  const cleanTargetGame = targetGame === 'roblox' ? 'robuxsend' : targetGame;
-  const cleanFieldValues = Array.isArray(fieldValues) && fieldValues.length > 0 && fieldValues[0]
-    ? fieldValues
-    : [playerDetails?.userId || playerDetails?.username || playerDetails?.account || verifiedPlayer || 'Player'];
+  // RoS manual orders arrive with only a packageId/name — resolve the Bay2Game product code (e.g. 500 -> ROS_500DM).
+  let resolvedCode = targetCode;
+  if (cleanTargetGame === 'roslegacy') {
+    if (!resolvedCode) {
+      const fromId = String(orderDetails.packageId || '').replace(/^sora_[^_]+_/, '').trim();
+      const fromName = (String(packageName || '').match(/\d[\d,]*/) || [])[0]?.replace(/,/g, '') || '';
+      resolvedCode = fromId || fromName;
+    }
+    try {
+      const resolvedPkg = await resolveSoraPackage('roslegacy', { code: resolvedCode, name: packageName, diamonds: Number(resolvedCode) });
+      if (resolvedPkg?.code) resolvedCode = resolvedPkg.code;
+    } catch (resolveErr) {
+      console.warn('[RoS] product code resolution notice:', resolveErr.message);
+    }
+  }
 
-  // Live provider automated fulfillment: submit one idempotent provider order per selected quantity.
-  const batch = await createSoraOrderBatch({
-    game: cleanTargetGame,
-    code: targetCode,
-    fieldValues: cleanFieldValues,
-    orderRef: finalRef,
-    quantity: targetQuantity,
-  });
+  // Automated provider fulfillment (one idempotent order per unit of quantity).
+  // RoS Legacy and Roblox are "manual-style": if the provider cannot deliver, we keep the paid order
+  // and notify admins (no action buttons) instead of hard-failing, so nothing is ever lost.
+  const manualStyle = cleanTargetGame === 'roslegacy' || cleanTargetGame === 'robuxsend';
+  let batch;
+  try {
+    batch = await createSoraOrderBatch({
+      game: cleanTargetGame,
+      code: resolvedCode,
+      fieldValues: cleanFieldValues,
+      orderRef: finalRef,
+      quantity: targetQuantity,
+    });
+  } catch (batchErr) {
+    if (!manualStyle) throw batchErr;
+    console.warn(`[Fulfillment] ${cleanTargetGame} auto-delivery failed, flagged for admin:`, batchErr.message);
+    batch = {
+      requestedQuantity: targetQuantity,
+      completedQuantity: 0,
+      failedQuantity: targetQuantity,
+      status: 'FAILED',
+      successful: [],
+      failed: [{ item: 1, orderRef: finalRef, message: batchErr.message }],
+    };
+  }
   const primaryResult = batch.successful[0]?.response || {};
   const fullyDelivered = batch.failedQuantity === 0;
   const fulfillmentStatus = fullyDelivered ? 'DELIVERED' : 'PENDING_ADMIN';
@@ -2024,6 +2015,7 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
       mlbb: 'Mobile Legends KH',
       ff: 'Free Fire',
       freefire: 'Free Fire',
+      roslegacy: 'RoS Legacy',
     };
     const resolvedGameName = gameNameMap[cleanTargetGame] || cleanTargetGame;
 
@@ -2034,8 +2026,8 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
       game: cleanTargetGame,
       gameId: cleanTargetGame,
       gameName: resolvedGameName,
-      packageId: orderDetails.packageId || targetCode,
-      packageName: packageName || primaryResult?.item || (cleanTargetGame === 'robuxsend' ? `${targetCode} Robux` : `${targetCode} Credits`),
+      packageId: orderDetails.packageId || resolvedCode || targetCode,
+      packageName: packageName || primaryResult?.item || (cleanTargetGame === 'robuxsend' ? `${resolvedCode || targetCode} Robux` : cleanTargetGame === 'roslegacy' ? 'RoS Diamonds' : `${resolvedCode || targetCode} Credits`),
       quantity: targetQuantity,
       deliveredQuantity: batch.completedQuantity,
       pendingQuantity: batch.failedQuantity,
@@ -2043,11 +2035,18 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
       totalUsd: Number(totalUsd || primaryResult?.amount || 0),
       totalKhr: totalKhr || (Math.round(Number(totalUsd || primaryResult?.amount || 0) * 4100)).toLocaleString(),
       paymentMethod: paymentMethod || 'Bakong KHQR',
-      playerDetails: {
-        userId: cleanFieldValues[0] || playerDetails?.userId || playerDetails?.account || 'Player',
-        zoneId: cleanFieldValues[1] || playerDetails?.zoneId || '',
-        account: cleanFieldValues[0] || playerDetails?.account || playerDetails?.userId || 'Player',
-      },
+      playerDetails: cleanTargetGame === 'roslegacy'
+        ? {
+            userId: cleanFieldValues[0] || playerDetails?.account || 'RoS Player',
+            account: cleanFieldValues[0] || playerDetails?.account || 'RoS Player',
+            username: cleanFieldValues[0] || playerDetails?.account || 'RoS Player',
+            password: cleanFieldValues[1] || playerDetails?.password || '',
+          }
+        : {
+            userId: cleanFieldValues[0] || playerDetails?.userId || playerDetails?.account || 'Player',
+            zoneId: cleanFieldValues[1] || playerDetails?.zoneId || '',
+            account: cleanFieldValues[0] || playerDetails?.account || playerDetails?.userId || 'Player',
+          },
       verifiedPlayer: verifiedPlayer || cleanFieldValues[0] || playerDetails?.userId || 'Player',
       status: fulfillmentStatus,
       providerStatus: batch.status,

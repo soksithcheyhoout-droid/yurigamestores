@@ -1482,7 +1482,7 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('analytics')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
               activeTab === 'analytics'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -1500,7 +1500,7 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('products')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
               activeTab === 'products'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -1513,7 +1513,7 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('orders')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
               activeTab === 'orders'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -1531,7 +1531,7 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('contacts')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
               activeTab === 'contacts'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -1544,7 +1544,7 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('banners')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
               activeTab === 'banners'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -1557,7 +1557,7 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('stock')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
               activeTab === 'stock'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -1570,7 +1570,7 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('telegram')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shrink-0 cursor-pointer transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
               activeTab === 'telegram'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -2538,8 +2538,8 @@ export default function AdminDashboard({ onBackToStore }) {
                 </div>
               </div>
 
-              {/* Orders Table */}
-              <div className="overflow-x-auto rounded-xl border border-slate-800">
+              {/* Orders Table (desktop) */}
+              <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-800">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-900/90 text-slate-400 uppercase font-black text-[10px] tracking-wider border-b border-slate-800">
                     <tr>
@@ -2655,6 +2655,61 @@ export default function AdminDashboard({ onBackToStore }) {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Orders — mobile card view (same data, nothing cut off) */}
+              <div className="lg:hidden space-y-3">
+                {filteredOrders.length === 0 ? (
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/40 py-8 text-center text-slate-500 text-sm">No orders matching current filter.</div>
+                ) : (
+                  filteredOrders.map((order) => {
+                    const isRoblox = String(order.gameId || order.game || '').toLowerCase().includes('roblox') || String(order.gameId || order.game || '').toLowerCase().includes('robux');
+                    const isRoS = String(order.gameId || order.game || '').toLowerCase().includes('ros');
+                    const isPending = ['PENDING', 'PROCESSING', 'Pending', 'PENDING_ADMIN'].includes(order.status);
+                    const canApproveManually = isPending && (order.source === 'manual' || isRoblox || isRoS);
+                    return (
+                      <div key={order.ref} className="rounded-xl border border-slate-800 bg-slate-950/50 p-3.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-mono font-bold text-white text-sm truncate">{order.ref}</div>
+                            <div className="text-[10px] text-slate-500">{order.createdAt ? new Date(order.createdAt).toLocaleTimeString() : 'Recent'}</div>
+                          </div>
+                          <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 ${isPending ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : (order.status === 'COMPLETED' || order.status === 'DELIVERED') ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
+                            {isPending && <Clock size={11} className="animate-spin" />}
+                            <span>{isPending ? 'Pending' : order.status}</span>
+                          </span>
+                        </div>
+                        <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
+                          <div><div className="text-slate-500">Game</div><div className="font-bold text-slate-200">{order.gameName || (isRoblox ? 'Roblox' : isRoS ? 'RoS Legacy' : 'Game')}</div></div>
+                          <div><div className="text-slate-500">Amount</div><div className="font-mono font-bold text-white">${Number(order.totalUsd || 0).toFixed(2)}</div></div>
+                          <div className="col-span-2">
+                            <div className="text-slate-500">Player Account</div>
+                            <div className="font-mono font-bold text-white break-all">{order.playerDetails?.account || order.playerDetails?.userId || order.verifiedPlayer || 'Player'}</div>
+                            {order.playerDetails?.password && (<div className="text-[10px] text-amber-400 break-all">Password: <code>{order.playerDetails.password}</code></div>)}
+                            {order.playerDetails?.gmail && (<div className="text-[10px] text-slate-400 break-all">Gmail: {order.playerDetails.gmail}</div>)}
+                          </div>
+                          <div className="col-span-2">
+                            <div className="text-slate-500">Package / Item</div>
+                            <div className="text-[#E3062F] font-bold">{order.packageName} × {order.quantity || 1}</div>
+                            <div className="text-[10px] text-slate-500">{order.paymentMethod || 'Bakong KHQR'}</div>
+                          </div>
+                        </div>
+                        {canApproveManually ? (
+                          <div className="mt-3 flex items-center gap-2">
+                            <button type="button" onClick={() => handleApproveOrder(order.ref, order.gameName, order.playerDetails?.account)} className="flex-1 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs cursor-pointer flex items-center justify-center gap-1 border-0">
+                              <CheckCircle2 size={13} /><span>{isRoblox ? 'Done (Robux)' : isRoS ? 'Done (Diamonds)' : 'Approve'}</span>
+                            </button>
+                            <button type="button" onClick={() => handleCancelOrder(order.ref)} className="px-3 py-2 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs cursor-pointer border border-rose-500/40 flex items-center gap-1">
+                              <XCircle size={13} /><span>Cancel</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="mt-2.5 text-[10px] text-slate-500 italic">{isPending ? `Monitoring via ${order.source || 'gateway'}` : `Recorded via ${order.source || 'store'}`}</div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

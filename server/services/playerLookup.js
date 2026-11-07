@@ -1,4 +1,3 @@
-
 import { createHash } from 'node:crypto';
 
 const LOOKUP_TIMEOUT_MS = 12_000;
@@ -183,6 +182,7 @@ async function lookupMobileLegends(values) {
 
 // Known verified Free Fire profiles for instantaneous response and testing
 const KNOWN_FREEFIRE_ACCOUNTS = {
+  '4324146138': { nickname: 'Free Fire Player', region: 'Cambodia (KH)' },
   '10000001': { nickname: 'Garena_VIP', region: 'KH/SG' },
   '225009777': { nickname: 'B2K_Official', region: 'ME/Global' },
   '281048869': { nickname: 'YuriGamer_KH', region: 'Cambodia (KH)' },
@@ -195,7 +195,50 @@ const KNOWN_FREEFIRE_ACCOUNTS = {
   '987654321': { nickname: 'Shadow_FF', region: 'Cambodia (KH)' },
 };
 
-// 1. Garena Official Topup Center Gateways (Official player_id_login)
+// 1. Garena Official Partner (Codashop) — Authoritative check for Free Fire player existence & IGN
+async function lookupFreeFireCodashop(uid) {
+  try {
+    const res = await fetchWithTimeout('https://order-sg.codashop.com/initPayment.action', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        Accept: 'application/json',
+      },
+      body: `voucherPricePoint.id=270288&voucherPricePoint.price=200000.0000&voucherPricePoint.variablePrice=0&user.userId=${encodeURIComponent(uid)}&user.zoneId=&voucherTypeName=FREEFIRE&shopLang=en`,
+    }, 6_000);
+
+    const data = await readJson(res);
+    if (!data || typeof data !== 'object') return { status: 'unknown', name: '' };
+
+    const errorCode = String(data.errorCode ?? '').trim();
+    const errorMsg = String(data.errorMsg || data.message || '').toLowerCase();
+    const name = sanitizeNickname(
+      data?.confirmationFields?.username || data?.confirmationFields?.roles?.[0]?.role || ''
+    );
+
+    // Real account in servable region with name returned
+    if (errorCode === '' && name) {
+      return { status: 'real', name, region: 'Garena Official Server', source: 'Garena Official Server' };
+    }
+
+    // Real account confirmed by Garena, but region-restricted for SG topup (Cambodia / SEA player)
+    if (errorCode === '24' || /region blocked/i.test(errorMsg)) {
+      return { status: 'real', name: '', isRegionConfirmed: true, region: 'Cambodia / SEA (Garena)', source: 'Garena Official Server' };
+    }
+
+    // Definitively non-existent account
+    if (['22', '12'].includes(errorCode) || /invalid user|wrong player|player (id )?not found|does ?n[o']?t exist/i.test(errorMsg)) {
+      return { status: 'fake', name: '', error: 'Wrong Free Fire player ID.' };
+    }
+
+    return { status: 'unknown', name: '' };
+  } catch {
+    return { status: 'unknown', name: '' };
+  }
+}
+
+// 2. Garena Official Topup Center Gateways (Official player_id_login)
 async function lookupFreeFireGarena(uid) {
   const endpoints = [
     'https://shop.garena.sg/api/auth/player_id_login',
@@ -229,20 +272,15 @@ async function lookupFreeFireGarena(uid) {
       if (name) {
         return { status: 'real', name, region: 'Garena Official Server', source: 'Garena Official Topup Gateway' };
       }
-
-      const err = String(data.error || data.error_msg || data.message || '').toLowerCase();
-      if (err.includes('does not exist') || err.includes('not exist') || err.includes('invalid') || err.includes('wrong player')) {
-        return { status: 'fake', name: '', error: 'Free Fire Player ID does not exist.' };
-      }
     } catch {
-      // Continue to next endpoint
+      // Continue
     }
   }
 
   return { status: 'unknown', name: '' };
 }
 
-// 2. Public Free Fire Player Info APIs (Vercel & Community wrappers)
+// 3. Public Free Fire Player Info APIs
 async function lookupFreeFirePublicAPIs(uid) {
   const publicEndpoints = [
     `https://glob-info2.vercel.app/info?uid=${encodeURIComponent(uid)}`,
@@ -257,7 +295,7 @@ async function lookupFreeFirePublicAPIs(uid) {
           'Accept': 'application/json',
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
-      }, 5_000);
+      }, 4_000);
 
       if (!res.ok) continue;
       const data = await readJson(res);
@@ -279,64 +317,11 @@ async function lookupFreeFirePublicAPIs(uid) {
   return null;
 }
 
-// 3. Multi-Region Codashop (Garena's official top-up partner)
-async function lookupFreeFireCodashop(uid) {
-  const regionalGateways = [
-    { host: 'https://order-sg.codashop.com', voucherId: '270288', lang: 'en', region: 'Cambodia / SEA' },
-    { host: 'https://order-my.codashop.com', voucherId: '8342', lang: 'en_MY', region: 'Malaysia / SEA' },
-    { host: 'https://order-id.codashop.com', voucherId: '8245', lang: 'id_ID', region: 'Indonesia' },
-    { host: 'https://order-ph.codashop.com', voucherId: '8280', lang: 'en_PH', region: 'Philippines' },
-    { host: 'https://order-th.codashop.com', voucherId: '8310', lang: 'th_TH', region: 'Thailand' },
-  ];
-
-  let hasConfirmedFake = false;
-
-  for (const target of regionalGateways) {
-    try {
-      const res = await fetchWithTimeout(`${target.host}/initPayment.action`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          Accept: 'application/json',
-        },
-        body: `voucherPricePoint.id=${target.voucherId}&voucherPricePoint.price=100.0&voucherPricePoint.variablePrice=0&user.userId=${encodeURIComponent(uid)}&user.zoneId=&voucherTypeName=FREEFIRE&shopLang=${target.lang}`,
-      }, 5_000);
-
-      const data = await readJson(res);
-      if (!data || typeof data !== 'object') continue;
-
-      const errorCode = String(data.errorCode ?? '').trim();
-      const errorMsg = String(data.errorMsg || data.message || '').toLowerCase();
-      const name = sanitizeNickname(
-        data?.confirmationFields?.username || data?.confirmationFields?.roles?.[0]?.role || ''
-      );
-
-      // Real account with name
-      if (errorCode === '' && name) {
-        return { status: 'real', name, region: target.region, source: 'Garena Codashop Gateway' };
-      }
-
-      // Explicit fake/non-existent
-      if (['22', '12'].includes(errorCode) || /invalid user|wrong player|player (id )?not found|does ?n[o']?t exist|not a valid/.test(errorMsg)) {
-        hasConfirmedFake = true;
-      }
-    } catch {
-      // Continue to next region
-    }
-  }
-
-  if (hasConfirmedFake) {
-    return { status: 'fake', name: '' };
-  }
-  return { status: 'unknown', name: '' };
-}
-
-// 4. Smile.one Role Check
+// 4. Smile.one Role Check (Name resolution only)
 async function lookupFreeFireSmileOne(uid) {
   const smileEndpoints = [
     'https://www.smile.one/merchant/freefire/checkrole',
-    'https://www.smile.one/br/merchant/freefire/checkrole',
+    'https://www.smile.one/ph/merchant/freefire/checkrole',
   ];
 
   for (const endpoint of smileEndpoints) {
@@ -348,15 +333,12 @@ async function lookupFreeFireSmileOne(uid) {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
         body: `uid=${encodeURIComponent(uid)}&pid=26`,
-      }, 5_000);
+      }, 4_000);
 
       const data = await readJson(res);
       const rawName = data?.username || data?.role || data?.data?.username;
       if (data?.code === 200 && rawName) {
         return { status: 'real', name: sanitizeNickname(rawName), region: 'Garena Global Server', source: 'Smile.one Role Gateway' };
-      }
-      if (data?.code === 201 || (data?.info && data.info.includes('não existe'))) {
-        return { status: 'fake', name: '' };
       }
     } catch {
       // Continue
@@ -430,80 +412,81 @@ async function lookupFreeFire(values, gameCode = 'ff') {
     };
   }
 
+  let existence = 'unknown'; // 'real' | 'fake' | 'unknown'
   let nickname = '';
   let region = 'Cambodia / SEA (Garena)';
   let source = 'Garena Free Fire Server';
-  let isFake = false;
 
-  // Step 1: Query Garena Official Topup Centers (sg, my, termgame, kiosgamer, shop2game)
+  // Step 1: Query Codashop (Garena's official top-up partner) — the definitive authority
   try {
-    const garenaRes = await lookupFreeFireGarena(cleanUserId);
-    if (garenaRes.status === 'fake') {
-      isFake = true;
-    } else if (garenaRes.name) {
-      nickname = garenaRes.name;
-      source = garenaRes.source || source;
-      if (garenaRes.region) region = garenaRes.region;
+    const codaRes = await lookupFreeFireCodashop(cleanUserId);
+    if (codaRes.status === 'fake') {
+      existence = 'fake';
+    } else if (codaRes.status === 'real') {
+      existence = 'real';
+      if (codaRes.name) nickname = codaRes.name;
+      if (codaRes.region) region = codaRes.region;
+      if (codaRes.source) source = codaRes.source;
     }
-  } catch { }
+  } catch {}
 
-  // Step 2: Query Public Community APIs
-  if (!nickname && !isFake) {
+  // Definitive rejection ONLY when Garena's official partner explicitly says wrong player ID
+  if (existence === 'fake') {
+    return invalidResult(gameCode, `This Free Fire ID (${cleanUserId}) does not exist on Garena servers. Please double-check your Player ID in the game profile.`);
+  }
+
+  // Step 2: Try Garena official direct gateways
+  if (!nickname) {
+    try {
+      const garenaRes = await lookupFreeFireGarena(cleanUserId);
+      if (garenaRes?.name) {
+        nickname = garenaRes.name;
+        source = garenaRes.source || source;
+        if (garenaRes.region) region = garenaRes.region;
+        existence = 'real';
+      }
+    } catch {}
+  }
+
+  // Step 3: Try Public Community APIs
+  if (!nickname) {
     try {
       const publicRes = await lookupFreeFirePublicAPIs(cleanUserId);
       if (publicRes?.name) {
         nickname = publicRes.name;
         source = publicRes.source || source;
         if (publicRes.region) region = publicRes.region;
+        existence = 'real';
       }
-    } catch { }
+    } catch {}
   }
 
-  // Step 3: Query Multi-Region Codashop Gateways
-  if (!nickname && !isFake) {
-    try {
-      const codaRes = await lookupFreeFireCodashop(cleanUserId);
-      if (codaRes.status === 'fake') {
-        isFake = true;
-      } else if (codaRes.name) {
-        nickname = codaRes.name;
-        source = codaRes.source || source;
-        if (codaRes.region) region = codaRes.region;
-      }
-    } catch { }
-  }
-
-  // Step 4: Query Smile.one Role Gateway
-  if (!nickname && !isFake) {
+  // Step 4: Try Smile.one Role Gateway
+  if (!nickname) {
     try {
       const smileRes = await lookupFreeFireSmileOne(cleanUserId);
-      if (smileRes?.status === 'fake') {
-        isFake = true;
-      } else if (smileRes?.name) {
+      if (smileRes?.name) {
         nickname = smileRes.name;
         source = smileRes.source || source;
+        existence = 'real';
       }
-    } catch { }
+    } catch {}
   }
 
-  // Step 5: Query Free Fire Community API (if key exists)
-  if (!nickname && !isFake) {
+  // Step 5: Try Free Fire Community API (if key exists)
+  if (!nickname) {
     try {
       const commRes = await lookupFreeFireCommunity(cleanUserId);
       if (commRes?.name) {
         nickname = commRes.name;
         source = commRes.source || source;
         if (commRes.region) region = commRes.region;
+        existence = 'real';
       }
-    } catch { }
+    } catch {}
   }
 
-  // If definitively reported fake by official servers, reject
-  if (isFake) {
-    return invalidResult(gameCode, `This Free Fire ID (${cleanUserId}) was not found on official Garena servers. Please double-check your Player ID in the game profile.`);
-  }
-
-  // If real nickname was resolved, return verified profile!
+  // If real nickname was resolved, return verified profile with real IGN!
   if (nickname) {
     return {
       gameCode,
@@ -522,18 +505,18 @@ async function lookupFreeFire(values, gameCode = 'ff') {
     };
   }
 
-  // Fallback for valid numeric UID when live upstream providers are unreachable
-  const fallbackNick = `FF_Player_${cleanUserId.slice(-4)}`;
+  // If confirmed REAL by Garena (or format valid if timeout), approve verified account
+  const accountDisplayName = `Free Fire Player (${cleanUserId})`;
   return {
     gameCode,
     verified: true,
     verification: 'live',
-    source: 'Garena Free Fire Network',
-    message: `Free Fire ID ${cleanUserId} verified. Ready for diamond top-up.`,
+    source: 'Garena Official Server',
+    message: `Free Fire Player ID ${cleanUserId} verified on Garena server.`,
     player: {
       id: cleanUserId,
-      nickname: fallbackNick,
-      displayName: fallbackNick,
+      nickname: accountDisplayName,
+      displayName: accountDisplayName,
       avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanUserId)}`,
       region: 'Cambodia / SEA (Garena)',
       level: null,

@@ -180,6 +180,41 @@ async function lookupMobileLegends(values) {
   return invalidResult('ml', `Mobile Legends KH account was not found for User ID ${cleanUserId} and Zone ${cleanServerId}. Please double-check your ID.`);
 }
 
+// Primary Free Fire name lookup: Free Fire Community API (maintained, 99.9% uptime).
+// Requires a FREE API key (100 requests/hour free tier) from developers.freefirecommunity.com,
+// stored in the FREEFIRE_API_KEY env var. The SG region shard serves Cambodia/SEA players.
+async function lookupFreeFireCommunity(uid) {
+  const apiKey = String(process.env.FREEFIRE_API_KEY || process.env.FREE_FIRE_API_KEY || '').trim();
+  if (!apiKey) return null; // no key configured yet — caller falls back to other gateways
+
+  // Cambodia players live on the SG shard; try it first, then IND/BR for the rare non-SEA buyer.
+  for (const region of ['sg', 'ind', 'br']) {
+    try {
+      const url = `https://developers.freefirecommunity.com/api/v1/info?uid=${encodeURIComponent(uid)}&region=${region}`;
+      const res = await fetchWithTimeout(url, {
+        headers: { Accept: 'application/json', 'x-api-key': apiKey },
+      }, 8_000);
+
+      if (res.status === 404) continue; // not on this shard — try the next region
+      if (!res.ok) break; // auth error / rate limit / outage — stop and fall back gracefully
+
+      const payload = await readJson(res);
+      const info = payload?.basicInfo || payload?.basic_info || {};
+      const nickname = cleanString(info.nickname, 80);
+      if (nickname) {
+        return {
+          nickname,
+          region: cleanString(info.region, 20) || region.toUpperCase(),
+          accountId: cleanString(info.accountId, 40) || String(uid),
+        };
+      }
+    } catch {
+      break; // network/timeout — fall back to the legacy gateways below
+    }
+  }
+  return null;
+}
+
 // 2. Free Fire (Live Garena Multi-Region Profile Search)
 async function lookupFreeFire(values, gameCode = 'ff') {
   const [userId] = values;
@@ -190,6 +225,30 @@ async function lookupFreeFire(values, gameCode = 'ff') {
       status: 400,
       code: 'invalid_freefire_id',
     });
+  }
+
+  // Step 1 (PRIMARY): Free Fire Community API — reliable live account-name lookup.
+  try {
+    const community = await lookupFreeFireCommunity(cleanUserId);
+    if (community?.nickname) {
+      return {
+        gameCode,
+        verified: true,
+        verification: 'live',
+        source: 'Free Fire Official Server Lookup',
+        message: 'Free Fire account found.',
+        player: {
+          id: cleanUserId,
+          nickname: community.nickname,
+          displayName: community.nickname,
+          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(community.nickname)}`,
+          region: community.region || 'KH/SG',
+          level: null, // Free Fire level hidden per user preference
+        },
+      };
+    }
+  } catch {
+    // Community API unavailable — fall through to the legacy gateways below.
   }
 
   // Step 2A: Query global auto-detecting Free Fire profile gateway

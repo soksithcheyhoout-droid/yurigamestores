@@ -3240,7 +3240,7 @@ app.post('/api/admin/games/import', requireAdminAuth, async (req, res) => {
 
 // 4c. Remove an (imported) game.
 app.delete('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
-  const protectedCore = ['robuxsend', 'ml', 'ff', 'roslegacy'];
+  const protectedCore = ['robuxsend', 'ml', 'ff', 'roslegacy', 'rosangkor'];
   const gameId = String(req.params.gameId || '').toLowerCase();
   if (protectedCore.includes(gameId)) {
     return res.status(400).json({ success: false, error: 'Core games cannot be removed (use the stock/maintenance toggle instead).' });

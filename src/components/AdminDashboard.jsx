@@ -2971,6 +2971,18 @@ export default function AdminDashboard({ onBackToStore }) {
                       >
                         Or paste image link URL
                       </button>
+
+                      {/* Remove button — only for imported games (core/default games are protected). */}
+                      {!['robuxsend', 'ml', 'ff', 'roslegacy', 'rosangkor'].includes(String(game.id || '').toLowerCase()) && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveGame(game.id, game.name)}
+                          className="w-full mt-1 py-2 px-3 rounded-xl bg-rose-600/15 text-rose-300 hover:bg-rose-600/30 text-xs font-black border border-rose-500/40 cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                          <span>Remove Game</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

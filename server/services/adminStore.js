@@ -1150,7 +1150,8 @@ export function importProviderGame(providerGame = {}) {
     providerCode: code,
     code,
     name: providerGame.name || code,
-    publisher: providerGame.publisher || 'Bay2Game',
+    // Show only the game's own name on the storefront — no 'Bay2Game' publisher label.
+    publisher: '',
     // No forced currency label — imported games mirror Bay2Game exactly (package names carry
     // their own units, e.g. "475", "20 000 Coins"). Admin only edits the price.
     currency: '',

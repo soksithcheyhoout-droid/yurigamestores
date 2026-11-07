@@ -311,9 +311,11 @@ export default function GameCatalog({
                       <span className="block truncate text-center text-[10px] sm:text-[13.5px] font-black text-white group-hover:text-[#ff4d6d] transition-colors leading-tight">
                         {game.name}
                       </span>
-                      <span className="mt-0.5 block truncate text-center text-[8.5px] sm:text-[11px] text-slate-400 font-medium">
-                        {game.publisher}
-                      </span>
+                      {game.publisher && (
+                        <span className="mt-0.5 block truncate text-center text-[8.5px] sm:text-[11px] text-slate-400 font-medium">
+                          {game.publisher}
+                        </span>
+                      )}
                     </div>
 
                     {/* Action Button: TOP UP or OUT OF STOCK */}

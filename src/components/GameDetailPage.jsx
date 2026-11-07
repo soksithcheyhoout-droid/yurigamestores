@@ -813,9 +813,11 @@ export default function GameDetailPage({
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#E3062F]/15 text-[#FF4D6D] border border-[#E3062F]/30 uppercase tracking-wider font-['Rajdhani']">
-                  {game.publisher}
-                </span>
+                {game.publisher && (
+                  <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#E3062F]/15 text-[#FF4D6D] border border-[#E3062F]/30 uppercase tracking-wider font-['Rajdhani']">
+                    {game.publisher}
+                  </span>
+                )}
                 <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider font-['Rajdhani']">
                   Official Direct Top-Up
                 </span>

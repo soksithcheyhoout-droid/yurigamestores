@@ -1625,13 +1625,14 @@ function publicImportedGame(g) {
     provider: 'soratopup',
     providerCode: code,
     name: g.name || code,
-    publisher: g.publisher || 'Bay2Game',
+    // Imported games show only their own name — strip the useless 'Bay2Game'/'Diamonds' defaults.
+    publisher: g.publisher && g.publisher !== 'Bay2Game' ? g.publisher : '',
     category: 'popular',
     badge: g.badge || 'Official Top-Up',
     image: g.image || '/assets/games/mlbb_tile_4k.jpg',
     banner: g.banner || g.image || '/assets/games/mlbb_hero_4k.jpg',
     description: g.description || '',
-    currency: g.currency || 'Diamonds',
+    currency: g.currency && g.currency !== 'Diamonds' ? g.currency : '',
     needServer: Array.isArray(g.fields) && g.fields.length > 1,
     verificationMode: g.verificationMode || 'format',
     fields: (Array.isArray(g.fields) ? g.fields : []).map((f, i) => ({

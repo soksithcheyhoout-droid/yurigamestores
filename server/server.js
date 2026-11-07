@@ -3196,6 +3196,27 @@ app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {
   }
 });
 
+// TEMP read-only diagnostic (remove after). Tests getProviderGame for many codes on production.
+app.get('/api/debug/provider-check', async (req, res) => {
+  if (req.query.k !== 'yg_diag_8731') return res.status(404).json({ error: 'not found' });
+  const results = [];
+  let catalog = [];
+  try {
+    catalog = await getProviderCatalog();
+  } catch (e) { return res.json({ catalogError: e.message }); }
+  // Test the first N non-core games (what the picker shows at the top).
+  const n = Math.min(Number(req.query.n) || 12, 40);
+  for (const c of catalog.slice(0, n)) {
+    try {
+      const { products } = await getProviderGame(c.code);
+      results.push({ code: c.code, ok: true, products: products.length });
+    } catch (e) {
+      results.push({ code: c.code, ok: false, error: e.message });
+    }
+  }
+  return res.json({ catalogCount: catalog.length, tested: results.length, results });
+});
+
 // 4b. Import a game from the provider — auto-creates it with all packages + fields.
 app.post('/api/admin/games/import', requireAdminAuth, async (req, res) => {
   try {

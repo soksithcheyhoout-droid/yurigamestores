@@ -22,17 +22,26 @@ export function rosangkorConfigured() {
 }
 
 // Low-level request. Returns { status, ok, payload }.
-export async function rosangkorRequest(path, { method = 'GET', body } = {}) {
+export async function rosangkorRequest(path, { method = 'GET', body, form = false } = {}) {
   const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
   const headers = { Accept: 'application/json', 'X-API-Key': API_KEY };
-  if (body) headers['Content-Type'] = 'application/json';
+  let outBody;
+  if (body) {
+    if (form) {
+      headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      outBody = new URLSearchParams(body).toString();
+    } else {
+      headers['Content-Type'] = 'application/json';
+      outBody = JSON.stringify(body);
+    }
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const res = await undiciFetch(url, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: outBody,
       dispatcher: getDispatcher(),
       signal: controller.signal,
     });

@@ -3200,8 +3200,8 @@ app.get('/api/debug/rosangkor', async (req, res) => {
     let bodyObj = {};
     try { bodyObj = req.query.body ? JSON.parse(Buffer.from(String(req.query.body), 'base64').toString('utf8')) : {}; } catch { bodyObj = {}; }
     try {
-      const r = await rosangkorRequest(String(req.query.postprobe), { method: 'POST', body: bodyObj });
-      out[`POST ${req.query.postprobe}`] = { status: r.status, payload: r.payload, sent: bodyObj };
+      const r = await rosangkorRequest(String(req.query.postprobe), { method: 'POST', body: bodyObj, form: req.query.form === '1' });
+      out[`POST ${req.query.postprobe}`] = { status: r.status, payload: r.payload, sent: bodyObj, form: req.query.form === '1' };
     } catch (e) {
       out[`POST ${req.query.postprobe}`] = { error: e.message };
     }

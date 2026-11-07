@@ -376,7 +376,7 @@ export default function GameDetailPage({
         displayName: result.player?.displayName || result.player?.nickname || '',
         playerId: result.player?.id || formData.userId || '',
         avatar: result.player?.avatar || null,
-        level: (providerGameCode === 'ff' || game?.id === 'ff') ? null : (result.player?.level ?? null),
+        level: result.player?.level ?? null,
         server: result.player?.region || (formData.zoneId ? `Zone ${formData.zoneId}` : game.name),
         ping: result.source || 'Live Game Server',
         message: result.message || '',
@@ -482,7 +482,7 @@ export default function GameDetailPage({
     const user = getStoredUser();
     const isFreeFire = game?.providerCode === 'ff' || game?.id === 'ff';
     const playerDisplayName = verifiedProfile
-      ? `${verifiedProfile.displayName || verifiedProfile.nickname}${(!isFreeFire && !isRoblox && verifiedProfile.level) ? ` (Lv.${verifiedProfile.level})` : ''}`
+      ? `${verifiedProfile.displayName || verifiedProfile.nickname}${(!isRoblox && verifiedProfile.level != null) ? ` (Lv.${verifiedProfile.level})` : ''}`
       : `Player: ${formData.account || formData.userId || 'Gamer'}`;
 
     const initialStatus = requiresAdminReview ? 'PROCESSING' : 'DELIVERED';
@@ -652,7 +652,7 @@ export default function GameDetailPage({
     const user = getStoredUser();
     const isFreeFire = game?.providerCode === 'ff' || game?.id === 'ff';
     const playerDisplayName = verifiedProfile
-      ? `${verifiedProfile.displayName || verifiedProfile.nickname}${(!isFreeFire && !isRoblox && verifiedProfile.level) ? ` (Lv.${verifiedProfile.level})` : ''}`
+      ? `${verifiedProfile.displayName || verifiedProfile.nickname}${(!isRoblox && verifiedProfile.level != null) ? ` (Lv.${verifiedProfile.level})` : ''}`
       : `Player: ${formData.account || formData.userId || 'Gamer'}`;
 
     const initialStatus = providerError ? 'FAILED' : (isManualGame ? 'PROCESSING' : 'DELIVERED');
@@ -1062,7 +1062,7 @@ export default function GameDetailPage({
                                   Free Fire IGN
                                 </span>
                               )}
-                              {verifiedProfile.level !== null && verifiedProfile.level !== undefined && !isFreeFire && !isRoblox && (
+                              {verifiedProfile.level !== null && verifiedProfile.level !== undefined && !isRoblox && (
                                 <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/30">
                                   Lv.{verifiedProfile.level}
                                 </span>

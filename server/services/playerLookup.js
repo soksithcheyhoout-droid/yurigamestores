@@ -195,6 +195,124 @@ const KNOWN_FREEFIRE_ACCOUNTS = {
   '987654321': { nickname: 'Shadow_FF', region: 'Cambodia (KH)' },
 };
 
+// 3-Tier Global Free Fire Lookup Gateway
+// Tier 1: infoxvisits.tsunxkittens.app (Primary Global Garena API: Nickname, Level, Region)
+// Tier 2: api.isan.eu.org (Nickname API)
+// Tier 3: gopay.co.id (Gopay Free Fire Prepare Order)
+export async function lookupFreeFire3Tier(playerId) {
+  const cleanId = String(playerId || '').trim().replace(/[\s-]/g, '');
+  if (!cleanId || !/^\d+$/.test(cleanId)) {
+    return {
+      found: false,
+      error: 'Invalid player ID. Must consist of digits only.',
+    };
+  }
+
+  // Tier 1 (Primary Global API)
+  try {
+    const res = await fetchWithTimeout(
+      `https://infoxvisits.tsunxkittens.app/info/${encodeURIComponent(cleanId)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        },
+      },
+      10_000
+    );
+
+    if (res.ok) {
+      const data = await readJson(res);
+      const acc = data?.AccountInfo || {};
+      const nickname = sanitizeNickname(acc.AccountName);
+      if (nickname) {
+        const region = cleanString(acc.AccountRegion || 'SG', 20);
+        const rawLevel = acc.AccountLevel;
+        const level = typeof rawLevel === 'number' ? rawLevel : (Number(rawLevel) || null);
+        return {
+          found: true,
+          username: nickname,
+          displayName: nickname,
+          playerId: cleanId,
+          region,
+          country: region === 'SG' ? 'Cambodia / Singapore' : region,
+          level,
+          tier: 'Tier 1 (infoxvisits.tsunxkittens.app)',
+        };
+      }
+    }
+  } catch {}
+
+  // Tier 2 (Fallback if Tier 1 fails)
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.isan.eu.org/nickname/ff?id=${encodeURIComponent(cleanId)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        },
+      },
+      6_000
+    );
+
+    if (res.ok) {
+      const data = await readJson(res);
+      const rawName = data?.name || data?.nickname || data?.data?.name;
+      const nickname = sanitizeNickname(rawName);
+      if (nickname) {
+        return {
+          found: true,
+          username: nickname,
+          displayName: nickname,
+          playerId: cleanId,
+          region: 'SG',
+          country: 'Cambodia / Singapore',
+          level: null,
+          tier: 'Tier 2 (api.isan.eu.org)',
+        };
+      }
+    }
+  } catch {}
+
+  // Tier 3 (Fallback if Tier 2 fails)
+  try {
+    const res = await fetchWithTimeout(
+      `https://gopay.co.id/games/v1/order/prepare/FREEFIRE?userId=${encodeURIComponent(cleanId)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        },
+      },
+      6_000
+    );
+
+    if (res.ok) {
+      const data = await readJson(res);
+      const raw = data?.data?.username || data?.data?.name || (typeof data?.data === 'string' ? data.data : '');
+      const nickname = sanitizeNickname(raw);
+      if (nickname) {
+        return {
+          found: true,
+          username: nickname,
+          displayName: nickname,
+          playerId: cleanId,
+          region: 'ID',
+          country: 'Indonesia / Global',
+          level: null,
+          tier: 'Tier 3 (gopay.co.id)',
+        };
+      }
+    }
+  } catch {}
+
+  return {
+    found: false,
+    error: 'រកមិនឃើញគណនី Free Fire នេះទេ! សូមពិនិត្យមើល Player UID ឡើងវិញ',
+  };
+}
+
 // 1. Garena Official Partner (Codashop) — Authoritative check for Free Fire player existence & IGN
 async function lookupFreeFireCodashop(uid) {
   try {
@@ -392,7 +510,30 @@ async function lookupFreeFire(values, gameCode = 'ff') {
     });
   }
 
-  // Check known accounts dictionary first (super-fast instant resolution)
+  // 1. Try 3-Tier Global Free Fire API first (Primary: infoxvisits -> isan -> gopay)
+  try {
+    const tierRes = await lookupFreeFire3Tier(cleanUserId);
+    if (tierRes && tierRes.found) {
+      return {
+        gameCode,
+        verified: true,
+        verification: 'live',
+        source: tierRes.tier || 'Garena Free Fire Official Server',
+        message: `Free Fire account verified: ${tierRes.displayName}`,
+        player: {
+          id: cleanUserId,
+          nickname: tierRes.username,
+          displayName: tierRes.displayName,
+          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(tierRes.username)}`,
+          region: tierRes.region || 'Cambodia / SEA (Garena)',
+          country: tierRes.country,
+          level: tierRes.level ?? null,
+        },
+      };
+    }
+  } catch {}
+
+  // 2. Check known accounts dictionary fallback
   if (KNOWN_FREEFIRE_ACCOUNTS[cleanUserId]) {
     const known = KNOWN_FREEFIRE_ACCOUNTS[cleanUserId];
     return {

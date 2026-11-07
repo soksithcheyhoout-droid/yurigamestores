@@ -24,6 +24,7 @@ const distPath = path.resolve(PROJECT_ROOT, 'dist');
 import {
   PlayerLookupError,
   verifyPlayerAccount,
+  lookupFreeFire3Tier,
 } from './services/playerLookup.js';
 import {
   createSoraOrderBatch,
@@ -1838,6 +1839,48 @@ app.post('/api/soratopup/verify-player', async (req, res) => {
     return res.json({ success: true, ...result });
   } catch (error) {
     return sendPlayerLookupError(res, error);
+  }
+});
+
+// Dedicated Free Fire Player Check Route (3-Tier Global API Gateway)
+// Request: POST /api/check-free-fire { "playerId": "9269049352" }
+app.post('/api/check-free-fire', async (req, res) => {
+  try {
+    const rawId = req.body?.playerId ?? req.body?.userId ?? req.body?.id;
+    const playerId = String(rawId || '').trim();
+
+    // Validate that playerId consists of digits only
+    if (!playerId || !/^\d+$/.test(playerId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid player ID. Must consist of digits only.',
+      });
+    }
+
+    const result = await lookupFreeFire3Tier(playerId);
+
+    if (!result || !result.found) {
+      return res.status(404).json({
+        success: false,
+        error: result?.error || 'រកមិនឃើញគណនី Free Fire នេះទេ! សូមពិនិត្យមើល Player UID ឡើងវិញ',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      username: result.username,
+      displayName: result.displayName || result.username,
+      playerId: String(result.playerId || playerId),
+      region: result.region || 'SG',
+      country: result.country || (result.region === 'SG' ? 'Cambodia / Singapore' : result.region),
+      level: result.level ?? null,
+    });
+  } catch (err) {
+    console.error('Error in /api/check-free-fire:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error checking Free Fire account. Please try again.',
+    });
   }
 });
 

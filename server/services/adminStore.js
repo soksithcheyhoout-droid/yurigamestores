@@ -554,6 +554,8 @@ let adminConfig = {
 
   banners: DEFAULT_BANNERS,
 
+  comingSoonGames: [],
+
   updatedAt: new Date().toISOString()
 
 };
@@ -636,6 +638,8 @@ export function loadAdminConfig() {
 
           banners: Array.isArray(loaded.banners) ? loaded.banners : DEFAULT_BANNERS,
 
+          comingSoonGames: Array.isArray(loaded.comingSoonGames) ? loaded.comingSoonGames : [],
+
           updatedAt: loaded.updatedAt || new Date().toISOString()
 
         };
@@ -712,6 +716,7 @@ function mergeLoadedConfig(loaded) {
     mlbbEvents: Array.isArray(loaded.mlbbEvents) ? loaded.mlbbEvents : adminConfig.mlbbEvents,
     contacts: { ...adminConfig.contacts, ...(loaded.contacts || {}), telegramBotToken: '' },
     banners: Array.isArray(loaded.banners) ? loaded.banners : adminConfig.banners,
+    comingSoonGames: Array.isArray(loaded.comingSoonGames) ? loaded.comingSoonGames : (adminConfig.comingSoonGames || []),
     updatedAt: loaded.updatedAt || new Date().toISOString(),
   };
 }
@@ -1116,7 +1121,37 @@ export function getPublicSiteConfig() {
       })),
     contacts: getPublicContacts(),
     banners: (adminConfig.banners || []).filter((banner) => banner.active !== false),
+    comingSoonGames: Array.isArray(adminConfig.comingSoonGames) ? adminConfig.comingSoonGames : [],
   };
+}
+
+// ---- Coming Soon games (display-only placeholder tiles on the storefront) ----
+export function addComingSoonGame({ name, image } = {}) {
+  const cleanName = String(name || '').trim().slice(0, 80);
+  if (!cleanName) return null;
+  if (!Array.isArray(adminConfig.comingSoonGames)) adminConfig.comingSoonGames = [];
+  const entry = {
+    id: `cs_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+    name: cleanName,
+    image: String(image || '').slice(0, 500000),
+    comingSoon: true,
+    createdAt: new Date().toISOString(),
+  };
+  adminConfig.comingSoonGames.push(entry);
+  saveAdminConfig();
+  return entry;
+}
+
+export function removeComingSoonGame(id) {
+  const target = String(id || '').trim();
+  if (!Array.isArray(adminConfig.comingSoonGames)) return false;
+  const before = adminConfig.comingSoonGames.length;
+  adminConfig.comingSoonGames = adminConfig.comingSoonGames.filter((g) => String(g.id) !== target);
+  if (adminConfig.comingSoonGames.length !== before) {
+    saveAdminConfig();
+    return true;
+  }
+  return false;
 }
 
 // Protected dashboard configuration. Server credentials never enter browser JavaScript.

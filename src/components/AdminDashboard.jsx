@@ -67,6 +67,12 @@ export default function AdminDashboard({ onBackToStore }) {
   const [catalogSearch, setCatalogSearch] = useState('');
   const [importingCode, setImportingCode] = useState('');
 
+  // "Add Coming Soon Game" state
+  const [showAddComingSoon, setShowAddComingSoon] = useState(false);
+  const [comingSoonName, setComingSoonName] = useState('');
+  const [comingSoonImage, setComingSoonImage] = useState('');
+  const [addingComingSoon, setAddingComingSoon] = useState(false);
+
   // Master Data
   const [config, setConfig] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -718,6 +724,53 @@ export default function AdminDashboard({ onBackToStore }) {
       }
     } catch {
       showToast('Could not remove game.');
+    }
+  };
+
+  // ---- Coming Soon games (display-only tiles on the home page) ----
+  const handleAddComingSoon = async () => {
+    const name = comingSoonName.trim();
+    if (!name) { showToast('Enter a game name first.'); return; }
+    setAddingComingSoon(true);
+    try {
+      const res = await fetch('/api/admin/coming-soon', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name, image: comingSoonImage }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`"${data.game.name}" added as Coming Soon — now on the home page!`);
+        setComingSoonName('');
+        setComingSoonImage('');
+        setShowAddComingSoon(false);
+        await fetchFullConfig();
+      } else {
+        showToast(data.error || 'Could not add coming-soon game.');
+      }
+    } catch {
+      showToast('Could not add coming-soon game.');
+    } finally {
+      setAddingComingSoon(false);
+    }
+  };
+
+  const handleRemoveComingSoon = async (id, name) => {
+    if (!(await confirmAction({ title: 'Remove Coming Soon', message: `Remove "${name}" from the home page?`, confirmText: 'Remove', danger: true }))) return;
+    try {
+      const res = await fetch(`/api/admin/coming-soon/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Removed "${name}" from Coming Soon.`);
+        await fetchFullConfig();
+      } else {
+        showToast(data.error || 'Could not remove.');
+      }
+    } catch {
+      showToast('Could not remove coming-soon game.');
     }
   };
 
@@ -2937,7 +2990,105 @@ export default function AdminDashboard({ onBackToStore }) {
                 </p>
               </div>
 
-              {/* 4 Default Game Stock Cards */}
+              {/* Coming Soon Games Manager */}
+              <div className="mb-6 rounded-2xl border border-violet-500/30 bg-violet-500/5 p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-black text-white m-0 flex items-center gap-2"><Sparkles size={16} className="text-violet-400" /> Coming Soon Games</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5 m-0">Add a logo + name — it appears on the home page as a "Coming Soon" tile (not purchasable). Remove it anytime.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddComingSoon((v) => !v)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 border border-dashed border-violet-500/50 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 cursor-pointer transition-all shrink-0"
+                  >
+                    <Plus size={14} /><span>{showAddComingSoon ? 'Close' : 'Add Coming Soon Game'}</span>
+                  </button>
+                </div>
+
+                {showAddComingSoon && (
+                  <div className="mb-4 rounded-xl border border-slate-700 bg-[#0e1017] p-4">
+                    <div className="grid gap-4 sm:grid-cols-[auto_1fr]">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="h-24 w-24 rounded-xl border border-slate-700 bg-slate-900 overflow-hidden flex items-center justify-center">
+                          {comingSoonImage ? <img src={comingSoonImage} alt="" className="h-full w-full object-cover" /> : <span className="text-[10px] text-slate-500 text-center px-2">No logo yet</span>}
+                        </div>
+                        <input
+                          type="file"
+                          id="cs-logo-file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const opt = await compressImageFile(file, 800, 0.85);
+                                if (opt) setComingSoonImage(opt);
+                              } catch { showToast('Failed to process image'); }
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                        <label htmlFor="cs-logo-file" className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold border border-slate-700 cursor-pointer flex items-center gap-1.5">
+                          <UploadCloud size={13} className="text-violet-400" /> Upload Logo
+                        </label>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">Game Name</label>
+                        <input
+                          type="text"
+                          value={comingSoonName}
+                          onChange={(e) => setComingSoonName(e.target.value)}
+                          placeholder="e.g. Genshin Impact"
+                          className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:border-violet-500"
+                        />
+                        <div className="mt-auto flex gap-2 pt-2">
+                          <button
+                            type="button"
+                            disabled={addingComingSoon || !comingSoonName.trim()}
+                            onClick={handleAddComingSoon}
+                            className={`flex-1 py-2.5 rounded-xl font-black text-sm border-0 text-white ${addingComingSoon || !comingSoonName.trim() ? 'bg-slate-700 cursor-not-allowed' : 'bg-violet-600 hover:bg-violet-500 cursor-pointer'}`}
+                          >
+                            {addingComingSoon ? 'Adding…' : 'Done — Show on Home'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowAddComingSoon(false); setComingSoonName(''); setComingSoonImage(''); }}
+                            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm border-0 cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(config?.comingSoonGames || []).length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {(config?.comingSoonGames || []).map((g) => (
+                      <div key={g.id} className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5 flex flex-col items-center text-center gap-2">
+                        <div className="h-16 w-16 rounded-lg border border-slate-700 bg-slate-900 overflow-hidden flex items-center justify-center">
+                          {g.image ? <img src={g.image} alt="" className="h-full w-full object-cover" /> : <span className="text-[9px] text-slate-500">No logo</span>}
+                        </div>
+                        <div className="text-xs font-bold text-white truncate w-full">{g.name}</div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-violet-300">Coming Soon</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveComingSoon(g.id, g.name)}
+                          className="w-full mt-1 py-1.5 rounded-lg bg-rose-600/15 text-rose-300 hover:bg-rose-600/30 text-[11px] font-black border border-rose-500/40 cursor-pointer flex items-center justify-center gap-1"
+                        >
+                          <Trash2 size={12} /> Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 italic">No coming-soon games yet. Click "Add Coming Soon Game" to create one.</p>
+                )}
+              </div>
+
+              {/* Default Game Stock Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {(config?.games || []).map((game) => (
                   <div

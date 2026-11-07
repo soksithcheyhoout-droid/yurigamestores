@@ -42,6 +42,7 @@ export default function GameCatalog({
   onSelectGame,
   selectedCategory: externalCategory,
   setSelectedCategory: setExternalCategory,
+  comingSoonGames = [],
 }) {
   const [internalCategory, setInternalCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,10 +96,25 @@ export default function GameCatalog({
   }, [reloadToken]);
 
   const availableGames = useMemo(() => {
-    const liveCodes = new Set(providerGames.map((g) => String(g.providerCode || g.id || '').toLowerCase()));
-    const upcoming = COMING_SOON_GAMES.filter((g) => !liveCodes.has(String(g.providerCode).toLowerCase()));
+    // Admin-managed "Coming Soon" tiles (display only) + any static ones.
+    const adminUpcoming = (comingSoonGames || []).map((g) => ({
+      id: g.id,
+      slug: g.id,
+      provider: 'coming_soon',
+      providerCode: g.id,
+      name: g.name,
+      publisher: 'Coming Soon',
+      category: 'popular',
+      image: g.image || '/assets/games/ros_angkor.png',
+      banner: g.image || '',
+      currency: '',
+      stockOpen: false,
+      comingSoon: true,
+      packages: [],
+    }));
+    const upcoming = [...adminUpcoming, ...COMING_SOON_GAMES];
     return [...providerGames, ...upcoming];
-  }, [providerGames]);
+  }, [providerGames, comingSoonGames]);
 
   const filteredGames = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();

@@ -330,6 +330,7 @@ export default function App() {
             onSelectGame={handleSelectGame}
             selectedCategory={selectedCategory}
             setSelectedCategory={setSelectedCategory}
+            comingSoonGames={siteConfig?.comingSoonGames || []}
           />
         </main>
       )}

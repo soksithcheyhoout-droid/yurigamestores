@@ -71,6 +71,8 @@ import {
   updateGameConfig,
   importProviderGame,
   removeGame,
+  addComingSoonGame,
+  removeComingSoonGame,
   addPackageToGame,
   updatePackageInGame,
   deletePackageFromGame,
@@ -3247,6 +3249,23 @@ app.delete('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
   }
   const removed = removeGame(gameId);
   if (!removed) return res.status(404).json({ success: false, error: 'Game not found' });
+  return res.json({ success: true });
+});
+
+// 4e. Coming Soon games — display-only placeholder tiles on the storefront.
+app.post('/api/admin/coming-soon', requireAdminAuth, (req, res) => {
+  const name = String(req.body?.name || '').trim();
+  if (!name) return res.status(400).json({ success: false, error: 'Game name is required.' });
+  // Store the logo as a data URL inside the admin config (persisted in MySQL) so it survives
+  // redeploys — Railway's local disk is wiped on every deploy.
+  const entry = addComingSoonGame({ name, image: String(req.body?.image || '') });
+  if (!entry) return res.status(400).json({ success: false, error: 'Could not add coming-soon game.' });
+  return res.json({ success: true, game: entry });
+});
+
+app.delete('/api/admin/coming-soon/:id', requireAdminAuth, (req, res) => {
+  const removed = removeComingSoonGame(req.params.id);
+  if (!removed) return res.status(404).json({ success: false, error: 'Coming-soon game not found.' });
   return res.json({ success: true });
 });
 

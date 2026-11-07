@@ -3099,6 +3099,7 @@ app.get('/api/admin/soratopup/packages/:gameId', requireAdminAuth, async (req, r
   try {
     const game = getConfiguredGame(req.params.gameId);
     if (!game) {
+      __recordGnf('adminSkuLoader', req, { gameId: req.params.gameId });
       return res.status(404).json({ success: false, error: 'Game not found.' });
     }
 
@@ -3181,6 +3182,7 @@ app.post('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
   const sanitized = sanitizeUploadPayload(req.body || {}, `game_${gameId}`);
   const updated = updateGameConfig(gameId, sanitized);
   if (!updated) {
+    __recordGnf('updateGameConfig', req, { gameId, sanitizedKeys: Object.keys(sanitized || {}) });
     return res.status(404).json({ success: false, error: 'Game not found' });
   }
   return res.json({ success: true, game: updated });
@@ -3196,11 +3198,23 @@ app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {
   }
 });
 
-// TEMP diagnostic (remove after). Shows the last real import attempt captured server-side.
+// TEMP diagnostic (remove after). Shows the last real import attempt + last "game not found" captured server-side.
 let __lastImportAttempt = null;
+let __lastGameNotFound = null;
+function __recordGnf(where, req, extra = {}) {
+  __lastGameNotFound = {
+    at: new Date().toISOString(),
+    where,
+    method: req.method,
+    path: req.originalUrl,
+    params: req.params,
+    bodyKeys: req.body && typeof req.body === 'object' ? Object.keys(req.body) : null,
+    ...extra,
+  };
+}
 app.get('/api/debug/provider-check', async (req, res) => {
   if (req.query.k !== 'yg_diag_8731') return res.status(404).json({ error: 'not found' });
-  return res.json({ lastImportAttempt: __lastImportAttempt });
+  return res.json({ lastImportAttempt: __lastImportAttempt, lastGameNotFound: __lastGameNotFound });
 });
 
 // 4b. Import a game from the provider — auto-creates it with all packages + fields.
@@ -3239,7 +3253,7 @@ app.delete('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
     return res.status(400).json({ success: false, error: 'Core games cannot be removed (use the stock/maintenance toggle instead).' });
   }
   const removed = removeGame(gameId);
-  if (!removed) return res.status(404).json({ success: false, error: 'Game not found' });
+  if (!removed) { __recordGnf('removeGame', req, { gameId }); return res.status(404).json({ success: false, error: 'Game not found' }); }
   return res.json({ success: true });
 });
 

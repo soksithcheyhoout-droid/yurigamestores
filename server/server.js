@@ -2213,7 +2213,7 @@ app.get(['/api/order-status/:ref', '/api/ros/order-status/:ref', '/api/roblox/or
 });
 
 // 15. PayLinkAPI Dual-Rail Payment Gateway (Bakong KHQR + ABA PayWay)
-const PAYLINK_API_URL = process.env.PAYLINK_API_URL || 'https://paylinkapi-bot.onrender.com';
+const PAYLINK_API_URL = process.env.PAYLINK_API_URL || 'https://paylinkapibank.com/api/v2';
 const PAYLINK_API_KEY = process.env.PAYLINK_API_KEY || '';
 
 // 15A. PayLink Key Verification & Health Check
@@ -2228,7 +2228,7 @@ app.get('/api/paylink/status', async (req, res) => {
         error: 'PayLinkAPI is not configured.',
       });
     }
-    const pingRes = await fetch(`${PAYLINK_API_URL}/api/bakong/generate-qr`, {
+    const pingRes = await fetch(`${PAYLINK_API_URL}/bakong/generate-qr`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2374,7 +2374,7 @@ function startOrderPaymentWatcher(tranId, md5) {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 6500);
-      const res = await fetch(`${PAYLINK_API_URL}/api/payment/check`, {
+      const res = await fetch(`${PAYLINK_API_URL}/payment/check`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2669,7 +2669,7 @@ app.post('/api/paylink/generate-qr', async (req, res) => {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 2500);
-        const payRes = await fetch(`${PAYLINK_API_URL}/api/payment/generate-qr`, {
+        const payRes = await fetch(`${PAYLINK_API_URL}/payment/generate-qr`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2777,7 +2777,7 @@ if (PAYLINK_API_KEY && PAYLINK_API_URL) {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3500);
-      await fetch(`${PAYLINK_API_URL}/api/payment/generate-qr`, {
+      await fetch(`${PAYLINK_API_URL}/payment/generate-qr`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2848,7 +2848,7 @@ app.post('/api/paylink/check-payment', async (req, res) => {
         try {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 6500);
-          const response = await fetch(`${PAYLINK_API_URL}/api/payment/check`, {
+          const response = await fetch(`${PAYLINK_API_URL}/payment/check`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

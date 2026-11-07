@@ -3196,22 +3196,6 @@ app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {
   }
 });
 
-// TEMP DIAGNOSTIC (remove after verifying persistence). Secret-gated.
-app.get('/api/debug/provider-check', async (req, res) => {
-  if (req.query.k !== 'yg_diag_8731') return res.status(404).json({ error: 'not found' });
-  const out = { configGameIds: (getAdminFullConfig()?.games || []).map((g) => g.id) };
-  if (req.query.do === 'import') {
-    try {
-      const { game, products } = await getProviderGame(String(req.query.code || '8_ball_pool'));
-      const imported = importProviderGame({ ...game, packages: products });
-      out.didImport = Boolean(imported);
-      out.importedId = imported?.id;
-      out.configGameIds = (getAdminFullConfig()?.games || []).map((g) => g.id);
-    } catch (e) { out.importError = e.message; }
-  }
-  return res.json(out);
-});
-
 // 4b. Import a game from the provider — auto-creates it with all packages + fields.
 app.post('/api/admin/games/import', requireAdminAuth, async (req, res) => {
   try {

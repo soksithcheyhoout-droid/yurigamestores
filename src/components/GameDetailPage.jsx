@@ -60,18 +60,19 @@ export default function GameDetailPage({
   const isRoS = game?.providerCode === 'roslegacy' || game?.id === 'roslegacy';
   const isRoblox = game?.providerCode === 'robuxsend' || game?.id === 'robuxsend' || game?.slug === 'roblox';
   const isMobileLegends = game?.providerCode === 'ml' || game?.id === 'ml' || game?.slug === 'mobile-legends';
+  const isFreeFire = game?.providerCode === 'ff' || game?.id === 'ff' || game?.slug === 'free-fire';
   const isManualGame = isRoS;
   const isLiveProvider = game?.provider === 'soratopup' && !isManualGame;
   const providerOrderingEnabled = true;
   // Imported/custom provider games (anything beyond the 4 core games) use format-only verification.
-  const _ffCore = game?.providerCode === 'ff' || game?.id === 'ff';
+  const _ffCore = isFreeFire;
   const isImportedGame = game?.provider === 'soratopup' && !isRoS && !isRoblox && !isMobileLegends && !_ffCore;
   const verificationButtonLabel = isRoblox
     ? 'Check Roblox username'
     : isRoS
       ? 'Verify RoS Account & Unlock Diamonds'
-      : game?.providerCode === 'ff'
-        ? 'Search Free Fire Player'
+      : isFreeFire
+        ? 'Check Free Fire Account'
         : 'Check Player ID';
 
   // Step 1: Package Selection
@@ -388,6 +389,20 @@ export default function GameDetailPage({
       setIsVerifying(false);
     }
   };
+
+  // Automatic real-time check for Free Fire when user enters a valid 6–14 digit Player ID
+  useEffect(() => {
+    if (!isFreeFire) return;
+    const cleanId = String(formData.userId || '').trim().replace(/[\s-]/g, '');
+    if (!/^\d{6,14}$/.test(cleanId)) return;
+    if (verifiedProfile && String(verifiedProfile.playerId) === cleanId) return;
+
+    const timer = setTimeout(() => {
+      handleVerifyAccount();
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [isFreeFire, formData.userId]);
 
   // Coupon Application
   const handleApplyCoupon = (e) => {
@@ -994,8 +1009,8 @@ export default function GameDetailPage({
                     {/* Player verification result with PF ACC (Profile Picture) & Verified IGN */}
                     {verifiedProfile ? (
                       <div className={`mt-3.5 p-3.5 sm:p-4 rounded-xl border animate-in fade-in transition-all ${verifiedProfile.verified
-                          ? 'bg-emerald-500/10 border-emerald-500/30 shadow-xs'
-                          : 'bg-amber-500/10 border-amber-500/30'
+                          ? 'bg-emerald-950/30 border-emerald-500/40 shadow-lg shadow-emerald-950/20'
+                          : 'bg-amber-950/30 border-amber-500/40'
                         }`}>
                         <div className="flex items-center gap-3 sm:gap-4">
                           {/* PF ACC: Avatar with ring and checkmark badge */}
@@ -1004,7 +1019,7 @@ export default function GameDetailPage({
                               <img
                                 src={verifiedProfile.avatar}
                                 alt={verifiedProfile.nickname || 'Player Avatar'}
-                                className="w-13 h-13 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-emerald-500 shadow-md bg-slate-900"
+                                className="w-13 h-13 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-emerald-400 shadow-md bg-slate-900"
                                 onError={(e) => {
                                   e.currentTarget.onerror = null;
                                   e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(verifiedProfile.nickname || 'Player')}`;
@@ -1018,7 +1033,7 @@ export default function GameDetailPage({
                                 {(verifiedProfile.nickname || 'P')[0]?.toUpperCase()}
                               </div>
                             )}
-                            <span className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm ${verifiedProfile.verified ? 'bg-emerald-500 ring-2 ring-white' : 'bg-amber-500 ring-2 ring-white'
+                            <span className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-sm ${verifiedProfile.verified ? 'bg-emerald-500 ring-2 ring-[#0A0B10]' : 'bg-amber-500 ring-2 ring-[#0A0B10]'
                               }`}>
                               <Check size={12} strokeWidth={3} />
                             </span>
@@ -1028,36 +1043,41 @@ export default function GameDetailPage({
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${verifiedProfile.verified
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                  : 'bg-amber-100 text-amber-800 border-amber-300'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                  : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                                 }`}>
-                                {verifiedProfile.verified ? <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-500" /> Account Verified</span> : 'Format Valid'}
+                                {verifiedProfile.verified ? <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-400" /> Account Verified</span> : 'Format Valid'}
                               </span>
                               {verifiedProfile.server && (
-                                <span className="text-[10.5px] font-semibold text-slate-500">
+                                <span className="text-[10.5px] font-medium text-slate-400">
                                   {verifiedProfile.server}
                                 </span>
                               )}
                             </div>
 
-                            <div className="mt-0.5 text-sm sm:text-base font-black text-slate-900 truncate flex items-center gap-1.5">
-                              <span>{verifiedProfile.displayName || verifiedProfile.nickname}</span>
-                              {verifiedProfile.level !== null && verifiedProfile.level !== undefined && game?.providerCode !== 'ff' && game?.id !== 'ff' && (
-                                <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                            <div className="mt-1 text-base sm:text-lg font-black text-white truncate flex items-center gap-2">
+                              <span className="text-emerald-300 font-extrabold tracking-wide">{verifiedProfile.displayName || verifiedProfile.nickname}</span>
+                              {isFreeFire && (
+                                <span className="text-[9.5px] font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30">
+                                  Free Fire IGN
+                                </span>
+                              )}
+                              {verifiedProfile.level !== null && verifiedProfile.level !== undefined && !isFreeFire && !isRoblox && (
+                                <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/30">
                                   Lv.{verifiedProfile.level}
                                 </span>
                               )}
                             </div>
 
-                            <div className="text-[11px] text-slate-500 flex items-center gap-2 flex-wrap mt-0.5">
+                            <div className="text-[11px] text-slate-400 flex items-center gap-2 flex-wrap mt-1">
                               {verifiedProfile.accountType && (
-                                <span>Login: <strong className="text-slate-800 font-semibold">{verifiedProfile.accountType}</strong></span>
+                                <span>Login: <strong className="text-slate-200 font-semibold">{verifiedProfile.accountType}</strong></span>
                               )}
-                              <span>Account: <strong className="text-slate-800 font-mono">{verifiedProfile.playerId || formData.account || formData.userId || formData.user_id}</strong></span>
+                              <span>Player ID: <strong className="text-emerald-400 font-mono font-bold">{verifiedProfile.playerId || formData.account || formData.userId || formData.user_id}</strong></span>
                               {isRoS && formData.password && (
-                                <span><Lock size={12} className="inline mr-1 text-slate-400" /> Password: <strong className="text-slate-800 font-mono">••••••••</strong></span>
+                                <span><Lock size={12} className="inline mr-1 text-slate-400" /> Password: <strong className="text-slate-200 font-mono">••••••••</strong></span>
                               )}
-                              <span className="text-emerald-600 font-medium ml-auto text-[10.5px]">● {verifiedProfile.ping}</span>
+                              <span className="text-emerald-400 font-medium ml-auto text-[10.5px]">● {verifiedProfile.ping || 'Verified Live'}</span>
                             </div>
                           </div>
                         </div>

@@ -108,6 +108,21 @@ export default function TopUpModal({ game, onClose, onOrderComplete, walletBalan
     }
   };
 
+  // Auto-check Free Fire Player ID when user enters a valid 6–14 digit Player ID
+  useEffect(() => {
+    const isFreeFire = game?.providerCode === 'ff' || game?.id === 'ff' || game?.slug === 'free-fire';
+    if (!isFreeFire) return;
+    const cleanId = String(formData.userId || '').trim().replace(/[\s-]/g, '');
+    if (!/^\d{6,14}$/.test(cleanId)) return;
+    if (verifiedProfile && String(verifiedProfile.uidFormatted || verifiedProfile.playerId) === cleanId) return;
+
+    const timer = setTimeout(() => {
+      handleVerifyAccount();
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [game, formData.userId]);
+
   // Submit Order / Proceed to Payment
   const handleProceedToPayment = () => {
     for (let f of game.fields) {
@@ -555,7 +570,7 @@ export default function TopUpModal({ game, onClose, onOrderComplete, walletBalan
                         </div>
                         <div>
                           <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a' }}>
-                            {verifiedProfile.nickname} <span style={{ fontSize: '0.75rem', color: '#16a34a' }}>(Lv.{verifiedProfile.level})</span>
+                            {verifiedProfile.displayName || verifiedProfile.nickname} {verifiedProfile.level != null ? <span style={{ fontSize: '0.75rem', color: '#16a34a' }}>(Lv.{verifiedProfile.level})</span> : null}
                           </div>
                           <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
                             {verifiedProfile.serverRegion}

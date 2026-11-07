@@ -161,6 +161,11 @@ export default function AdminDashboard({ onBackToStore }) {
     setTimeout(() => setToastMessage(''), 3000);
   };
 
+  // Professional in-app confirm dialog (replaces ugly native window.confirm).
+  const [confirmState, setConfirmState] = useState(null);
+  const confirmAction = (opts) => new Promise((resolve) => setConfirmState({ ...opts, resolve }));
+  const closeConfirm = (result) => setConfirmState((s) => { if (s && s.resolve) s.resolve(result); return null; });
+
   const getAuthHeaders = () => ({
     'Content-Type': 'application/json',
   });
@@ -697,7 +702,7 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   const handleRemoveGame = async (gameId, gameName) => {
-    if (!window.confirm(`Remove "${gameName}" from the store? (This deletes the imported game and its packages.)`)) return;
+    if (!(await confirmAction({ title: 'Remove game', message: `Remove "${gameName}" from your store? This permanently deletes the game and all its packages.`, confirmText: 'Remove game', danger: true }))) return;
     try {
       const res = await fetch(`/api/admin/games/${encodeURIComponent(gameId)}`, {
         method: 'DELETE',
@@ -836,7 +841,7 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   const handleDeletePackage = async (gameId, pkgId, pkgName) => {
-    if (!window.confirm(`Are you sure you want to delete package "${pkgName}"?`)) return;
+    if (!(await confirmAction({ title: 'Delete package', message: `Delete the package "${pkgName}"? This can't be undone.`, confirmText: 'Delete', danger: true }))) return;
     try {
       const res = await fetch(`/api/admin/packages/${gameId}/${pkgId}`, {
         method: 'DELETE',
@@ -906,7 +911,7 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   const handleDeleteMlbbEvent = async (eventId, eventName) => {
-    if (!window.confirm(`Delete event category "${eventName}" and all its packages?`)) return;
+    if (!(await confirmAction({ title: 'Delete event category', message: `Delete event category "${eventName}" and all its packages?`, confirmText: 'Delete', danger: true }))) return;
     try {
       const res = await fetch(`/api/admin/mlbb-events/${eventId}`, {
         method: 'DELETE',
@@ -962,7 +967,7 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   const handleDeleteEventPackage = async (eventId, pkgId, pkgName) => {
-    if (!window.confirm(`Delete event package "${pkgName}"?`)) return;
+    if (!(await confirmAction({ title: 'Delete event package', message: `Delete event package "${pkgName}"?`, confirmText: 'Delete', danger: true }))) return;
     try {
       const res = await fetch(`/api/admin/mlbb-events/${eventId}/packages/${pkgId}`, {
         method: 'DELETE',
@@ -1005,7 +1010,7 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   const handleCancelOrder = async (orderRef) => {
-    if (!window.confirm(`Are you sure you want to cancel order ${orderRef}?`)) return;
+    if (!(await confirmAction({ title: 'Cancel order', message: `Cancel order ${orderRef}? The customer will be notified it was cancelled.`, confirmText: 'Cancel order', cancelText: 'Keep order', danger: true }))) return;
     // Instant optimistic update
     setOrders(prev => prev.map(o => o.ref === orderRef ? { ...o, status: 'CANCELLED', handledBy: 'Admin Control Center' } : o));
     try {
@@ -1122,7 +1127,7 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   const handleDeleteBanner = async (bannerId, title) => {
-    if (!window.confirm(`Delete slide banner "${title}"?`)) return;
+    if (!(await confirmAction({ title: 'Delete banner', message: `Delete slide banner "${title}"?`, confirmText: 'Delete', danger: true }))) return;
     try {
       const res = await fetch(`/api/admin/banners/${bannerId}`, {
         method: 'DELETE',
@@ -1380,6 +1385,45 @@ export default function AdminDashboard({ onBackToStore }) {
         <div className="fixed top-5 right-5 z-100 bg-[#E3062F] text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-xs flex items-center gap-2 animate-in slide-in-from-top-4">
           <Sparkles size={16} />
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Professional Confirm Dialog */}
+      {confirmState && (
+        <div
+          className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-150"
+          onClick={() => closeConfirm(false)}
+        >
+          <div
+            className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl border border-slate-700 bg-[#0e1017] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 sm:p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${confirmState.danger ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' : 'bg-[#E3062F]/15 text-[#E3062F] border border-[#E3062F]/30'}`}>
+                  <AlertCircle size={22} />
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white m-0 leading-tight">{confirmState.title || 'Please confirm'}</h3>
+              </div>
+              <p className="text-[13px] sm:text-sm text-slate-300 leading-relaxed m-0">{confirmState.message}</p>
+            </div>
+            <div className="flex gap-2.5 p-4 border-t border-slate-800 bg-slate-900/40">
+              <button
+                type="button"
+                onClick={() => closeConfirm(false)}
+                className="flex-1 py-3 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm border-0 cursor-pointer transition-colors active:scale-[0.98]"
+              >
+                {confirmState.cancelText || 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={() => closeConfirm(true)}
+                className={`flex-1 py-3 sm:py-2.5 rounded-xl font-black text-sm border-0 cursor-pointer text-white transition-colors active:scale-[0.98] ${confirmState.danger ? 'bg-rose-600 hover:bg-rose-500 shadow-[0_6px_20px_rgba(225,29,72,0.35)]' : 'bg-[#E3062F] hover:bg-[#b80d2e] shadow-[0_6px_20px_rgba(227,6,47,0.35)]'}`}
+              >
+                {confirmState.confirmText || 'Confirm'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

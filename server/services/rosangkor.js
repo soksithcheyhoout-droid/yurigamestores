@@ -1,7 +1,9 @@
 // RosAngkor provider (RoS Angkor auto top-up).
 // Calls go out through a fixed-IP proxy (Fixie) so RosAngkor sees an allowlisted IP.
 // Auth: X-API-Key header. Base URL + key + proxy come from env.
-import { ProxyAgent } from 'undici';
+// Use undici's OWN fetch + ProxyAgent together so the dispatcher is compatible
+// (Node's global fetch uses a separate internal undici and rejects this dispatcher).
+import { fetch as undiciFetch, ProxyAgent } from 'undici';
 
 const BASE_URL = (process.env.ROSANGKOR_BASE_URL || 'https://api.rosangkor.com/v1').replace(/\/+$/, '');
 const API_KEY = process.env.ROSANGKOR_API_KEY || '';
@@ -27,7 +29,7 @@ export async function rosangkorRequest(path, { method = 'GET', body } = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    const res = await undiciFetch(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -38,6 +40,12 @@ export async function rosangkorRequest(path, { method = 'GET', body } = {}) {
     let payload;
     try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text.slice(0, 1000) }; }
     return { status: res.status, ok: res.ok, payload };
+  } catch (err) {
+    // Surface the real network cause (proxy/DNS/TLS) instead of a bare "fetch failed".
+    const cause = err?.cause ? `${err.cause.code || ''} ${err.cause.message || ''}`.trim() : '';
+    const e = new Error(cause ? `${err.message} (${cause})` : err.message);
+    e.code = err?.cause?.code || err?.code;
+    throw e;
   } finally {
     clearTimeout(timeout);
   }

@@ -261,25 +261,37 @@ const DEFAULT_GAMES = [
     name: 'RoS Angkor',
     publisher: 'RoS Angkor',
     currency: 'Diamonds',
-    // RosAngkor numeric Game ID — set this (admin) to enable auto-delivery. Empty = stays unavailable.
-    providerGid: '',
     stockOpen: true,
-    // Kept unavailable until the Game ID is set and a test delivery is verified (protects customers).
-    maintenance: true,
-    verificationMode: 'format',
+    maintenance: false,
+    // Live player verification via RosAngkor GET /players/{gid} (shows the player's name).
+    verificationMode: 'live',
     banner: '/assets/games/ros_angkor.png',
     image: '/assets/games/ros_angkor.png',
-    badge: 'Auto Top-Up',
-    description: 'RoS Angkor diamonds — instant auto top-up. Enter your Player ID.',
+    badge: 'Instant Auto Top-Up',
+    description: 'RoS Angkor diamonds — instant auto top-up. Enter your Player ID (6–12 digits).',
     fields: [
       { key: 'userId', label: 'Player ID', placeholder: 'Enter your RoS Angkor Player ID', type: 'text', required: true }
     ],
+    // Pack codes (dm80 … dm40000) are the RosAngkor API pack ids. Selling price defaults to retail
+    // (your cost is 15% less); edit prices in the admin panel.
     packages: [
-      { id: 'rosangkor_100', code: '100', name: '100 Diamonds', diamonds: 100, price: 1.00, bonus: '', popular: false, inStock: true, image: '' },
-      { id: 'rosangkor_300', code: '300', name: '300 Diamonds', diamonds: 300, price: 3.00, bonus: '', popular: false, inStock: true, image: '' },
-      { id: 'rosangkor_500', code: '500', name: '500 Diamonds', diamonds: 500, price: 5.00, bonus: 'Popular', popular: true, inStock: true, image: '' },
-      { id: 'rosangkor_1000', code: '1000', name: '1,000 Diamonds', diamonds: 1000, price: 10.00, bonus: 'Best Value', popular: true, inStock: true, image: '' },
-      { id: 'rosangkor_2000', code: '2000', name: '2,000 Diamonds', diamonds: 2000, price: 20.00, bonus: '', popular: false, inStock: true, image: '' }
+      { id: 'rosangkor_dm80', code: 'dm80', providerCode: 'dm80', name: '80 Diamonds', diamonds: 80, price: 1.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm160', code: 'dm160', providerCode: 'dm160', name: '160 Diamonds', diamonds: 160, price: 2.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm240', code: 'dm240', providerCode: 'dm240', name: '240 Diamonds', diamonds: 240, price: 3.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm400', code: 'dm400', providerCode: 'dm400', name: '400 Diamonds', diamonds: 400, price: 5.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm800', code: 'dm800', providerCode: 'dm800', name: '800 Diamonds', diamonds: 800, price: 10.00, bonus: 'Popular', popular: true, inStock: true, image: '' },
+      { id: 'rosangkor_dm1200', code: 'dm1200', providerCode: 'dm1200', name: '1,200 Diamonds', diamonds: 1200, price: 15.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm1600', code: 'dm1600', providerCode: 'dm1600', name: '1,600 Diamonds', diamonds: 1600, price: 20.00, bonus: 'Best Value', popular: true, inStock: true, image: '' },
+      { id: 'rosangkor_dm2000', code: 'dm2000', providerCode: 'dm2000', name: '2,000 Diamonds', diamonds: 2000, price: 25.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm2400', code: 'dm2400', providerCode: 'dm2400', name: '2,400 Diamonds', diamonds: 2400, price: 30.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm3200', code: 'dm3200', providerCode: 'dm3200', name: '3,200 Diamonds', diamonds: 3200, price: 40.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm4000', code: 'dm4000', providerCode: 'dm4000', name: '4,000 Diamonds', diamonds: 4000, price: 50.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm6000', code: 'dm6000', providerCode: 'dm6000', name: '6,000 Diamonds', diamonds: 6000, price: 75.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm8000', code: 'dm8000', providerCode: 'dm8000', name: '8,000 Diamonds', diamonds: 8000, price: 100.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm12000', code: 'dm12000', providerCode: 'dm12000', name: '12,000 Diamonds', diamonds: 12000, price: 150.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm16000', code: 'dm16000', providerCode: 'dm16000', name: '16,000 Diamonds', diamonds: 16000, price: 200.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm24000', code: 'dm24000', providerCode: 'dm24000', name: '24,000 Diamonds', diamonds: 24000, price: 300.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_dm40000', code: 'dm40000', providerCode: 'dm40000', name: '40,000 Diamonds', diamonds: 40000, price: 500.00, bonus: '', popular: false, inStock: true, image: '' }
     ]
   }
 
@@ -702,6 +714,14 @@ function mergeLoadedConfig(loaded) {
   const gamesMerged = DEFAULT_GAMES.map((defGame) => {
     const found = (loaded.games || []).find((g) => g.id === defGame.id || g.slug === defGame.slug);
     if (!found) return defGame;
+    // One-time refresh for RoS Angkor: if the stored copy predates the real RosAngkor pack catalog
+    // (pack codes start with "dm"), adopt the current default config but keep the admin's logo/banner.
+    if (defGame.id === 'rosangkor') {
+      const hasRealPacks = Array.isArray(found.packages) && found.packages.some((p) => String(p.code || '').startsWith('dm'));
+      if (!hasRealPacks) {
+        return { ...defGame, image: found.image || defGame.image, banner: found.banner || defGame.banner };
+      }
+    }
     return {
       ...defGame,
       ...found,

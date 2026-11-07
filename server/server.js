@@ -391,8 +391,8 @@ export async function getAuthoritativePackagePrice(gameIdOrCode, packageIdOrCode
         let providerCode = pkg.providerCode || pkg.code || pkg.id;
         let providerConnected = Boolean(pkg.providerConnected || pkg.providerCode);
 
-        const requiresLiveProvider = pkg.providerConnected
-          || !['robuxsend', 'roslegacy'].includes(providerGameCode);
+        const requiresLiveProvider = providerGameCode !== 'rosangkor' && (pkg.providerConnected
+          || !['robuxsend', 'roslegacy'].includes(providerGameCode));
         if (requiresLiveProvider) {
           const resolved = await resolveSoraPackage(providerGameCode, {
             providerCode: pkg.providerCode || undefined,
@@ -1808,6 +1808,28 @@ app.get('/api/soratopup/packages', async (req, res) => {
 app.post('/api/soratopup/verify-player', async (req, res) => {
   try {
     const { gameCode, fieldValues } = req.body || {};
+
+    // RoS Angkor: live player lookup via RosAngkor (shows the in-game name).
+    if (String(gameCode || '').toLowerCase() === 'rosangkor') {
+      const gid = Array.isArray(fieldValues) ? fieldValues[0] : fieldValues;
+      const formatValid = /^\d{6,12}$/.test(String(gid || '').trim());
+      res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+      const player = await checkRosAngkorPlayer(gid);
+      if (!player.ok) {
+        return res.json({ success: true, verified: false, formatValid, message: player.message || 'Player ID not found. Please check and try again.' });
+      }
+      if (player.banned) {
+        return res.json({ success: true, verified: false, formatValid, message: `This account (${player.name}) is banned and cannot be topped up.` });
+      }
+      return res.json({
+        success: true,
+        verified: true,
+        formatValid: true,
+        player: { nickname: player.name, displayName: player.name, username: player.name, playerId: String(player.gid), region: player.nation || 'KH', level: player.level },
+        message: `Verified: ${player.name}`,
+      });
+    }
+
     const result = await verifyPlayerAccount(gameCode, fieldValues);
     res.set({
       'Cache-Control': 'no-store',
@@ -2073,7 +2095,7 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
   // Automated provider fulfillment (one idempotent order per unit of quantity).
   // RoS Legacy and Roblox are "manual-style": if the provider cannot deliver, we keep the paid order
   // and notify admins (no action buttons) instead of hard-failing, so nothing is ever lost.
-  const manualStyle = cleanTargetGame === 'roslegacy' || cleanTargetGame === 'robuxsend';
+  const manualStyle = cleanTargetGame === 'roslegacy' || cleanTargetGame === 'robuxsend' || cleanTargetGame === 'rosangkor';
   let batch;
   try {
     batch = await createSoraOrderBatch({

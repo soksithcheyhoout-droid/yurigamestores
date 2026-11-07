@@ -1,6 +1,8 @@
 // Provider: Bay2Game Reseller API (https://api.bay2game.xyz/api)
 // Auth: api_key passed as a query param (GET) or body field (POST).
 // Endpoints used: /profile, /categories, /products?game_code=, /create_order (POST), /check_order?reference=
+import { createRosAngkorTopup } from './rosangkor.js';
+
 const DEFAULT_BASE_URL = 'https://api.bay2game.xyz/api';
 // Roblox (robuxsend) is NOT sold by Bay2Game, so it keeps using the legacy SoraTopup provider.
 const SORATOPUP_DEFAULT_BASE_URL = 'https://app.soratopup.com/api/v1';
@@ -856,11 +858,6 @@ export async function createSoraOrder({ game, code, fieldValues = [], orderRef =
   const cleanGame = cleanString(game, 40);
   const cleanCode = cleanString(code, 100);
   if (!cleanGame) throw new SoraTopupError('Game code is required.', { status: 400, code: 'game_required' });
-  // Safety: RoS Angkor uses the separate RosAngkor provider (not Bay2Game/SoraTopup).
-  // Until that delivery is wired + verified, never route it here (prevents a wrong/charged order).
-  if (cleanGame === 'rosangkor') {
-    throw new SoraTopupError('RoS Angkor auto-delivery is not enabled yet.', { status: 503, code: 'rosangkor_not_ready' });
-  }
   if (!cleanCode) throw new SoraTopupError('Item/package code is required.', { status: 400, code: 'code_required' });
   if (!Array.isArray(fieldValues) || fieldValues.length === 0 || !cleanString(fieldValues[0])) {
     throw new SoraTopupError('Player details (fieldValues) are required.', { status: 400, code: 'missing_fields' });
@@ -869,6 +866,22 @@ export async function createSoraOrder({ game, code, fieldValues = [], orderRef =
   const reference = cleanString(orderRef, 80) || `YGS_${cleanGame}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
   try {
+    // RoS Angkor via the RosAngkor provider: gid = player's Game ID (fieldValues[0]), code = pack (dm800).
+    if (cleanGame === 'rosangkor') {
+      const result = await createRosAngkorTopup({ gid: fieldValues[0], pack: cleanCode, orderId: reference });
+      markProviderHealth(cleanGame, true);
+      return {
+        ok: true,
+        refid: result.code || reference,
+        ref: reference,
+        reference: result.order_id || reference,
+        status: String(result.status) === 'delivered' ? 'delivered' : (result.status || 'processing'),
+        item: `${result.diamonds || ''} Diamonds`.trim(),
+        amount: result.price != null ? Number(result.price) : undefined,
+        raw: result,
+      };
+    }
+
     // Legacy SoraTopup provider (Roblox / robuxsend) keeps its original order contract.
     if (providerForGame(cleanGame) === 'soratopup') {
       const res = await providerRequest('/order', {

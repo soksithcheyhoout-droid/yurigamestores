@@ -2703,7 +2703,10 @@ app.post('/api/paylink/generate-qr', async (req, res) => {
             currency: (currency || 'USD').toUpperCase(),
             orderId: tranId,
             method: isAba ? 'aba' : 'bakong',
-            description: description || `YuriGame TopUp ${tranId}`
+            description: description || `YuriGame TopUp ${tranId}`,
+            merchantName: merchantName,
+            storeName: merchantName,
+            storeLabel: merchantName
           }),
           signal: controller.signal
         });

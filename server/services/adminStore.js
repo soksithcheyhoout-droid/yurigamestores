@@ -252,6 +252,35 @@ const DEFAULT_GAMES = [
 
     ]
 
+  },
+
+  {
+    id: 'rosangkor',
+    slug: 'rosangkor',
+    providerCode: 'rosangkor',
+    name: 'RoS Angkor',
+    publisher: 'RoS Angkor',
+    currency: 'Diamonds',
+    // RosAngkor numeric Game ID — set this (admin) to enable auto-delivery. Empty = stays unavailable.
+    providerGid: '',
+    stockOpen: true,
+    // Kept unavailable until the Game ID is set and a test delivery is verified (protects customers).
+    maintenance: true,
+    verificationMode: 'format',
+    banner: '/assets/games/ros_angkor.png',
+    image: '/assets/games/ros_angkor.png',
+    badge: 'Auto Top-Up',
+    description: 'RoS Angkor diamonds — instant auto top-up. Enter your Player ID.',
+    fields: [
+      { key: 'userId', label: 'Player ID', placeholder: 'Enter your RoS Angkor Player ID', type: 'text', required: true }
+    ],
+    packages: [
+      { id: 'rosangkor_100', code: '100', name: '100 Diamonds', diamonds: 100, price: 1.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_300', code: '300', name: '300 Diamonds', diamonds: 300, price: 3.00, bonus: '', popular: false, inStock: true, image: '' },
+      { id: 'rosangkor_500', code: '500', name: '500 Diamonds', diamonds: 500, price: 5.00, bonus: 'Popular', popular: true, inStock: true, image: '' },
+      { id: 'rosangkor_1000', code: '1000', name: '1,000 Diamonds', diamonds: 1000, price: 10.00, bonus: 'Best Value', popular: true, inStock: true, image: '' },
+      { id: 'rosangkor_2000', code: '2000', name: '2,000 Diamonds', diamonds: 2000, price: 20.00, bonus: '', popular: false, inStock: true, image: '' }
+    ]
   }
 
 ];
@@ -1228,7 +1257,9 @@ export function updateGameConfig(gameId, updateData = {}) {
     banner: updateData.banner || current.banner,
     badge: updateData.badge || current.badge,
     stockOpen: typeof updateData.stockOpen === 'boolean' ? updateData.stockOpen : current.stockOpen,
-    maintenance: typeof updateData.maintenance === 'boolean' ? updateData.maintenance : (current.maintenance || false)
+    maintenance: typeof updateData.maintenance === 'boolean' ? updateData.maintenance : (current.maintenance || false),
+    // RosAngkor Game ID (admin-settable) — enables RoS Angkor auto-delivery.
+    providerGid: updateData.providerGid !== undefined ? String(updateData.providerGid).trim() : current.providerGid,
   };
 
   saveAdminConfig();

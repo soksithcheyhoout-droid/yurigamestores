@@ -856,6 +856,11 @@ export async function createSoraOrder({ game, code, fieldValues = [], orderRef =
   const cleanGame = cleanString(game, 40);
   const cleanCode = cleanString(code, 100);
   if (!cleanGame) throw new SoraTopupError('Game code is required.', { status: 400, code: 'game_required' });
+  // Safety: RoS Angkor uses the separate RosAngkor provider (not Bay2Game/SoraTopup).
+  // Until that delivery is wired + verified, never route it here (prevents a wrong/charged order).
+  if (cleanGame === 'rosangkor') {
+    throw new SoraTopupError('RoS Angkor auto-delivery is not enabled yet.', { status: 503, code: 'rosangkor_not_ready' });
+  }
   if (!cleanCode) throw new SoraTopupError('Item/package code is required.', { status: 400, code: 'code_required' });
   if (!Array.isArray(fieldValues) || fieldValues.length === 0 || !cleanString(fieldValues[0])) {
     throw new SoraTopupError('Player details (fieldValues) are required.', { status: 400, code: 'missing_fields' });

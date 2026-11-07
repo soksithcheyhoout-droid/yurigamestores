@@ -30,23 +30,8 @@ const getInitialGames = () => {
 const INITIAL_FOUR_GAMES = getInitialGames();
 
 // Upcoming titles shown as "Coming Soon" (display only — not purchasable).
-const COMING_SOON_GAMES = [
-  {
-    id: 'ros_angkor_soon',
-    slug: 'ros-angkor',
-    provider: 'coming_soon',
-    providerCode: 'ros_angkor',
-    name: 'RoS Angkor',
-    publisher: 'Coming Soon',
-    category: 'popular',
-    image: '/assets/games/ros_angkor.png',
-    banner: '/assets/games/ros_angkor.png',
-    currency: 'Diamonds',
-    stockOpen: false,
-    comingSoon: true,
-    packages: [],
-  },
-];
+// RoS Angkor is now a real managed game (served from the admin config), so no static tile here.
+const COMING_SOON_GAMES = [];
 
 function getStartingPrice(game) {
   const prices = (game.packages || []).map((item) => Number(item.price)).filter(Number.isFinite);

@@ -87,7 +87,7 @@ import {
   updateSlideBanner,
   deleteSlideBanner,
 } from './services/adminStore.js';
-import { rosangkorRequest, rosangkorConfigured } from './services/rosangkor.js';
+import { rosangkorRequest, rosangkorConfigured, getRosAngkorPacks, checkRosAngkorPlayer, createRosAngkorTopup, getRosAngkorTopupStatus } from './services/rosangkor.js';
 
 import {
   createConcurrencyLimiter,
@@ -3207,6 +3207,17 @@ app.get('/api/debug/rosangkor', async (req, res) => {
     } catch (e) {
       out[`POST ${req.query.postprobe}`] = { error: e.message };
     }
+  }
+  return res.json(out);
+});
+
+// TEMP: fetch RosAngkor packs + test a player (remove after setup).
+app.get('/api/debug/rosangkor-packs', async (req, res) => {
+  if (req.query.k !== 'yg_diag_8731') return res.status(404).json({ error: 'not found' });
+  const out = {};
+  try { out.packs = await getRosAngkorPacks(); } catch (e) { out.packsError = e.message; }
+  if (req.query.gid) {
+    try { out.player = await checkRosAngkorPlayer(String(req.query.gid)); } catch (e) { out.playerError = e.message; }
   }
   return res.json(out);
 });

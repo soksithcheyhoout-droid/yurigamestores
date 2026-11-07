@@ -3574,8 +3574,9 @@ if (fs.existsSync(distPath)) {
 
 export const httpServer = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 YuriGame Store API Server running at http://localhost:${PORT}`);
-  await ensureDatabaseSchema();
+  await ensureDatabaseSchema().catch((e) => console.warn('[DB] Schema verification notice:', e.message));
   // Load the durable admin config (imported games, prices, logos) from MySQL so it survives redeploys.
+  // Runs even if the schema step above hiccuped, so imported games are always restored.
   await loadAdminConfigFromDb().catch((e) => console.warn('[Admin Store] DB config load skipped:', e.message));
   if (process.env.SORA_STARTUP_SYNC_DISABLED !== 'true') {
     syncConfiguredPackagesWithSora()

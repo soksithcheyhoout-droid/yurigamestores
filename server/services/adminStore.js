@@ -685,9 +685,20 @@ function mergeLoadedConfig(loaded) {
   };
 }
 
+async function ensureAppConfigTable() {
+  if (!pool) return false;
+  await pool.query(
+    'CREATE TABLE IF NOT EXISTS `app_config` (`config_key` VARCHAR(64) PRIMARY KEY, `config_json` LONGTEXT, `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+  );
+  return true;
+}
+
 async function saveAdminConfigToDb() {
   try {
     if (!pool) return;
+    // Create the table defensively so the very first save always succeeds, even if the
+    // startup load never ran (e.g. DB was briefly unreachable at boot).
+    await ensureAppConfigTable();
     const json = JSON.stringify({
       ...adminConfig,
       contacts: { ...(adminConfig.contacts || {}), telegramBotToken: '' },
@@ -696,6 +707,7 @@ async function saveAdminConfigToDb() {
       'INSERT INTO `app_config` (config_key, config_json) VALUES (?, ?) ON DUPLICATE KEY UPDATE config_json = VALUES(config_json)',
       ['admin_config', json]
     );
+    console.log('[Admin Store] Admin config saved to database (durable).');
   } catch (err) {
     console.warn('[Admin Store] DB config save notice:', err.message);
   }
@@ -705,9 +717,7 @@ async function saveAdminConfigToDb() {
 export async function loadAdminConfigFromDb() {
   try {
     if (!pool) return false;
-    await pool.query(
-      'CREATE TABLE IF NOT EXISTS `app_config` (`config_key` VARCHAR(64) PRIMARY KEY, `config_json` LONGTEXT, `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
-    );
+    await ensureAppConfigTable();
     const [rows] = await pool.query('SELECT config_json FROM `app_config` WHERE config_key = ? LIMIT 1', ['admin_config']);
     if (!rows.length) {
       // No durable copy yet — seed it from whatever we loaded from disk/defaults.

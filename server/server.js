@@ -3099,7 +3099,6 @@ app.get('/api/admin/soratopup/packages/:gameId', requireAdminAuth, async (req, r
   try {
     const game = getConfiguredGame(req.params.gameId);
     if (!game) {
-      __recordGnf('adminSkuLoader', req, { gameId: req.params.gameId });
       return res.status(404).json({ success: false, error: 'Game not found.' });
     }
 
@@ -3176,18 +3175,6 @@ function sanitizeUploadPayload(body = {}, prefix = 'img') {
   return clone;
 }
 
-// 4. Update Game (Option 5: Stock Open/Close, Logo, Banner, Name)
-app.post('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
-  const { gameId } = req.params;
-  const sanitized = sanitizeUploadPayload(req.body || {}, `game_${gameId}`);
-  const updated = updateGameConfig(gameId, sanitized);
-  if (!updated) {
-    __recordGnf('updateGameConfig', req, { gameId, sanitizedKeys: Object.keys(sanitized || {}) });
-    return res.status(404).json({ success: false, error: 'Game not found' });
-  }
-  return res.json({ success: true, game: updated });
-});
-
 // 4a. Provider catalog — list ALL Bay2Game games for the admin "Add Game" picker.
 app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {
   try {
@@ -3198,49 +3185,21 @@ app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {
   }
 });
 
-// TEMP diagnostic (remove after). Shows the last real import attempt + last "game not found" captured server-side.
-let __lastImportAttempt = null;
-let __lastGameNotFound = null;
-function __recordGnf(where, req, extra = {}) {
-  __lastGameNotFound = {
-    at: new Date().toISOString(),
-    where,
-    method: req.method,
-    path: req.originalUrl,
-    params: req.params,
-    bodyKeys: req.body && typeof req.body === 'object' ? Object.keys(req.body) : null,
-    ...extra,
-  };
-}
-app.get('/api/debug/provider-check', async (req, res) => {
-  if (req.query.k !== 'yg_diag_8731') return res.status(404).json({ error: 'not found' });
-  return res.json({ lastImportAttempt: __lastImportAttempt, lastGameNotFound: __lastGameNotFound });
-});
-
 // 4b. Import a game from the provider — auto-creates it with all packages + fields.
+// IMPORTANT: this specific route MUST be registered BEFORE the parameterized
+// `POST /api/admin/games/:gameId` route, otherwise Express matches "import" as :gameId.
 app.post('/api/admin/games/import', requireAdminAuth, async (req, res) => {
-  const rawBody = req.body;
-  const gameCode = String(req.body?.gameCode || '').trim();
-  const attempt = { at: new Date().toISOString(), gameCode, bodyType: typeof rawBody, bodyKeys: rawBody && typeof rawBody === 'object' ? Object.keys(rawBody) : null };
   try {
-    if (!gameCode) {
-      __lastImportAttempt = { ...attempt, outcome: 'no_gameCode' };
-      return res.status(400).json({ success: false, error: 'gameCode is required.' });
-    }
+    const gameCode = String(req.body?.gameCode || '').trim();
+    if (!gameCode) return res.status(400).json({ success: false, error: 'gameCode is required.' });
     const { game, products } = await getProviderGame(gameCode);
     if (!products.length) {
-      __lastImportAttempt = { ...attempt, outcome: 'no_products' };
       return res.status(404).json({ success: false, error: `"${gameCode}" has no purchasable packages.` });
     }
     const imported = importProviderGame({ ...game, packages: products });
-    if (!imported) {
-      __lastImportAttempt = { ...attempt, outcome: 'import_null' };
-      return res.status(400).json({ success: false, error: `Could not import "${gameCode}".` });
-    }
-    __lastImportAttempt = { ...attempt, outcome: 'success', packageCount: imported.packages?.length || 0 };
+    if (!imported) return res.status(400).json({ success: false, error: `Could not import "${gameCode}".` });
     return res.json({ success: true, game: imported, packageCount: imported.packages?.length || 0 });
   } catch (error) {
-    __lastImportAttempt = { ...attempt, outcome: 'error', errorStatus: error.status, errorCode: error.code, errorMessage: error.message };
     return res.status(502).json({ success: false, error: error.message || 'Import failed.' });
   }
 });
@@ -3253,8 +3212,20 @@ app.delete('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
     return res.status(400).json({ success: false, error: 'Core games cannot be removed (use the stock/maintenance toggle instead).' });
   }
   const removed = removeGame(gameId);
-  if (!removed) { __recordGnf('removeGame', req, { gameId }); return res.status(404).json({ success: false, error: 'Game not found' }); }
+  if (!removed) return res.status(404).json({ success: false, error: 'Game not found' });
   return res.json({ success: true });
+});
+
+// 4d. Update Game (Option 5: Stock Open/Close, Logo, Banner, Name)
+// Parameterized route registered AFTER the specific /import route above.
+app.post('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
+  const { gameId } = req.params;
+  const sanitized = sanitizeUploadPayload(req.body || {}, `game_${gameId}`);
+  const updated = updateGameConfig(gameId, sanitized);
+  if (!updated) {
+    return res.status(404).json({ success: false, error: 'Game not found' });
+  }
+  return res.json({ success: true, game: updated });
 });
 
 // 5. Products / Packages CRUD (Option 1)

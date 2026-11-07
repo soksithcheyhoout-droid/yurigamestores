@@ -3217,6 +3217,13 @@ app.get('/api/debug/provider-check', async (req, res) => {
   try {
     const { game, products } = await getProviderGame(testCode);
     out.testImport = { code: testCode, ok: true, name: game.name, productCount: products.length };
+    if (req.query.do === 'import') {
+      const imported = importProviderGame({ ...game, packages: products });
+      out.didImport = Boolean(imported);
+      out.importedId = imported?.id;
+      out.importedPackages = imported?.packages?.length || 0;
+      out.configGameIds = (getAdminFullConfig()?.games || []).map((g) => g.id);
+    }
   } catch (e) { out.testImport = { code: testCode, ok: false, error: e.message }; }
   return res.json(out);
 });

@@ -312,8 +312,24 @@ async function lookupFreeFire(values, gameCode = 'ff') {
     // Continue
   }
 
-  // Account not found on any Garena cluster
-  return invalidResult('ff', `Free Fire Player ID ${cleanUserId} was not found on Garena servers. Please double-check your UID.`);
+  // All live name-lookup gateways are unavailable/blocked (they frequently go down).
+  // Do NOT block the sale: accept the format-valid UID. Bay2Game validates the real UID on the
+  // KH/SG server at delivery, and any failure is flagged for admin so the payment is never lost.
+  return {
+    gameCode,
+    verified: true,
+    verification: 'format',
+    source: 'Player ID format check',
+    message: 'Player ID accepted — diamonds will be delivered to this ID.',
+    player: {
+      id: cleanUserId,
+      nickname: `Free Fire ID ${cleanUserId}`,
+      displayName: `Free Fire ID ${cleanUserId}`,
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanUserId)}`,
+      region: 'KH/SG',
+      level: null,
+    },
+  };
 }
 
 // 3. Roblox (Official Roblox Users API)

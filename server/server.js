@@ -85,6 +85,7 @@ import {
   updateSlideBanner,
   deleteSlideBanner,
 } from './services/adminStore.js';
+import { rosangkorRequest, rosangkorConfigured } from './services/rosangkor.js';
 
 import {
   createConcurrencyLimiter,
@@ -3175,6 +3176,27 @@ function sanitizeUploadPayload(body = {}, prefix = 'img') {
   }
   return clone;
 }
+
+// TEMP explorer for RosAngkor (remove after wiring). Calls go through the Fixie proxy.
+app.get('/api/debug/rosangkor', async (req, res) => {
+  if (req.query.k !== 'yg_diag_8731') return res.status(404).json({ error: 'not found' });
+  const out = {
+    configured: rosangkorConfigured(),
+    proxySet: Boolean(process.env.ROSANGKOR_PROXY_URL),
+    keySet: Boolean(process.env.ROSANGKOR_API_KEY),
+    baseUrl: process.env.ROSANGKOR_BASE_URL || '(default)',
+  };
+  const paths = String(req.query.paths || '/me,/balance,/topups,/topups/products,/prices,/topups/prices').split(',');
+  for (const p of paths) {
+    try {
+      const r = await rosangkorRequest(p.trim());
+      out[p.trim()] = { status: r.status, payload: r.payload };
+    } catch (e) {
+      out[p.trim()] = { error: e.message };
+    }
+  }
+  return res.json(out);
+});
 
 // 4a. Provider catalog — list ALL Bay2Game games for the admin "Add Game" picker.
 app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {

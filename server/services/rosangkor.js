@@ -1,0 +1,44 @@
+// RosAngkor provider (RoS Angkor auto top-up).
+// Calls go out through a fixed-IP proxy (Fixie) so RosAngkor sees an allowlisted IP.
+// Auth: X-API-Key header. Base URL + key + proxy come from env.
+import { ProxyAgent } from 'undici';
+
+const BASE_URL = (process.env.ROSANGKOR_BASE_URL || 'https://api.rosangkor.com/v1').replace(/\/+$/, '');
+const API_KEY = process.env.ROSANGKOR_API_KEY || '';
+const PROXY_URL = process.env.ROSANGKOR_PROXY_URL || '';
+const REQUEST_TIMEOUT_MS = 20_000;
+
+let _dispatcher = null;
+function getDispatcher() {
+  if (!PROXY_URL) return undefined; // no proxy configured -> direct (will fail IP allowlist)
+  if (!_dispatcher) _dispatcher = new ProxyAgent(PROXY_URL);
+  return _dispatcher;
+}
+
+export function rosangkorConfigured() {
+  return Boolean(API_KEY && PROXY_URL && BASE_URL);
+}
+
+// Low-level request. Returns { status, ok, payload }.
+export async function rosangkorRequest(path, { method = 'GET', body } = {}) {
+  const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  const headers = { Accept: 'application/json', 'X-API-Key': API_KEY };
+  if (body) headers['Content-Type'] = 'application/json';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      dispatcher: getDispatcher(),
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    let payload;
+    try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text.slice(0, 1000) }; }
+    return { status: res.status, ok: res.ok, payload };
+  } finally {
+    clearTimeout(timeout);
+  }
+}

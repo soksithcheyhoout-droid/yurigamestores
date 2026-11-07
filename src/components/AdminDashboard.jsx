@@ -1478,7 +1478,7 @@ export default function AdminDashboard({ onBackToStore }) {
 
       {/* Navigation Tabs */}
       <div className="bg-[#0b0c12] border-b border-slate-800/80 px-4 sm:px-8">
-        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto py-2.5 no-scrollbar">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 py-2.5">
           <button
             type="button"
             onClick={() => setActiveTab('analytics')}

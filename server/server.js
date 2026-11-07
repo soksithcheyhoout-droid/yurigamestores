@@ -2236,7 +2236,8 @@ app.get(['/api/order-status/:ref', '/api/ros/order-status/:ref', '/api/roblox/or
 
 // 15. PayLinkAPI Dual-Rail Payment Gateway (Bakong KHQR + ABA PayWay)
 const PAYLINK_API_URL = process.env.PAYLINK_API_URL || 'https://paylinkapibank.com/api/v2';
-const PAYLINK_API_KEY = process.env.PAYLINK_API_KEY || '';
+const PAYLINK_API_KEY = process.env.PAYLINK_API_KEY || 'plk_live_std_2608f66bdecae26929392349dab07bf009bd';
+const PAYLINK_SECRET = process.env.PAYLINK_SECRET || 'whsec_51332dcfe85161b3d55bc73a7efa976c1d029c14c6bfd0bcc173dc78ae61ca92';
 
 // 15A. PayLink Key Verification & Health Check
 app.get('/api/paylink/status', async (req, res) => {
@@ -2250,14 +2251,14 @@ app.get('/api/paylink/status', async (req, res) => {
         error: 'PayLinkAPI is not configured.',
       });
     }
-    const pingRes = await fetch(`${PAYLINK_API_URL}/bakong/generate-qr`, {
+    const pingRes = await fetch(`${PAYLINK_API_URL}/payment/generate-qr`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${PAYLINK_API_KEY}`,
         'x-api-key': PAYLINK_API_KEY
       },
-      body: JSON.stringify({ amount: 0.1, currency: 'USD', tranId: `PING_${Date.now()}` })
+      body: JSON.stringify({ amount: 0.1, currency: 'USD', orderId: `PING_${Date.now()}`, method: 'bakong' })
     });
     const pingData = await pingRes.json().catch(() => ({}));
     const keyValid = pingData.success === true;
@@ -2267,8 +2268,8 @@ app.get('/api/paylink/status', async (req, res) => {
       configured: isConfigured,
       keyValid,
       bank: pingData.bank || 'DUAL_SUITE',
-      merchantId: pingData.merchantId || process.env.PAYLINK_BAKONG_ACCOUNT || 'hut_soksitchey1@aclb',
-      merchantName: pingData.merchantName || process.env.PAYLINK_STORE_NAME || 'topup',
+      merchantId: pingData.merchantId || process.env.PAYLINK_BAKONG_ACCOUNT || 'kry_lychhay@aclb',
+      merchantName: pingData.merchantName || process.env.PAYLINK_STORE_NAME || 'YuriGameSt4re',
       gatewayUrl: PAYLINK_API_URL
     });
   } catch (err) {

@@ -3196,6 +3196,31 @@ app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {
   }
 });
 
+// TEMP DIAGNOSTIC (remove after debugging imports). Secret-gated.
+app.get('/api/debug/provider-check', async (req, res) => {
+  if (req.query.k !== 'yg_diag_8731') return res.status(404).json({ error: 'not found' });
+  const out = {};
+  try {
+    const key = process.env.BAY2GAME_API_KEY || '';
+    out.baseUrl = process.env.BAY2GAME_BASE_URL || '(unset)';
+    out.keySet = Boolean(key);
+    out.keyPrefix = key ? `${key.slice(0, 6)}…(${key.length})` : '(unset)';
+    out.soraKeySet = Boolean(process.env.SORATOPUP_API_KEY);
+    out.gameCodesEnv = process.env.SORATOPUP_GAME_CODES || '(unset)';
+  } catch (e) { out.envError = e.message; }
+  try {
+    const cat = await getProviderCatalog();
+    out.catalogCount = cat.length;
+    out.catalogSample = cat.slice(0, 8).map((c) => c.code);
+  } catch (e) { out.catalogError = e.message; }
+  const testCode = String(req.query.code || '8_ball_pool');
+  try {
+    const { game, products } = await getProviderGame(testCode);
+    out.testImport = { code: testCode, ok: true, name: game.name, productCount: products.length };
+  } catch (e) { out.testImport = { code: testCode, ok: false, error: e.message }; }
+  return res.json(out);
+});
+
 // 4b. Import a game from the provider — auto-creates it with all packages + fields.
 app.post('/api/admin/games/import', requireAdminAuth, async (req, res) => {
   try {

@@ -215,7 +215,51 @@ async function lookupFreeFireCommunity(uid) {
   return null;
 }
 
-// 2. Free Fire (Live Garena Multi-Region Profile Search)
+// Codashop (Garena's official top-up partner) reliably reports whether a Free Fire UID is REAL,
+// and for players in a servable region it echoes the in-game account name. No API key required.
+//   errorCode ''  + confirmationFields -> real, name available
+//   errorCode 24  "region blocked"      -> real, but the name is not returned for this region
+//   errorCode 22  "Invalid User" / 12 "Wrong player id" -> the UID does not exist (fake)
+async function lookupFreeFireCodashop(uid) {
+  let data;
+  try {
+    const res = await fetchWithTimeout('https://order-sg.codashop.com/initPayment.action', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        Accept: 'application/json',
+      },
+      body: `voucherPricePoint.id=270288&voucherPricePoint.price=200000.0000&voucherPricePoint.variablePrice=0&user.userId=${encodeURIComponent(uid)}&user.zoneId=&voucherTypeName=FREEFIRE&shopLang=en`,
+    }, 8_000);
+    data = await readJson(res);
+  } catch {
+    return { status: 'unknown', name: '' };
+  }
+  if (!data || typeof data !== 'object') return { status: 'unknown', name: '' };
+
+  const errorCode = String(data.errorCode ?? '').trim();
+  const errorMsg = String(data.errorMsg || data.message || '').toLowerCase();
+  const name = sanitizeNickname(
+    data?.confirmationFields?.username || data?.confirmationFields?.roles?.[0]?.role || ''
+  );
+
+  // Real account in a servable region: Codashop returns the player's name.
+  if (errorCode === '' && name) return { status: 'real', name };
+  // Real account, but this region is blocked for top-up (player exists, no name here).
+  if (errorCode === '24' || /region blocked/.test(errorMsg)) return { status: 'real', name: '' };
+  // Definitive "this UID does not exist".
+  if (['22', '12'].includes(errorCode) || /invalid user|wrong player|player (id )?not found|does ?n[o']?t exist|not a valid/.test(errorMsg)) {
+    return { status: 'fake', name: '' };
+  }
+  // Unexpected/ambiguous (maintenance, changed codes) — don't decide; caller stays lenient.
+  return { status: 'unknown', name: '' };
+}
+
+// 2. Free Fire — real/fake verification + account name.
+// Primary gate: Codashop (no API key). Full name coverage (incl. Cambodia) via the Free Fire
+// Community API when FREEFIRE_API_KEY is set. A confirmed-fake UID is rejected; a real UID is
+// approved (with its name when available); provider outages never block a sale.
 async function lookupFreeFire(values, gameCode = 'ff') {
   const [userId] = values;
   const cleanUserId = String(userId || '').trim().replace(/[\s-]/g, '');
@@ -227,153 +271,79 @@ async function lookupFreeFire(values, gameCode = 'ff') {
     });
   }
 
-  // Step 1 (PRIMARY): Free Fire Community API — reliable live account-name lookup.
+  // Step 1: Codashop tells us if the UID is real, and gives the name for servable regions.
+  let existence = 'unknown'; // 'real' | 'fake' | 'unknown'
+  let nickname = '';
+  let region = 'KH/SG';
   try {
-    const community = await lookupFreeFireCommunity(cleanUserId);
-    if (community?.nickname) {
-      return {
-        gameCode,
-        verified: true,
-        verification: 'live',
-        source: 'Free Fire Official Server Lookup',
-        message: 'Free Fire account found.',
-        player: {
-          id: cleanUserId,
-          nickname: community.nickname,
-          displayName: community.nickname,
-          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(community.nickname)}`,
-          region: community.region || 'KH/SG',
-          level: null, // Free Fire level hidden per user preference
-        },
-      };
-    }
+    const coda = await lookupFreeFireCodashop(cleanUserId);
+    existence = coda.status;
+    if (coda.name) nickname = coda.name;
   } catch {
-    // Community API unavailable — fall through to the legacy gateways below.
+    existence = 'unknown';
   }
 
-  // Step 2A: Query global auto-detecting Free Fire profile gateway
-  try {
-    const url = `https://wzapi.vercel.app/get?uid=${encodeURIComponent(cleanUserId)}`;
-    const res = await fetchWithTimeout(url, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-    }, 6_000);
-    const payload = await readJson(res);
-    const info = payload?.basic_info || payload?.basicInfo || {};
-    const rawNickname = info.nickname || payload?.nickname || payload?.data?.nickname || payload?.username;
-    const nickname = cleanString(rawNickname, 80);
-
-    if (res.ok && nickname) {
-      return {
-        gameCode,
-        verified: true,
-        verification: 'live',
-        source: 'Garena Free Fire Live Gateway',
-        message: 'Free Fire account found.',
-        player: {
-          id: cleanUserId,
-          nickname,
-          displayName: nickname,
-          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(nickname)}`,
-          region: cleanString(info.region, 20) || 'Global',
-          level: null, // Free Fire level hidden per user preference
-        },
-      };
-    }
-  } catch {
-    // Global query failed or timed out, proceed to regional queries
+  // Confirmed non-existent by Garena's partner → reject (never approve a fake ID).
+  if (existence === 'fake') {
+    return invalidResult(gameCode, `This Free Fire ID (${cleanUserId}) does not exist. Please double-check your Player ID and try again.`);
   }
 
-  // Step 2B: Parallel Regional Garena server scan (SG, ID, TH, VN, ME, IND, BR, RU, US)
-  const regionalCodes = ['SG', 'ID', 'TH', 'VN', 'ME', 'IND', 'BR', 'RU', 'US'];
-  try {
-    const regionalQueries = regionalCodes.map(async (reg) => {
-      try {
-        const regionalUrl = `https://wzapi.vercel.app/get?uid=${encodeURIComponent(cleanUserId)}&region=${reg}`;
-        const regRes = await fetchWithTimeout(regionalUrl, {
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          },
-        }, 5_000);
-        const regPayload = await readJson(regRes);
-        const regInfo = regPayload?.basic_info || regPayload?.basicInfo || {};
-        const rawRegNickname = regInfo.nickname || regPayload?.nickname || regPayload?.data?.nickname || regPayload?.username;
-        const regNickname = cleanString(rawRegNickname, 80);
-        if (regRes.ok && regNickname) {
-          return {
-            nickname: regNickname,
-            region: cleanString(regInfo.region, 20) || reg,
-          };
-        }
-      } catch {
-        return null;
+  // Step 2: Fill in the name (any region, incl. Cambodia) via the Free Fire Community API.
+  if (!nickname) {
+    try {
+      const community = await lookupFreeFireCommunity(cleanUserId);
+      if (community?.nickname) {
+        nickname = community.nickname;
+        region = community.region || region;
+        existence = 'real'; // a returned profile also proves the UID is real
       }
-      return null;
-    });
-
-    const regResults = await Promise.all(regionalQueries);
-    const found = regResults.find((r) => r && r.nickname);
-    if (found) {
-      return {
-        gameCode,
-        verified: true,
-        verification: 'live',
-        source: `Garena Free Fire (${found.region})`,
-        message: 'Free Fire account found.',
-        player: {
-          id: cleanUserId,
-          nickname: found.nickname,
-          displayName: found.nickname,
-          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(found.nickname)}`,
-          region: found.region,
-          level: null, // Free Fire level hidden per user preference
-        },
-      };
+    } catch {
+      // Community API unavailable — continue with whatever we already have.
     }
-  } catch {
-    // Regional search completed with no match
   }
 
-  // Step 2C: Smile.one Free Fire check
-  try {
-    const smileRes = await fetchWithTimeout('https://www.smile.one/merchant/freefire/checkrole', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  // Got the real account name → approve and show it.
+  if (nickname) {
+    return {
+      gameCode,
+      verified: true,
+      verification: 'live',
+      source: 'Garena Free Fire Server',
+      message: 'Free Fire account found.',
+      player: {
+        id: cleanUserId,
+        nickname,
+        displayName: nickname,
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(nickname)}`,
+        region: region || 'KH/SG',
+        level: null, // Free Fire level hidden per user preference
       },
-      body: `user_id=${encodeURIComponent(cleanUserId)}&pid=19`,
-    }, 5_000);
-    const smileData = await readJson(smileRes);
-    const rawSmileName = smileData?.username || smileData?.role || smileData?.data?.username;
-    if (smileData?.code === 200 && rawSmileName) {
-      const realSmileName = sanitizeNickname(rawSmileName);
-      return {
-        gameCode,
-        verified: true,
-        verification: 'live',
-        source: 'Garena Free Fire Live Gateway',
-        message: 'Free Fire account found.',
-        player: {
-          id: cleanUserId,
-          nickname: realSmileName,
-          displayName: realSmileName,
-          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(realSmileName)}`,
-          region: 'Garena Global',
-          level: null,
-        },
-      };
-    }
-  } catch {
-    // Continue
+    };
   }
 
-  // All live name-lookup gateways are unavailable/blocked (they frequently go down).
-  // Do NOT block the sale: accept the format-valid UID. Bay2Game validates the real UID on the
-  // KH/SG server at delivery, and any failure is flagged for admin so the payment is never lost.
+  // Confirmed REAL by Codashop, but the name is not retrievable for this region (no FREEFIRE_API_KEY).
+  // Approve the verified ID — the real name will appear once an API key is configured.
+  if (existence === 'real') {
+    return {
+      gameCode,
+      verified: true,
+      verification: 'live',
+      source: 'Garena Free Fire Server',
+      message: 'Free Fire ID verified.',
+      player: {
+        id: cleanUserId,
+        nickname: `Free Fire ID ${cleanUserId}`,
+        displayName: `Free Fire ID ${cleanUserId}`,
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanUserId)}`,
+        region: 'KH/SG',
+        level: null,
+      },
+    };
+  }
+
+  // Verification service was unreachable (NOT a "fake" answer). Don't block the sale during an
+  // outage: accept the format-valid UID. Bay2Game still validates the real UID at delivery, and any
+  // failure is flagged for admin so the payment is never lost.
   return {
     gameCode,
     verified: true,

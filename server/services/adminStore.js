@@ -612,7 +612,7 @@ export function loadAdminConfig() {
         };
 
         // Rewrite legacy persisted config without server credentials.
-        saveAdminConfig();
+        saveAdminConfig({ skipDb: true });
         return adminConfig;
 
       }
@@ -627,7 +627,7 @@ export function loadAdminConfig() {
 
 
 
-  saveAdminConfig();
+  saveAdminConfig({ skipDb: true });
 
   return adminConfig;
 
@@ -637,7 +637,7 @@ export function loadAdminConfig() {
 
 // Persist config to disk
 
-export function saveAdminConfig() {
+export function saveAdminConfig({ skipDb = false } = {}) {
 
   try {
 
@@ -659,7 +659,9 @@ export function saveAdminConfig() {
   }
 
   // Also persist to MySQL so the config (incl. imported games) survives Railway redeploys.
-  saveAdminConfigToDb();
+  // skipDb is used during the startup disk-load so a fresh (empty) container cannot
+  // overwrite the durable DB copy with defaults before loadAdminConfigFromDb() runs.
+  if (!skipDb) saveAdminConfigToDb();
 }
 
 // ---- Durable persistence in MySQL (survives container redeploys) ----

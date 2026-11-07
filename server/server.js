@@ -3196,40 +3196,37 @@ app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {
   }
 });
 
-// TEMP read-only diagnostic (remove after). Tests getProviderGame for many codes on production.
+// TEMP diagnostic (remove after). Shows the last real import attempt captured server-side.
+let __lastImportAttempt = null;
 app.get('/api/debug/provider-check', async (req, res) => {
   if (req.query.k !== 'yg_diag_8731') return res.status(404).json({ error: 'not found' });
-  const results = [];
-  let catalog = [];
-  try {
-    catalog = await getProviderCatalog();
-  } catch (e) { return res.json({ catalogError: e.message }); }
-  // Test the first N non-core games (what the picker shows at the top).
-  const n = Math.min(Number(req.query.n) || 12, 40);
-  for (const c of catalog.slice(0, n)) {
-    try {
-      const { products } = await getProviderGame(c.code);
-      results.push({ code: c.code, ok: true, products: products.length });
-    } catch (e) {
-      results.push({ code: c.code, ok: false, error: e.message });
-    }
-  }
-  return res.json({ catalogCount: catalog.length, tested: results.length, results });
+  return res.json({ lastImportAttempt: __lastImportAttempt });
 });
 
 // 4b. Import a game from the provider — auto-creates it with all packages + fields.
 app.post('/api/admin/games/import', requireAdminAuth, async (req, res) => {
+  const rawBody = req.body;
+  const gameCode = String(req.body?.gameCode || '').trim();
+  const attempt = { at: new Date().toISOString(), gameCode, bodyType: typeof rawBody, bodyKeys: rawBody && typeof rawBody === 'object' ? Object.keys(rawBody) : null };
   try {
-    const gameCode = String(req.body?.gameCode || '').trim();
-    if (!gameCode) return res.status(400).json({ success: false, error: 'gameCode is required.' });
+    if (!gameCode) {
+      __lastImportAttempt = { ...attempt, outcome: 'no_gameCode' };
+      return res.status(400).json({ success: false, error: 'gameCode is required.' });
+    }
     const { game, products } = await getProviderGame(gameCode);
     if (!products.length) {
-      return res.status(404).json({ success: false, error: 'That game has no purchasable packages.' });
+      __lastImportAttempt = { ...attempt, outcome: 'no_products' };
+      return res.status(404).json({ success: false, error: `"${gameCode}" has no purchasable packages.` });
     }
     const imported = importProviderGame({ ...game, packages: products });
-    if (!imported) return res.status(400).json({ success: false, error: 'Could not import that game.' });
+    if (!imported) {
+      __lastImportAttempt = { ...attempt, outcome: 'import_null' };
+      return res.status(400).json({ success: false, error: `Could not import "${gameCode}".` });
+    }
+    __lastImportAttempt = { ...attempt, outcome: 'success', packageCount: imported.packages?.length || 0 };
     return res.json({ success: true, game: imported, packageCount: imported.packages?.length || 0 });
   } catch (error) {
+    __lastImportAttempt = { ...attempt, outcome: 'error', errorStatus: error.status, errorCode: error.code, errorMessage: error.message };
     return res.status(502).json({ success: false, error: error.message || 'Import failed.' });
   }
 });

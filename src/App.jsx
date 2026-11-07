@@ -286,7 +286,7 @@ export default function App() {
   }
 
   return (
-    <div className="yurigame-theme flex min-h-screen w-full flex-col bg-[#090a0e] text-slate-200 selection:bg-[#e3062f] selection:text-white">
+    <div className="yurigame-theme flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-[#090a0e] text-slate-200 selection:bg-[#e3062f] selection:text-white">
       <Navbar
         onOpenLookup={() => setIsLookupOpen(true)}
         currentRegion={currentRegion}

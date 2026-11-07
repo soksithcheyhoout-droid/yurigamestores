@@ -1379,7 +1379,7 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#07080b] text-slate-200 font-['Outfit'] selection:bg-[#E3062F] selection:text-white">
+    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-[#07080b] text-slate-200 font-['Outfit'] selection:bg-[#E3062F] selection:text-white">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-5 right-5 z-100 bg-[#E3062F] text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-xs flex items-center gap-2 animate-in slide-in-from-top-4">

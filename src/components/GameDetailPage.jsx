@@ -582,7 +582,7 @@ export default function GameDetailPage({
           message: `${isRoblox ? 'Roblox Robux' : 'RoS Diamond'} order received and sent to Telegram admins for fulfillment.`,
         };
       } else if (isLiveProvider) {
-        setDeliveryMessage(`Delivering ${game.currency || 'items'} to your ${game.name} account...`);
+        setDeliveryMessage(`Delivering your top-up to your ${game.name} account...`);
         let fieldValues = (game.fields || []).map((f) => formData[f.key] || '');
         if (fieldValues.length === 0 || !fieldValues[0]) {
           const fallbackPrimary = formData.userId || formData.user_id_0 || formData.roblox_username_0 || verifiedProfile?.username || verifiedProfile?.playerId || '';

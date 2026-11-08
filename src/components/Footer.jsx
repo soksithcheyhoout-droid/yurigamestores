@@ -127,8 +127,6 @@ export default function Footer({ contacts = {} }) {
             <a href="#privacy" className="text-slate-500 hover:text-slate-300 transition-colors no-underline">
               Privacy Policy
             </a>
-            <span>&bull;</span>
-            <span className="text-emerald-500 font-mono">Protected by Cloudflare</span>
           </div>
         </div>
       </div>

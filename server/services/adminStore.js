@@ -1293,6 +1293,8 @@ export function getPublicSiteConfig() {
     siteLogo,
     games: adminConfig.games.map((game) => ({
       ...game,
+      code: game.code || game.id || game.providerCode || game.slug,
+      providerCode: game.providerCode || game.code || game.id || game.slug,
       image: resolveValidGameImage(game, getDefaultGameImageForId(game.id || game.slug)),
       banner: resolveValidBannerImage({ ...game, image: game.banner, gameSlug: game.slug || game.id }, getDefaultBannerForSlug(game.slug || game.id, game.name)),
       packages: (game.packages || [])

@@ -109,6 +109,40 @@ const trustProxyHops = Math.max(0, Math.min(5, Number.parseInt(process.env.TRUST
 app.disable('x-powered-by');
 app.set('trust proxy', trustProxyHops);
 
+// Canonical Domain 301 Redirect for SEO and Google Search consolidation
+const CANONICAL_HOST = 'yurigamest4res.com';
+const REDIRECT_HOSTS = new Set([
+  'yurigamest4re.com',
+  'www.yurigamest4re.com',
+  'www.yurigamest4res.com',
+  'yurigamestores.com',
+  'www.yurigamestores.com',
+  'yurigamest4re.games',
+  'www.yurigamest4re.games',
+]);
+
+app.use((req, res, next) => {
+  const rawHost = req.headers.host || '';
+  const host = rawHost.split(':')[0].toLowerCase();
+
+  // If request arrived on legacy or alias domains, permanently 301 redirect to primary domain
+  if (REDIRECT_HOSTS.has(host)) {
+    const targetUrl = `https://${CANONICAL_HOST}${req.originalUrl}`;
+    res.setHeader('Location', targetUrl);
+    return res.status(301).end();
+  }
+
+  // Enforce HTTPS on production canonical host behind reverse proxies (skip on localhost)
+  const proto = req.headers['x-forwarded-proto'];
+  if (proto === 'http' && host === CANONICAL_HOST) {
+    const targetUrl = `https://${CANONICAL_HOST}${req.originalUrl}`;
+    res.setHeader('Location', targetUrl);
+    return res.status(301).end();
+  }
+
+  next();
+});
+
 // In-Memory resilient fallback store when MySQL is offline
 const inMemoryOrders = [
   {
@@ -3786,9 +3820,18 @@ if (fs.existsSync(distPath)) {
       return res.sendFile(indexHtmlPath);
     }
 
-    const boot = { siteConfig: null, generatedAt: Date.now() };
+    const boot = { siteConfig: null, catalogue: null, generatedAt: Date.now() };
     try {
-      boot.siteConfig = { success: true, ...getPublicSiteConfig() };
+      const publicConfig = getPublicSiteConfig();
+      boot.siteConfig = { success: true, ...publicConfig };
+      if (Array.isArray(publicConfig?.games) && publicConfig.games.length > 0) {
+        boot.catalogue = {
+          games: publicConfig.games,
+          count: publicConfig.games.length,
+          fetchedAt: new Date().toISOString(),
+          isFallback: false,
+        };
+      }
     } catch (e) {
       console.warn('[Boot] Site config injection skipped:', e?.message);
     }
@@ -3802,6 +3845,11 @@ if (fs.existsSync(distPath)) {
     if (firstBanner) {
       preloadTags.push(`<link rel="preload" as="image" href="${firstBanner.image.replace(/"/g, '&quot;')}" fetchpriority="high">`);
     }
+    (boot.catalogue?.games || []).slice(0, 4).forEach((g) => {
+      if (typeof g?.image === 'string' && g.image.startsWith('/assets/')) {
+        preloadTags.push(`<link rel="preload" as="image" href="${g.image.replace(/"/g, '&quot;')}" fetchpriority="high">`);
+      }
+    });
 
     const safeJson = JSON.stringify(boot).replace(/<\/script/gi, '<\\/script');
     const bootScript = `<script id="__YURI_BOOT__" type="application/json">${safeJson}</script><script>try{window.__YURI_BOOT__=JSON.parse(document.getElementById("__YURI_BOOT__").textContent);}catch(e){}</script>`;
@@ -3816,8 +3864,76 @@ if (fs.existsSync(distPath)) {
     return res.send(output);
   };
 
+  // SEO: Search Engine Robots & Sitemap endpoints
+  app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(`User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://yurigamest4res.com/sitemap.xml
+`);
+  });
+
+  app.get('/sitemap.xml', (req, res) => {
+    res.type('application/xml');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    const today = new Date().toISOString().split('T')[0];
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://yurigamest4res.com/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://yurigamest4res.com/game/mobile-legends</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://yurigamest4res.com/game/free-fire</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://yurigamest4res.com/game/roblox</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://yurigamest4res.com/game/ros-legacy</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://yurigamest4res.com/game/rosangkor</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>`);
+  });
+
   // index: false so "/" is never served as a stale static index.html without boot data.
-  app.use(express.static(distPath, { index: false }));
+  app.use(express.static(distPath, {
+    index: false,
+    maxAge: '1d',
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      } else if (filePath.match(/\.(js|css|webp|png|jpg|jpeg|svg|woff2)$/)) {
+        res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+      }
+    },
+  }));
   app.use((req, res, next) => {
     if (req.path.startsWith('/assets/')) {
       return res.status(404).end();

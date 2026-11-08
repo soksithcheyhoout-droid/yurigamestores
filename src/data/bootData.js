@@ -27,7 +27,17 @@ export function getBootSiteConfig() {
 
 export function getBootCatalogue() {
   const cat = BOOT?.catalogue;
-  return cat && Array.isArray(cat.games) && cat.games.length > 0 ? cat : null;
+  if (cat && Array.isArray(cat.games) && cat.games.length > 0) return cat;
+  const cfg = getBootSiteConfig();
+  if (cfg && Array.isArray(cfg.games) && cfg.games.length > 0) {
+    return {
+      games: cfg.games,
+      count: cfg.games.length,
+      fetchedAt: new Date().toISOString(),
+      isFallback: false,
+    };
+  }
+  return null;
 }
 
 export function getBootSiteLogo() {

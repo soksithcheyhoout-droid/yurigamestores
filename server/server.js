@@ -3923,6 +3923,13 @@ Sitemap: https://yurigamest4res.com/sitemap.xml
 </urlset>`);
   });
 
+  // Google Search Console Site Verification File
+  app.get('/google8dda83181a786fce.html', (req, res) => {
+    res.type('text/html');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send('google-site-verification: google8dda83181a786fce.html');
+  });
+
   // index: false so "/" is never served as a stale static index.html without boot data.
   app.use(express.static(distPath, {
     index: false,

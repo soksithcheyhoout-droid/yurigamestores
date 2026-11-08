@@ -1,4 +1,5 @@
 import { getOrCreateDeviceId } from './orderStore';
+import { getBootCatalogue } from './bootData';
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const FALLBACK_GAME_IMAGE = '/assets/games/mlbb_tile_4k.jpg';
@@ -283,7 +284,32 @@ const FALLBACK_PACKAGES_BY_CODE = {
 
 const CATALOGUE_CACHE_KEY = 'yurigame_catalogue_cache_v3';
 
+let bootCatalogueMemo;
+function getMappedBootCatalogue() {
+  if (bootCatalogueMemo !== undefined) return bootCatalogueMemo;
+  bootCatalogueMemo = null;
+  try {
+    const boot = getBootCatalogue();
+    if (boot) {
+      const games = boot.games.map(mapSoraGame).filter(Boolean);
+      if (games.length > 0) {
+        bootCatalogueMemo = {
+          games,
+          count: Number(boot.count) || games.length,
+          fetchedAt: boot.fetchedAt || null,
+          isFallback: false,
+        };
+      }
+    }
+  } catch {}
+  return bootCatalogueMemo;
+}
+
 export function getCachedCatalogue() {
+  // 1. Server-injected live data (always freshest on a page load/refresh)
+  const boot = getMappedBootCatalogue();
+  if (boot) return boot;
+  // 2. Last known catalogue from this browser
   try {
     if (typeof window === 'undefined') return null;
     const raw = window.localStorage.getItem(CATALOGUE_CACHE_KEY);
@@ -318,6 +344,9 @@ export function getCachedCatalogue() {
 
 export function setCachedCatalogue(catalogue) {
   try {
+    if (Array.isArray(catalogue?.games) && catalogue.games.length > 0) {
+      bootCatalogueMemo = catalogue;
+    }
     if (typeof window !== 'undefined' && Array.isArray(catalogue?.games) && catalogue.games.length > 0) {
       window.localStorage.setItem(CATALOGUE_CACHE_KEY, JSON.stringify(catalogue));
     }

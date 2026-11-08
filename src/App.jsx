@@ -20,6 +20,7 @@ import {
   saveWalletBalance,
 } from './data/orderStore';
 import { getStoredRegion, saveStoredRegion } from './data/regionStore';
+import { getBootSiteConfig } from './data/bootData';
 import { fetchSoraGameWithPackages } from './data/soraStore';
 import { useLenisSmoothScroll, scrollToTarget } from './hooks/useLenisSmoothScroll';
 import { useScrollReveal } from './hooks/useScrollReveal';
@@ -58,6 +59,8 @@ export default function App() {
   const [pastOrders, setPastOrders] = useState(() => getStoredOrders());
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [siteConfig, setSiteConfig] = useState(() => {
+    const boot = getBootSiteConfig();
+    if (boot) return boot;
     try {
       if (typeof window !== 'undefined') {
         const raw = window.localStorage.getItem('yurigame_site_config_cache_v3');
@@ -103,7 +106,11 @@ export default function App() {
     if (Array.isArray(siteConfig?.games) && siteConfig.games.length > 0) {
       syncGamesWithAdminConfig(siteConfig.games);
     }
-    refreshSiteConfig();
+    // When the server injected live data into the page it is already fresh — skip the
+    // duplicate request so nothing re-renders or swaps images right after the first paint.
+    if (!getBootSiteConfig()) {
+      refreshSiteConfig();
+    }
 
     const handleSiteConfigUpdated = (event) => {
       if (event?.detail) {

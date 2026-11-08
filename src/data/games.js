@@ -3,6 +3,7 @@
 // 2. Mobile Legends KH (ml)
 // 3. Free Fire (ff)
 // 4. RoS Legacy (roslegacy)
+import { getBootSiteConfig } from './bootData';
 
 export const GAMES = [
   {
@@ -248,3 +249,12 @@ export function syncGamesWithAdminConfig(configuredGames) {
     }
   }
 }
+
+// Apply the server-injected live admin config immediately at startup so every
+// consumer of GAMES sees the admin's images from the very first render.
+try {
+  const bootGames = getBootSiteConfig()?.games;
+  if (Array.isArray(bootGames) && bootGames.length > 0) {
+    syncGamesWithAdminConfig(bootGames);
+  }
+} catch {}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getBootSiteLogo } from '../data/bootData';
 
 export const DEFAULT_SITE_LOGO = '/assets/brand/yurigame-logo.png';
 const SITE_LOGO_STORAGE_KEY = 'yurigame_site_logo_v2';
@@ -6,6 +7,51 @@ const SITE_CONFIG_CACHE_KEY = 'yurigame_site_config_cache_v3';
 
 let memorySiteLogo = null;
 const trimmedLogoCache = new Map();
+const TRIMMED_LOGO_STORAGE_KEY = 'yurigame_logo_trimmed_v1';
+
+function hashLogoSource(str) {
+  const s = String(str || '');
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return `${s.length}_${h >>> 0}`;
+}
+
+// Restore the last trimmed logo from storage so a refresh paints the final logo instantly.
+(function hydrateTrimmedLogoCache() {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = window.localStorage.getItem(TRIMMED_LOGO_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.hash === 'string' && typeof parsed.trimmed === 'string') {
+      trimmedLogoCache.set(`hash:${parsed.hash}`, parsed.trimmed);
+    }
+  } catch {}
+})();
+
+function getStoredTrimmedLogo(srcUrl) {
+  if (trimmedLogoCache.has(srcUrl)) return trimmedLogoCache.get(srcUrl);
+  const byHash = trimmedLogoCache.get(`hash:${hashLogoSource(srcUrl)}`);
+  if (byHash) {
+    const resolved = byHash === '__self__' ? srcUrl : byHash;
+    trimmedLogoCache.set(srcUrl, resolved);
+    return resolved;
+  }
+  return '';
+}
+
+function persistTrimmedLogo(srcUrl, trimmed) {
+  trimmedLogoCache.set(srcUrl, trimmed);
+  if (typeof window === 'undefined') return;
+  try {
+    const hash = hashLogoSource(srcUrl);
+    const stored = trimmed === srcUrl ? '__self__' : trimmed;
+    trimmedLogoCache.set(`hash:${hash}`, stored);
+    window.localStorage.setItem(TRIMMED_LOGO_STORAGE_KEY, JSON.stringify({ hash, trimmed: stored }));
+  } catch {}
+}
 
 function updateBrowserFavicon(logoUrl) {
   if (typeof document === 'undefined' || !logoUrl) return;
@@ -53,8 +99,9 @@ function autoTrimTransparentLogo(srcUrl) {
     if (typeof document === 'undefined' || !isValidLogoUrl(srcUrl)) {
       return resolve(srcUrl);
     }
-    if (trimmedLogoCache.has(srcUrl)) {
-      return resolve(trimmedLogoCache.get(srcUrl));
+    const known = getStoredTrimmedLogo(srcUrl);
+    if (known) {
+      return resolve(known);
     }
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -98,13 +145,13 @@ function autoTrimTransparentLogo(srcUrl) {
         const boxW = maxX - minX + 1;
         const boxH = maxY - minY + 1;
         if (!found || boxW < 12 || boxH < 12) {
-          trimmedLogoCache.set(srcUrl, srcUrl);
+          persistTrimmedLogo(srcUrl, srcUrl);
           return resolve(srcUrl);
         }
 
         // Only re-encode if trimming actually removes meaningful margin (>4% on any axis)
         if (boxW >= cw * 0.96 && boxH >= ch * 0.96) {
-          trimmedLogoCache.set(srcUrl, srcUrl);
+          persistTrimmedLogo(srcUrl, srcUrl);
           return resolve(srcUrl);
         }
 
@@ -121,7 +168,7 @@ function autoTrimTransparentLogo(srcUrl) {
         if (!outCtx) return resolve(srcUrl);
         outCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
         const trimmedDataUrl = out.toDataURL('image/png');
-        trimmedLogoCache.set(srcUrl, trimmedDataUrl);
+        persistTrimmedLogo(srcUrl, trimmedDataUrl);
         resolve(trimmedDataUrl);
       } catch {
         resolve(srcUrl);
@@ -133,6 +180,15 @@ function autoTrimTransparentLogo(srcUrl) {
 
 export function getSiteLogo() {
   if (isValidLogoUrl(memorySiteLogo)) return memorySiteLogo;
+  // Server-injected live logo (from the database) always wins on page load/refresh.
+  const bootLogo = getBootSiteLogo();
+  if (isValidLogoUrl(bootLogo)) {
+    memorySiteLogo = bootLogo;
+    if (typeof window !== 'undefined') {
+      try { window.localStorage.setItem(SITE_LOGO_STORAGE_KEY, bootLogo); } catch {}
+    }
+    return memorySiteLogo;
+  }
   if (typeof window !== 'undefined') {
     try {
       const direct = window.localStorage.getItem(SITE_LOGO_STORAGE_KEY);
@@ -230,7 +286,6 @@ export default function YuriGameLogo({
 }) {
   const styles = SIZE_STYLES[size] || SIZE_STYLES.md;
   const [siteLogo, setSiteLogoState] = useState(() => getSiteLogo());
-  const [trimmedOverride, setTrimmedOverride] = useState('');
 
   useEffect(() => {
     const handleLogoChange = (event) => {
@@ -258,15 +313,20 @@ export default function YuriGameLogo({
 
     if (!didInitialRemoteCheck) {
       didInitialRemoteCheck = true;
-      fetch('/api/site-config', { cache: 'no-store' })
-        .then((res) => res.json())
-        .then((data) => {
-          const remoteLogo = data?.siteLogo || data?.contacts?.siteLogo;
-          if (data?.success && remoteLogo) {
-            setSiteLogo(remoteLogo);
-          }
-        })
-        .catch(() => {});
+      // Server already injected the live logo into the page — no need to re-fetch and re-render.
+      if (getBootSiteLogo()) {
+        updateBrowserFavicon(getSiteLogo());
+      } else {
+        fetch('/api/site-config', { cache: 'no-store' })
+          .then((res) => res.json())
+          .then((data) => {
+            const remoteLogo = data?.siteLogo || data?.contacts?.siteLogo;
+            if (data?.success && remoteLogo && remoteLogo !== getSiteLogo()) {
+              setSiteLogo(remoteLogo);
+            }
+          })
+          .catch(() => {});
+      }
     }
 
     return () => {
@@ -278,17 +338,28 @@ export default function YuriGameLogo({
 
   const candidateLogo = overrideLogo || siteLogo || DEFAULT_SITE_LOGO;
   const activeLogo = isValidLogoUrl(candidateLogo) ? candidateLogo : DEFAULT_SITE_LOGO;
+  const [trimmedFor, setTrimmedFor] = useState(() => {
+    if (activeLogo === DEFAULT_SITE_LOGO) {
+      return { src: activeLogo, out: DEFAULT_SITE_LOGO };
+    }
+    const known = getStoredTrimmedLogo(activeLogo);
+    return known ? { src: activeLogo, out: known } : null;
+  });
 
   useEffect(() => {
     let cancelled = false;
-    if (trimmedLogoCache.has(activeLogo)) {
-      setTrimmedOverride(trimmedLogoCache.get(activeLogo));
+    if (activeLogo === DEFAULT_SITE_LOGO) {
+      setTrimmedFor({ src: activeLogo, out: DEFAULT_SITE_LOGO });
       return undefined;
     }
-    setTrimmedOverride('');
+    const known = getStoredTrimmedLogo(activeLogo);
+    if (known) {
+      setTrimmedFor((prev) => (prev?.src === activeLogo && prev?.out === known ? prev : { src: activeLogo, out: known }));
+      return undefined;
+    }
     autoTrimTransparentLogo(activeLogo).then((result) => {
-      if (!cancelled && result) {
-        setTrimmedOverride(result);
+      if (!cancelled) {
+        setTrimmedFor({ src: activeLogo, out: result || activeLogo });
       }
     });
     return () => {
@@ -296,7 +367,10 @@ export default function YuriGameLogo({
     };
   }, [activeLogo]);
 
-  const displayLogo = trimmedOverride || trimmedLogoCache.get(activeLogo) || activeLogo;
+  // If already trimmed or known, display immediately. If first time trimming an untrimmed image,
+  // show with gentle transition so there is never an ugly layout snap or blank box.
+  const isReady = Boolean(trimmedFor?.src === activeLogo || activeLogo === DEFAULT_SITE_LOGO);
+  const displayLogo = (trimmedFor?.src === activeLogo ? trimmedFor.out : '') || activeLogo;
 
   return (
     <span
@@ -312,7 +386,9 @@ export default function YuriGameLogo({
           alt=""
           loading="eager"
           fetchPriority="high"
-          className="h-full w-auto max-w-full object-contain drop-shadow-[0_3px_10px_rgba(0,0,0,0.55)]"
+          decoding="sync"
+          className="h-full w-auto max-w-full object-contain drop-shadow-[0_3px_10px_rgba(0,0,0,0.55)] transition-opacity duration-150"
+          style={{ opacity: isReady ? 1 : 0.85 }}
           draggable="false"
           onError={(e) => {
             if (!e.currentTarget.src.endsWith(DEFAULT_SITE_LOGO)) {

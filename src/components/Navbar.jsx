@@ -9,7 +9,7 @@ import {
   Sparkles,
   ShieldCheck,
 } from 'lucide-react';
-import { fetchSoraCatalogue, fetchSoraGameWithPackages } from '../data/soraStore';
+import { fetchSoraCatalogue, fetchSoraGameWithPackages, getCachedCatalogue } from '../data/soraStore';
 import { TRANSLATIONS } from '../data/regionStore';
 import YuriGameLogo, { getSiteLogo } from './YuriGameLogo';
 import CountryFlag from './CountryFlag';
@@ -40,7 +40,8 @@ function getSafeNavGameImage(game) {
     raw === 'undefined' ||
     raw === 'null' ||
     raw.includes('harikitopup.com') ||
-    raw.startsWith('/assets/uploads/')
+    raw.startsWith('/assets/uploads/') ||
+    /\/assets\/games\/current_(roblox|mobile-legends|free-fire|ros-legacy)\.jpg$/.test(raw)
   ) {
     return fallback;
   }
@@ -67,7 +68,18 @@ export default function Navbar({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [gamesMenuHovered, setGamesMenuHovered] = useState(false);
-  const [catalogGames, setCatalogGames] = useState(NAV_GAMES);
+  const [catalogGames, setCatalogGames] = useState(() => {
+    const cached = getCachedCatalogue();
+    if (Array.isArray(cached?.games) && cached.games.length > 0) {
+      return cached.games.map((g) => ({
+        ...g,
+        providerCode: g.providerCode || g.id || g.code,
+        image: getSafeNavGameImage(g),
+        badge: g.badge || 'Live',
+      }));
+    }
+    return NAV_GAMES;
+  });
   const searchRef = useRef(null);
   const t = TRANSLATIONS[currentRegion?.lang || 'en'] || TRANSLATIONS.en;
 

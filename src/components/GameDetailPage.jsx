@@ -36,8 +36,28 @@ import { getStoredUser } from '../data/authStore';
 import { formatPrice, TRANSLATIONS } from '../data/regionStore';
 import { GAMES, findAuthorizedGame } from '../data/games';
 import { verifySoraPlayer, createSoraTopupOrder } from '../data/soraStore';
+import { getBootSiteConfig } from '../data/bootData';
 
 const MAX_PURCHASE_QUANTITY = 10;
+
+function findConfiguredGameMatch(candidateGame, gamesList) {
+  if (!candidateGame || !Array.isArray(gamesList)) return null;
+  const selectedIdentifiers = new Set(
+    [
+      candidateGame.id,
+      candidateGame.slug,
+      candidateGame.providerCode,
+      candidateGame.code,
+    ]
+      .filter(Boolean)
+      .map((id) => String(id).toLowerCase())
+  );
+  return gamesList.find((g) =>
+    [g.id, g.slug, g.providerCode, g.code]
+      .filter(Boolean)
+      .some((id) => selectedIdentifiers.has(String(id).toLowerCase()))
+  ) || null;
+}
 
 export default function GameDetailPage({
   game: propGame,
@@ -155,14 +175,24 @@ export default function GameDetailPage({
   // Region selection
   const [selectedRegion, setSelectedRegion] = useState(game?.region || 'Global');
 
-  // Dynamic Config, Stock & MLBB Events from Backend
-  const [isStockOpen, setIsStockOpen] = useState(true);
+  // Dynamic Config, Stock & MLBB Events from Backend (synced with server boot data immediately)
+  const initialMatchedGame = useMemo(() => {
+    const bootCfg = getBootSiteConfig();
+    return findConfiguredGameMatch(propGame || game, bootCfg?.games);
+  }, [propGame, game]);
+
+  const [isStockOpen, setIsStockOpen] = useState(() => (initialMatchedGame ? initialMatchedGame.stockOpen !== false : true));
   const [providerDown, setProviderDown] = useState(Boolean(game?.maintenance));
   const [providerDownReason, setProviderDownReason] = useState(game?.maintenanceReason || '');
-  const [dynamicPackages, setDynamicPackages] = useState(game.packages || []);
-  const [customGameImage, setCustomGameImage] = useState(propGame?.image || game?.image || '');
-  const [customGameBanner, setCustomGameBanner] = useState(propGame?.banner || game?.banner || '');
-  const [mlbbEvents, setMlbbEvents] = useState([]);
+  const [dynamicPackages, setDynamicPackages] = useState(() => (initialMatchedGame?.packages?.length ? initialMatchedGame.packages : (game.packages || [])));
+  const [customGameImage, setCustomGameImage] = useState(() => initialMatchedGame?.image || propGame?.image || game?.image || '');
+  const [customGameBanner, setCustomGameBanner] = useState(() => initialMatchedGame?.banner || propGame?.banner || game?.banner || '');
+  const [mlbbEvents, setMlbbEvents] = useState(() => {
+    const bootCfg = getBootSiteConfig();
+    return (game?.id === 'ml' || game?.providerCode === 'ml') && Array.isArray(bootCfg?.mlbbEvents)
+      ? bootCfg.mlbbEvents
+      : [];
+  });
   const [selectedEventId, setSelectedEventId] = useState('regular'); // Tracks which visible package group owns the selection
 
   // Live provider health: auto-check so the game is marked unavailable while its supplier is down.
@@ -189,34 +219,13 @@ export default function GameDetailPage({
   }, [game.providerCode, game.id]);
 
   useEffect(() => {
+    // If boot data is already present, skip duplicate initial fetch to avoid flickering
+    if (getBootSiteConfig()) return;
     fetch('/api/site-config')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          const selectedIdentifiers = new Set(
-            [
-              game.id,
-              game.slug,
-              game.providerCode,
-              game.code,
-              propGame?.id,
-              propGame?.slug,
-              propGame?.providerCode,
-              propGame?.code,
-            ]
-              .filter(Boolean)
-              .map((identifier) => String(identifier).toLowerCase())
-          );
-          const matchedGame = data.games?.find((configuredGame) =>
-            [
-              configuredGame.id,
-              configuredGame.slug,
-              configuredGame.providerCode,
-              configuredGame.code,
-            ]
-              .filter(Boolean)
-              .some((identifier) => selectedIdentifiers.has(String(identifier).toLowerCase()))
-          );
+          const matchedGame = findConfiguredGameMatch(propGame || game, data.games);
           if (matchedGame) {
             setIsStockOpen(matchedGame.stockOpen !== false);
             if (matchedGame.image) setCustomGameImage(matchedGame.image);

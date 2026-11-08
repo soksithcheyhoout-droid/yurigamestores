@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ShieldCheck, Zap } from 'lucide-react';
 import { fetchSoraGameWithPackages } from '../data/soraStore';
 import YuriGameLogo, { getSiteLogo, isValidLogoUrl } from './YuriGameLogo';
+import { getBootBanners } from '../data/bootData';
 
 const AUTO_PLAY_MS = 6500;
 const HERO_CACHE_KEY = 'yurigame_hero_slides_v3';
@@ -55,6 +56,24 @@ function sanitizeSlide(rawSlide, idx = 0) {
     position: s.position || 'center',
     kind: s.kind,
   };
+}
+
+function getInitialSlides() {
+  // Server-injected live banners (from the database) win on every page load/refresh.
+  const bootBanners = getBootBanners();
+  if (bootBanners) {
+    const active = bootBanners.filter((b) => b && b.active !== false);
+    if (active.length > 0) {
+      const mapped = active.map((b, idx) => sanitizeSlide(b, idx));
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(HERO_CACHE_KEY, JSON.stringify(mapped));
+        }
+      } catch {}
+      return mapped;
+    }
+  }
+  return getCachedSlides();
 }
 
 function getCachedSlides() {
@@ -112,7 +131,7 @@ const PROMO_SLIDES = [
 ];
 
 export default function Hero({ onSelectGame }) {
-  const [slides, setSlides] = useState(() => getCachedSlides() || PROMO_SLIDES);
+  const [slides, setSlides] = useState(() => getInitialSlides() || PROMO_SLIDES);
   const [brandLogo, setBrandLogo] = useState(() => getSiteLogo());
   const [activeIndex, setActiveIndex] = useState(0);
   const [direction, setDirection] = useState(null);
@@ -142,6 +161,8 @@ export default function Hero({ onSelectGame }) {
   }, []);
 
   useEffect(() => {
+    // Banners were already injected by the server for this page load — no second fetch/swap.
+    if (getBootBanners()) return;
     fetch('/api/site-config', { cache: 'no-store' })
       .then(r => r.json())
       .then(d => {

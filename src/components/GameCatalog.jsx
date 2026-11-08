@@ -98,6 +98,9 @@ export default function GameCatalog({
   const [providerError, setProviderError] = useState('');
   const [reloadToken, setReloadToken] = useState(0);
   const [openingGameCode, setOpeningGameCode] = useState('');
+  // True when we already have real (server-injected or cached) images. Otherwise we show a
+  // neutral skeleton instead of default artwork, so a default image never flashes first.
+  const [hasRealImages, setHasRealImages] = useState(() => Boolean(getCachedCatalogue()?.games?.length));
   const selectedCategory = externalCategory ?? internalCategory;
   const setSelectedCategory = setExternalCategory || setInternalCategory;
 
@@ -171,9 +174,11 @@ export default function GameCatalog({
           setProviderState('ready');
           setProviderError('');
         }
+        setHasRealImages(true);
       })
       .catch((error) => {
         if (!active) return;
+        setHasRealImages(true);
         console.warn('Catalogue sync check:', error?.message);
       });
 
@@ -350,16 +355,21 @@ export default function GameCatalog({
                   className="group relative flex flex-col justify-between rounded-xl sm:rounded-2xl bg-gradient-to-b from-[#181926]/90 to-[#0e0f16]/95 p-1.5 sm:p-2.5 border border-slate-800/90 hover:border-[#E3062F]/60 transition-all duration-300 shadow-md hover:shadow-[0_10px_25px_rgba(227,6,47,0.25)] hover:-translate-y-0.5 text-left cursor-pointer disabled:cursor-wait disabled:opacity-70"
                 >
                   <div className="relative aspect-square w-full overflow-hidden rounded-lg sm:rounded-xl border border-slate-700/50 bg-[#12131C] shadow-inner">
-                    <img
-                      src={getSafeGameImage(game, game.image)}
-                      alt={game.name}
-                      loading="eager"
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      onError={(event) => {
-                        event.currentTarget.onerror = null;
-                        event.currentTarget.src = getSafeGameImage(game, '');
-                      }}
-                    />
+                    {hasRealImages || game.comingSoon ? (
+                      <img
+                        src={getSafeGameImage(game, game.image)}
+                        alt={game.name}
+                        loading="eager"
+                        decoding="async"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = getSafeGameImage(game, '');
+                        }}
+                      />
+                    ) : (
+                      <span className="block h-full w-full animate-pulse bg-gradient-to-br from-slate-800/80 to-slate-900" aria-hidden="true" />
+                    )}
                     <span className="pointer-events-none absolute inset-x-0 bottom-0 h-6 sm:h-10 bg-gradient-to-t from-black/65 to-transparent" />
                     <span
                       className={`absolute left-1 top-1 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-wider backdrop-blur-sm ${game.comingSoon

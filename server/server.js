@@ -1729,9 +1729,30 @@ app.get('/api/soratopup/image/:gameCode', async (req, res) => {
   }
 });
 
+async function buildPublicCatalogue() {
+  const catalogue = await getSoraCatalogue();
+  return {
+    count: catalogue.count,
+    fetchedAt: catalogue.fetchedAt,
+    games: [
+      ...catalogue.games.map((g) => {
+        const h = getProviderHealth(g.code);
+        const pub = publicSoraGame(g);
+        const down = !h.ok || pub.adminMaintenance === true;
+        return { ...pub, maintenance: down, maintenanceReason: pub.adminMaintenance ? 'Temporarily disabled by admin' : (h.reason || '') };
+      }),
+      // Admin-imported games (anything beyond the 4 core games). Resilient: a bad entry can't break the list.
+      ...((getAdminFullConfig()?.games || [])
+        .filter((g) => !CORE_GAME_CODES.has(String(g.id || g.providerCode || '').toLowerCase()))
+        .map((g) => { try { return publicImportedGame(g); } catch { return null; } })
+        .filter(Boolean)),
+    ],
+  };
+}
+
 app.get('/api/soratopup/catalogue', async (req, res) => {
   try {
-    const catalogue = await getSoraCatalogue();
+    const catalogue = await buildPublicCatalogue();
     res.set({
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
       'Pragma': 'no-cache',
@@ -1740,21 +1761,7 @@ app.get('/api/soratopup/catalogue', async (req, res) => {
     return res.json({
       success: true,
       provider: 'soratopup',
-      count: catalogue.count,
-      fetchedAt: catalogue.fetchedAt,
-      games: [
-        ...catalogue.games.map((g) => {
-          const h = getProviderHealth(g.code);
-          const pub = publicSoraGame(g);
-          const down = !h.ok || pub.adminMaintenance === true;
-          return { ...pub, maintenance: down, maintenanceReason: pub.adminMaintenance ? 'Temporarily disabled by admin' : (h.reason || '') };
-        }),
-        // Admin-imported games (anything beyond the 4 core games). Resilient: a bad entry can't break the list.
-        ...((getAdminFullConfig()?.games || [])
-          .filter((g) => !CORE_GAME_CODES.has(String(g.id || g.providerCode || '').toLowerCase()))
-          .map((g) => { try { return publicImportedGame(g); } catch { return null; } })
-          .filter(Boolean)),
-      ],
+      ...catalogue,
     });
   } catch (error) {
     return sendSoraTopupError(res, error);
@@ -3740,16 +3747,89 @@ app.use((error, req, res, next) => {
 // Static Assets Serving (uploads, game tiles, promo banners)
 app.use('/assets', express.static(path.join(PROJECT_ROOT, 'public', 'assets'), { maxAge: '7d' }));
 
+// Resolves once the durable admin config (logo, game images, banners) is loaded from MySQL.
+let markAdminConfigReady = () => {};
+const adminConfigReady = new Promise((resolve) => { markAdminConfigReady = resolve; });
+
 // Production Static Serving for Built React Frontend
 if (fs.existsSync(distPath)) {
   console.log(`📦 Serving production build from: ${distPath}`);
-  app.use(express.static(distPath));
+  const indexHtmlPath = path.join(distPath, 'index.html');
+  let indexHtmlTemplate = null;
+  const getIndexHtmlTemplate = () => {
+    if (indexHtmlTemplate === null) {
+      indexHtmlTemplate = fs.readFileSync(indexHtmlPath, 'utf8');
+    }
+    return indexHtmlTemplate;
+  };
+
+  // Safely serialize JSON inside a <script> tag (prevents </script> breakouts / XSS).
+  const serializeForScript = (value) => JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+
+  const withTimeout = (promise, ms) => Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+
+  // Inject the live admin config (logo, game images, banners) straight into the HTML so the
+  // very first paint shows the admin's images — no default image flashing before the API answers.
+  const sendBootstrappedIndex = async (req, res) => {
+    let html;
+    try {
+      html = getIndexHtmlTemplate();
+    } catch {
+      return res.sendFile(indexHtmlPath);
+    }
+
+    const boot = { siteConfig: null, catalogue: null, generatedAt: Date.now() };
+    // Right after a redeploy, wait briefly for the DB config so we never inject default images.
+    await withTimeout(adminConfigReady, 4000);
+    try {
+      boot.siteConfig = { success: true, ...getPublicSiteConfig() };
+    } catch (e) {
+      console.warn('[Boot] Site config injection skipped:', e?.message);
+    }
+    try {
+      boot.catalogue = await withTimeout(buildPublicCatalogue().catch(() => null), 2500);
+    } catch {
+      boot.catalogue = null;
+    }
+
+    const siteLogo = boot.siteConfig?.siteLogo || boot.siteConfig?.contacts?.siteLogo;
+    const preloadTags = [];
+    if (typeof siteLogo === 'string' && siteLogo.startsWith('/')) {
+      preloadTags.push(`<link rel="preload" as="image" href="${siteLogo.replace(/"/g, '&quot;')}" fetchpriority="high">`);
+    }
+    const firstBanner = (boot.siteConfig?.banners || []).find((b) => b && b.active !== false && typeof b.image === 'string' && b.image.startsWith('/'));
+    if (firstBanner) {
+      preloadTags.push(`<link rel="preload" as="image" href="${firstBanner.image.replace(/"/g, '&quot;')}" fetchpriority="high">`);
+    }
+
+    const bootScript = `<script>window.__YURI_BOOT__=${serializeForScript(boot)};</script>`;
+    const output = html.replace('</head>', `${preloadTags.join('')}${bootScript}</head>`);
+
+    res.set({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    });
+    return res.send(output);
+  };
+
+  // index: false so "/" is never served as a stale static index.html without boot data.
+  app.use(express.static(distPath, { index: false }));
   app.use((req, res, next) => {
     if (req.path.startsWith('/assets/')) {
       return res.status(404).end();
     }
     if ((req.method === 'GET' || req.method === 'HEAD') && !req.path.startsWith('/api') && !req.path.startsWith('/health')) {
-      return res.sendFile(path.join(distPath, 'index.html'));
+      return sendBootstrappedIndex(req, res).catch(() => res.sendFile(indexHtmlPath));
     }
     next();
   });
@@ -3761,6 +3841,7 @@ export const httpServer = app.listen(PORT, '0.0.0.0', async () => {
   // Load the durable admin config (imported games, prices, logos) from MySQL so it survives redeploys.
   // Runs even if the schema step above hiccuped, so imported games are always restored.
   await loadAdminConfigFromDb().catch((e) => console.warn('[Admin Store] DB config load skipped:', e.message));
+  markAdminConfigReady();
   if (process.env.SORA_STARTUP_SYNC_DISABLED !== 'true') {
     syncConfiguredPackagesWithSora()
       .then((result) => {

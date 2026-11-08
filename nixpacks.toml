@@ -1,0 +1,14 @@
+# Railway Nixpacks Configuration
+# Ensures dev dependencies and Node 22 are available for Vite build
+[variables]
+NPM_CONFIG_PRODUCTION = "false"
+NODE_VERSION = "22"
+
+[phases.install]
+cmds = ["npm install --include=dev"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm start"

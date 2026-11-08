@@ -4,8 +4,18 @@
 
 function readBoot() {
   if (typeof window === 'undefined') return null;
-  const boot = window.__YURI_BOOT__;
-  return boot && typeof boot === 'object' ? boot : null;
+  if (window.__YURI_BOOT__ && typeof window.__YURI_BOOT__ === 'object') {
+    return window.__YURI_BOOT__;
+  }
+  try {
+    const el = document.getElementById('__YURI_BOOT__');
+    if (el?.textContent) {
+      const parsed = JSON.parse(el.textContent);
+      window.__YURI_BOOT__ = parsed;
+      return parsed;
+    }
+  } catch {}
+  return null;
 }
 
 const BOOT = readBoot();

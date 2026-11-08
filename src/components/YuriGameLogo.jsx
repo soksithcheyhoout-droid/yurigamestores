@@ -6,52 +6,7 @@ const SITE_LOGO_STORAGE_KEY = 'yurigame_site_logo_v2';
 const SITE_CONFIG_CACHE_KEY = 'yurigame_site_config_cache_v3';
 
 let memorySiteLogo = null;
-const trimmedLogoCache = new Map();
-const TRIMMED_LOGO_STORAGE_KEY = 'yurigame_logo_trimmed_v1';
-
-function hashLogoSource(str) {
-  const s = String(str || '');
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  }
-  return `${s.length}_${h >>> 0}`;
-}
-
-// Restore the last trimmed logo from storage so a refresh paints the final logo instantly.
-(function hydrateTrimmedLogoCache() {
-  if (typeof window === 'undefined') return;
-  try {
-    const raw = window.localStorage.getItem(TRIMMED_LOGO_STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.hash === 'string' && typeof parsed.trimmed === 'string') {
-      trimmedLogoCache.set(`hash:${parsed.hash}`, parsed.trimmed);
-    }
-  } catch {}
-})();
-
-function getStoredTrimmedLogo(srcUrl) {
-  if (trimmedLogoCache.has(srcUrl)) return trimmedLogoCache.get(srcUrl);
-  const byHash = trimmedLogoCache.get(`hash:${hashLogoSource(srcUrl)}`);
-  if (byHash) {
-    const resolved = byHash === '__self__' ? srcUrl : byHash;
-    trimmedLogoCache.set(srcUrl, resolved);
-    return resolved;
-  }
-  return '';
-}
-
-function persistTrimmedLogo(srcUrl, trimmed) {
-  trimmedLogoCache.set(srcUrl, trimmed);
-  if (typeof window === 'undefined') return;
-  try {
-    const hash = hashLogoSource(srcUrl);
-    const stored = trimmed === srcUrl ? '__self__' : trimmed;
-    trimmedLogoCache.set(`hash:${hash}`, stored);
-    window.localStorage.setItem(TRIMMED_LOGO_STORAGE_KEY, JSON.stringify({ hash, trimmed: stored }));
-  } catch {}
-}
+let didInitialRemoteCheck = false;
 
 function updateBrowserFavicon(logoUrl) {
   if (typeof document === 'undefined' || !logoUrl) return;
@@ -88,94 +43,6 @@ export function isValidLogoUrl(val) {
     clean.startsWith('https://') ||
     clean.startsWith('http://')
   );
-}
-
-/**
- * Automatically tight-crops excess transparent margins around a logo image
- * so the emblem/character fills 100% of its display container.
- */
-function autoTrimTransparentLogo(srcUrl) {
-  return new Promise((resolve) => {
-    if (typeof document === 'undefined' || !isValidLogoUrl(srcUrl)) {
-      return resolve(srcUrl);
-    }
-    const known = getStoredTrimmedLogo(srcUrl);
-    if (known) {
-      return resolve(known);
-    }
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onerror = () => resolve(srcUrl);
-    img.onload = () => {
-      try {
-        const w = img.naturalWidth || img.width;
-        const h = img.naturalHeight || img.height;
-        if (!w || !h || w < 16 || h < 16) return resolve(srcUrl);
-        const maxDim = 512;
-        const scale = w > maxDim || h > maxDim ? maxDim / Math.max(w, h) : 1;
-        const cw = Math.max(1, Math.round(w * scale));
-        const ch = Math.max(1, Math.round(h * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = cw;
-        canvas.height = ch;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) return resolve(srcUrl);
-        ctx.drawImage(img, 0, 0, cw, ch);
-        const { data } = ctx.getImageData(0, 0, cw, ch);
-
-        let minX = cw;
-        let minY = ch;
-        let maxX = 0;
-        let maxY = 0;
-        let found = false;
-
-        for (let y = 0; y < ch; y++) {
-          for (let x = 0; x < cw; x++) {
-            const a = data[(y * cw + x) * 4 + 3];
-            if (a > 45) {
-              if (x < minX) minX = x;
-              if (x > maxX) maxX = x;
-              if (y < minY) minY = y;
-              if (y > maxY) maxY = y;
-              found = true;
-            }
-          }
-        }
-
-        const boxW = maxX - minX + 1;
-        const boxH = maxY - minY + 1;
-        if (!found || boxW < 12 || boxH < 12) {
-          persistTrimmedLogo(srcUrl, srcUrl);
-          return resolve(srcUrl);
-        }
-
-        // Only re-encode if trimming actually removes meaningful margin (>4% on any axis)
-        if (boxW >= cw * 0.96 && boxH >= ch * 0.96) {
-          persistTrimmedLogo(srcUrl, srcUrl);
-          return resolve(srcUrl);
-        }
-
-        const pad = 2;
-        const sx = Math.max(0, minX - pad);
-        const sy = Math.max(0, minY - pad);
-        const sw = Math.min(cw - sx, boxW + pad * 2);
-        const sh = Math.min(ch - sy, boxH + pad * 2);
-
-        const out = document.createElement('canvas');
-        out.width = sw;
-        out.height = sh;
-        const outCtx = out.getContext('2d');
-        if (!outCtx) return resolve(srcUrl);
-        outCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
-        const trimmedDataUrl = out.toDataURL('image/png');
-        persistTrimmedLogo(srcUrl, trimmedDataUrl);
-        resolve(trimmedDataUrl);
-      } catch {
-        resolve(srcUrl);
-      }
-    };
-    img.src = srcUrl;
-  });
 }
 
 export function getSiteLogo() {
@@ -248,8 +115,6 @@ export function setSiteLogo(newLogo) {
   return clean;
 }
 
-let didInitialRemoteCheck = false;
-
 const SIZE_STYLES = {
   xs: {
     mark: 'h-10 w-auto min-w-[40px] max-w-[96px] sm:h-11 sm:min-w-[44px] sm:max-w-[110px]',
@@ -313,7 +178,6 @@ export default function YuriGameLogo({
 
     if (!didInitialRemoteCheck) {
       didInitialRemoteCheck = true;
-      // Server already injected the live logo into the page — no need to re-fetch and re-render.
       if (getBootSiteLogo()) {
         updateBrowserFavicon(getSiteLogo());
       } else {
@@ -338,39 +202,6 @@ export default function YuriGameLogo({
 
   const candidateLogo = overrideLogo || siteLogo || DEFAULT_SITE_LOGO;
   const activeLogo = isValidLogoUrl(candidateLogo) ? candidateLogo : DEFAULT_SITE_LOGO;
-  const [trimmedFor, setTrimmedFor] = useState(() => {
-    if (activeLogo === DEFAULT_SITE_LOGO) {
-      return { src: activeLogo, out: DEFAULT_SITE_LOGO };
-    }
-    const known = getStoredTrimmedLogo(activeLogo);
-    return known ? { src: activeLogo, out: known } : null;
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    if (activeLogo === DEFAULT_SITE_LOGO) {
-      setTrimmedFor({ src: activeLogo, out: DEFAULT_SITE_LOGO });
-      return undefined;
-    }
-    const known = getStoredTrimmedLogo(activeLogo);
-    if (known) {
-      setTrimmedFor((prev) => (prev?.src === activeLogo && prev?.out === known ? prev : { src: activeLogo, out: known }));
-      return undefined;
-    }
-    autoTrimTransparentLogo(activeLogo).then((result) => {
-      if (!cancelled) {
-        setTrimmedFor({ src: activeLogo, out: result || activeLogo });
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeLogo]);
-
-  // If already trimmed or known, display immediately. If first time trimming an untrimmed image,
-  // show with gentle transition so there is never an ugly layout snap or blank box.
-  const isReady = Boolean(trimmedFor?.src === activeLogo || activeLogo === DEFAULT_SITE_LOGO);
-  const displayLogo = (trimmedFor?.src === activeLogo ? trimmedFor.out : '') || activeLogo;
 
   return (
     <span
@@ -382,13 +213,12 @@ export default function YuriGameLogo({
         aria-hidden="true"
       >
         <img
-          src={displayLogo}
+          src={activeLogo}
           alt=""
           loading="eager"
           fetchPriority="high"
-          decoding="sync"
-          className="h-full w-auto max-w-full object-contain drop-shadow-[0_3px_10px_rgba(0,0,0,0.55)] transition-opacity duration-150"
-          style={{ opacity: isReady ? 1 : 0.85 }}
+          decoding="async"
+          className="h-full w-auto max-w-full object-contain drop-shadow-[0_3px_10px_rgba(0,0,0,0.55)]"
           draggable="false"
           onError={(e) => {
             if (!e.currentTarget.src.endsWith(DEFAULT_SITE_LOGO)) {

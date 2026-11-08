@@ -1786,6 +1786,12 @@ input:focus-visible {
   pointer-events: none;
 }
 
+@media (max-width: 768px) {
+  .topbar-promo-backdrop {
+    display: none;
+  }
+}
+
 .topbar-promo-image-frame {
   position: absolute;
   z-index: 2;

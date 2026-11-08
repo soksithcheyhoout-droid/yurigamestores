@@ -263,4 +263,4 @@ try {
   if (Array.isArray(bootGames) && bootGames.length > 0) {
     syncGamesWithAdminConfig(bootGames);
   }
-} catch {}
+} catch { }

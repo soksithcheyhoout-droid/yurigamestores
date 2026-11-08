@@ -3786,18 +3786,11 @@ if (fs.existsSync(distPath)) {
       return res.sendFile(indexHtmlPath);
     }
 
-    const boot = { siteConfig: null, catalogue: null, generatedAt: Date.now() };
-    // Right after a redeploy, wait briefly for the DB config so we never inject default images.
-    await withTimeout(adminConfigReady, 4000);
+    const boot = { siteConfig: null, generatedAt: Date.now() };
     try {
       boot.siteConfig = { success: true, ...getPublicSiteConfig() };
     } catch (e) {
       console.warn('[Boot] Site config injection skipped:', e?.message);
-    }
-    try {
-      boot.catalogue = await withTimeout(buildPublicCatalogue().catch(() => null), 2500);
-    } catch {
-      boot.catalogue = null;
     }
 
     const siteLogo = boot.siteConfig?.siteLogo || boot.siteConfig?.contacts?.siteLogo;
@@ -3810,7 +3803,8 @@ if (fs.existsSync(distPath)) {
       preloadTags.push(`<link rel="preload" as="image" href="${firstBanner.image.replace(/"/g, '&quot;')}" fetchpriority="high">`);
     }
 
-    const bootScript = `<script>window.__YURI_BOOT__=${serializeForScript(boot)};</script>`;
+    const safeJson = JSON.stringify(boot).replace(/<\/script/gi, '<\\/script');
+    const bootScript = `<script id="__YURI_BOOT__" type="application/json">${safeJson}</script><script>try{window.__YURI_BOOT__=JSON.parse(document.getElementById("__YURI_BOOT__").textContent);}catch(e){}</script>`;
     const output = html.replace('</head>', `${preloadTags.join('')}${bootScript}</head>`);
 
     res.set({

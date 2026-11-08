@@ -187,20 +187,18 @@ export default function Hero({ onSelectGame }) {
       .catch(() => {});
   }, []);
 
-  // Preload all slide images in memory so switching slides never flashes black or decodes late
+  // Preload immediate next slide image gently on desktop without overwhelming mobile VRAM
   useEffect(() => {
-    if (typeof window === 'undefined' || !Array.isArray(slides)) return;
-    slides.forEach((s) => {
-      if (s?.image) {
-        const img = new window.Image();
-        img.src = s.image;
-      }
-      if (s?.fallbackImage && s.fallbackImage !== s.image) {
-        const fb = new window.Image();
-        fb.src = s.fallbackImage;
-      }
-    });
-  }, [slides]);
+    if (typeof window === 'undefined' || !Array.isArray(slides) || slides.length < 2) return;
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) return;
+    const nextIdx = (activeIndex + 1) % slides.length;
+    const nextSlide = slides[nextIdx];
+    if (nextSlide?.image) {
+      const img = new window.Image();
+      img.src = nextSlide.image;
+    }
+  }, [slides, activeIndex]);
 
   const wrapIndex = (index) => {
     return (index + slides.length) % slides.length;

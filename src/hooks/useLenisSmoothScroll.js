@@ -40,21 +40,24 @@ export function resumeLenis() {
 export function useLenisSmoothScroll() {
   useEffect(() => {
     // Check if the user is on a touch device (phones/tablets).
-    // Native touch scrolling provides silky 120Hz/60Hz hardware acceleration.
+    // Native touch scrolling provides silky 120Hz/60Hz hardware momentum.
     const isTouchDevice = typeof window !== 'undefined' && (
       'ontouchstart' in window ||
       navigator.maxTouchPoints > 0 ||
       window.matchMedia('(pointer: coarse)').matches
     );
 
-    // Initialize Lenis with optimized inertia for desktop wheel,
-    // leaving touch devices to native hardware momentum scroll.
+    if (isTouchDevice) {
+      return undefined;
+    }
+
+    // Initialize Lenis with optimized inertia for desktop wheel
     const lenis = new Lenis({
       duration: 0.85,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
-      smoothWheel: !isTouchDevice,
+      smoothWheel: true,
       syncTouch: false,
       touchMultiplier: 1.0,
       infinite: false,

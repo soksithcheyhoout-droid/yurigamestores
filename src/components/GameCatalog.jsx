@@ -358,14 +358,6 @@ export default function GameCatalog({
                   className="group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-b from-[#181926]/95 to-[#0b0c12]/98 border border-slate-800/90 hover:border-[#E3062F]/70 transition-all duration-300 shadow-md hover:shadow-[0_10px_28px_rgba(227,6,47,0.3)] hover:-translate-y-0.5 text-left cursor-pointer disabled:cursor-wait disabled:opacity-70"
                 >
                   <div className="relative aspect-square w-full overflow-hidden bg-[#101118]">
-                    {/* Ambient backdrop layer: guarantees 100% full-card coverage with zero black voids or letterbox gaps */}
-                    <img
-                      src={getSafeGameImage(game, game.image)}
-                      alt=""
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 h-full w-full object-cover filter blur-md scale-110 opacity-40"
-                    />
-
                     {hasRealImages || game.comingSoon ? (
                       <img
                         src={getSafeGameImage(game, game.image)}

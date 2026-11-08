@@ -8,8 +8,8 @@ const SITE_CONFIG_CACHE_KEY = 'yurigame_site_config_cache_v3';
 let memorySiteLogo = null;
 let didInitialRemoteCheck = false;
 
-function updateBrowserFavicon(logoUrl) {
-  if (typeof document === 'undefined' || !logoUrl) return;
+function updateBrowserFavicon(_logoUrl) {
+  if (typeof document === 'undefined') return;
   try {
     let iconLink = document.querySelector("link[rel~='icon']");
     if (!iconLink) {
@@ -17,7 +17,9 @@ function updateBrowserFavicon(logoUrl) {
       iconLink.rel = 'icon';
       document.head.appendChild(iconLink);
     }
-    iconLink.href = logoUrl;
+    // Always use the official crisp high-contrast favicon for the browser tab
+    // Large wide logos squeezed into 16x16 become blurry/washed-out blobs
+    iconLink.href = '/assets/brand/yurigame-favicon.png';
   } catch {}
 }
 
@@ -148,6 +150,7 @@ export default function YuriGameLogo({
   size = 'md',
   inverse = false,
   overrideLogo = '',
+  showText,
 }) {
   const styles = SIZE_STYLES[size] || SIZE_STYLES.md;
   const [siteLogo, setSiteLogoState] = useState(() => getSiteLogo());
@@ -203,18 +206,22 @@ export default function YuriGameLogo({
   const candidateLogo = overrideLogo || siteLogo || DEFAULT_SITE_LOGO;
   const activeLogo = isValidLogoUrl(candidateLogo) ? candidateLogo : DEFAULT_SITE_LOGO;
 
+  const isCustom = isCustomSiteLogo(activeLogo);
+  // When user uses a custom logo image, show just the logo image by default (no duplicate/truncated text)
+  const shouldShowText = typeof showText === 'boolean' ? showText : !isCustom;
+
   return (
     <span
       className={`inline-flex min-w-0 items-center ${styles.gap} ${className}`}
       aria-label="YuriGame Store"
     >
       <span
-        className={`${styles.mark} relative shrink-0 overflow-visible flex items-center justify-center bg-transparent`}
+        className={`${isCustom ? 'h-11 w-auto max-w-[220px] sm:h-13 sm:max-w-[260px]' : styles.mark} relative shrink-0 overflow-visible flex items-center justify-center bg-transparent`}
         aria-hidden="true"
       >
         <img
           src={activeLogo}
-          alt=""
+          alt="YuriGame Store Logo"
           loading="eager"
           fetchPriority="high"
           decoding="async"
@@ -228,13 +235,15 @@ export default function YuriGameLogo({
         />
       </span>
 
-      <span className="flex min-w-0 flex-col leading-none">
-        <span className={`${styles.word} whitespace-nowrap font-black uppercase tracking-[-0.055em]`}>
-          <span className={inverse ? 'text-white' : 'text-[#111217]'}>Yuri</span>
-          <span className="text-[#e3062f]">Game</span>
-          <span className={inverse ? 'text-white' : 'text-[#111217]'}>Store</span>
+      {shouldShowText && (
+        <span className="flex min-w-0 flex-col leading-none">
+          <span className={`${styles.word} whitespace-nowrap font-black uppercase tracking-[-0.055em]`}>
+            <span className={inverse ? 'text-white' : 'text-[#111217]'}>Yuri</span>
+            <span className="text-[#e3062f]">Game</span>
+            <span className={inverse ? 'text-white' : 'text-[#111217]'}>Store</span>
+          </span>
         </span>
-      </span>
+      )}
     </span>
   );
 }

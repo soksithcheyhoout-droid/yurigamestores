@@ -228,10 +228,23 @@ export default function AdminDashboard({ onBackToStore }) {
 
   // Website Brand Logo & Auto-Cut Background Controls
   const [siteLogoState, setSiteLogoState] = useState(() => getSiteLogo());
-  const [originalSiteLogo, setOriginalSiteLogo] = useState(null);
+  const [originalSiteLogo, setOriginalSiteLogoState] = useState(() => {
+    try {
+      return localStorage.getItem('yurigame_original_site_logo') || null;
+    } catch {
+      return null;
+    }
+  });
+  const setOriginalSiteLogo = (url) => {
+    setOriginalSiteLogoState(url);
+    try {
+      if (url) localStorage.setItem('yurigame_original_site_logo', url);
+      else localStorage.removeItem('yurigame_original_site_logo');
+    } catch {}
+  };
   const [siteLogoUrlInput, setSiteLogoUrlInput] = useState('');
   const [isProcessingSiteLogo, setIsProcessingSiteLogo] = useState(false);
-  const [autoCutLogoBg, setAutoCutLogoBg] = useState(true);
+  const [autoCutLogoBg, setAutoCutLogoBg] = useState(false);
   const [logoBgColorMode, setLogoBgColorMode] = useState('auto'); // 'auto' | 'white' | 'black' | 'custom'
   const [logoCustomBgHex, setLogoCustomBgHex] = useState('#ffffff');
   const [logoCutInner, setLogoCutInner] = useState(false);
@@ -1037,7 +1050,7 @@ export default function AdminDashboard({ onBackToStore }) {
     }
   };
 
-  const handleUploadSiteLogoFile = async (file) => {
+  const handleUploadSiteLogoFile = async (file, forceCut = false) => {
     if (!file) return;
     setIsProcessingSiteLogo(true);
     const reader = new FileReader();
@@ -1049,8 +1062,8 @@ export default function AdminDashboard({ onBackToStore }) {
       }
       setOriginalSiteLogo(rawSrc);
 
-      let processedSrc = rawSrc;
-      if (autoCutLogoBg) {
+      const shouldCut = Boolean(forceCut || autoCutLogoBg);
+      if (shouldCut) {
         try {
           const cut = await removeImageBackground(rawSrc, logoTolerance, 20, {
             targetColor: resolveLogoTargetColor(),
@@ -1059,34 +1072,18 @@ export default function AdminDashboard({ onBackToStore }) {
             forceCut: true,
           });
           if (cut && typeof cut === 'string' && cut.startsWith('data:image/')) {
-            processedSrc = cut;
+            await handleSaveSiteLogo(cut, 'Website logo updated with background cut transparent!');
+            setIsProcessingSiteLogo(false);
+            return;
           }
         } catch (e) {
           console.warn('Auto cut on upload failed:', e);
         }
       }
 
+      // Default: Keep original un-cut image directly as requested
+      await handleSaveSiteLogo(rawSrc, 'Website logo updated with original full image (no background cut)!');
       setIsProcessingSiteLogo(false);
-
-      openCropModal({
-        imageSrc: processedSrc,
-        title: 'Crop & Position Website Master Logo',
-        gameName: 'YuriGameStore',
-        aspectRatio: 1,
-        enableAutoCut: autoCutLogoBg,
-        isLogo: true,
-        onSave: async (croppedUrl) => {
-          setIsProcessingSiteLogo(true);
-          try {
-            await handleSaveSiteLogo(
-              croppedUrl,
-              'Website logo updated & 100% transparent — live across the entire website!'
-            );
-          } finally {
-            setIsProcessingSiteLogo(false);
-          }
-        },
-      });
     };
     reader.readAsDataURL(file);
   };
@@ -1148,9 +1145,12 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   const handleUndoCutSiteLogo = async () => {
-    if (!originalSiteLogo) return;
-    await handleSaveSiteLogo(originalSiteLogo, 'Restored original un-cut website logo!');
-    setOriginalSiteLogo(null);
+    const orig = originalSiteLogo || (typeof localStorage !== 'undefined' && localStorage.getItem('yurigame_original_site_logo'));
+    if (!orig) {
+      showToast('Upload your original logo image anytime below — it will be kept full with no background cut.');
+      return;
+    }
+    await handleSaveSiteLogo(orig, 'Restored original un-cut website logo!');
   };
 
   const handleResetSiteLogo = async () => {
@@ -3460,16 +3460,15 @@ export default function AdminDashboard({ onBackToStore }) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {originalSiteLogo && (
-                    <button
-                      type="button"
-                      onClick={handleUndoCutSiteLogo}
-                      className="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold cursor-pointer flex items-center gap-1.5"
-                    >
-                      <RefreshCw size={13} />
-                      <span>Undo Cut</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleUndoCutSiteLogo}
+                    className="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-colors"
+                    title="Restore full un-cut original logo image (no background cut)"
+                  >
+                    <RefreshCw size={13} />
+                    <span>Use Original Image (No Cut)</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleResetSiteLogo}
@@ -3504,13 +3503,13 @@ export default function AdminDashboard({ onBackToStore }) {
                       }}
                     />
                     <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/75 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
-                      Transparent PNG Preview
+                      Live Logo Preview
                     </span>
                   </div>
 
                   {/* Live Storefront Header Simulation */}
-                  <div className="rounded-xl border border-slate-800 bg-[#07090e] px-3.5 py-2.5 flex items-center justify-between gap-2 overflow-hidden">
-                    <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="rounded-xl border border-slate-800 bg-[#07090e] px-4 py-3 flex items-center justify-between gap-3 overflow-hidden">
+                    <div className="min-w-0 flex-1 flex items-center">
                       <YuriGameLogo size="sm" showBadge={false} inverse />
                     </div>
                     <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1 shrink-0">
@@ -3542,10 +3541,10 @@ export default function AdminDashboard({ onBackToStore }) {
                       <UploadCloud size={17} />
                       <span>
                         {isProcessingSiteLogo
-                          ? 'Processing & Cutting Background...'
+                          ? 'Processing Logo...'
                           : autoCutLogoBg
-                            ? 'Upload New Logo (Auto-Cut Background)'
-                            : 'Upload New Website Logo'}
+                            ? 'Upload Logo (Auto-Cut Background)'
+                            : 'Upload Logo (Keep Full Image - No Cut)'}
                       </span>
                     </label>
 

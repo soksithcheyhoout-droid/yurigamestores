@@ -2415,6 +2415,7 @@ export default function AdminDashboard({ onBackToStore }) {
                                 targetColor: resolveLogoTargetColor(),
                                 cutInnerHoles: logoCutInner,
                                 autoCut: autoCutLogoBg,
+                                forGameCard: true,
                               });
                               if (optimized) {
                                 await handleUpdateGameInfo(selectedGame.id, { image: optimized });
@@ -3646,6 +3647,7 @@ export default function AdminDashboard({ onBackToStore }) {
                                   targetColor: resolveLogoTargetColor(),
                                   cutInnerHoles: logoCutInner,
                                   autoCut: autoCutLogoBg,
+                                  forGameCard: true,
                                 });
                                 if (opt) setComingSoonImage(opt);
                               } catch { showToast('Failed to process image'); }
@@ -3790,6 +3792,7 @@ export default function AdminDashboard({ onBackToStore }) {
                                   targetColor: resolveLogoTargetColor(),
                                   cutInnerHoles: logoCutInner,
                                   autoCut: autoCutLogoBg,
+                                  forGameCard: true,
                                 });
                                 if (optimized) {
                                   await handleUpdateGameInfo(game.id, { image: optimized });

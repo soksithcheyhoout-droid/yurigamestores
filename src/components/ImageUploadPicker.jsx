@@ -394,6 +394,176 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
 };
 
 /**
+ * Detects and trims uniform solid or near-black/white letterboxing bars (common in game screenshots
+ * and wide banners) so the actual artwork expands to fill the card.
+ */
+export const cropLetterboxBars = (canvasOrImage, threshold = 26) => {
+  return new Promise((resolve) => {
+    try {
+      if (!canvasOrImage) return resolve(canvasOrImage);
+      const loadImage = () => new Promise((res) => {
+        if (typeof canvasOrImage === 'string') {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => res(img);
+          img.onerror = () => res(null);
+          img.src = canvasOrImage;
+        } else {
+          res(canvasOrImage);
+        }
+      });
+
+      loadImage().then((src) => {
+        if (!src) return resolve(canvasOrImage);
+        const w = src.naturalWidth || src.width;
+        const h = src.naturalHeight || src.height;
+        if (!w || !h || w < 20 || h < 20) return resolve(canvasOrImage);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return resolve(canvasOrImage);
+        ctx.drawImage(src, 0, 0, w, h);
+
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        // Sample outer 4 corner pixels to detect letterbox border color
+        const corners = [
+          [data[0], data[1], data[2]],
+          [data[(w - 1) * 4], data[(w - 1) * 4 + 1], data[(w - 1) * 4 + 2]],
+          [data[((h - 1) * w) * 4], data[((h - 1) * w) * 4 + 1], data[((h - 1) * w) * 4 + 2]],
+          [data[((h - 1) * w + w - 1) * 4], data[((h - 1) * w + w - 1) * 4 + 1], data[((h - 1) * w + w - 1) * 4 + 2]],
+        ];
+        const bgR = Math.round((corners[0][0] + corners[1][0] + corners[2][0] + corners[3][0]) / 4);
+        const bgG = Math.round((corners[0][1] + corners[1][1] + corners[2][1] + corners[3][1]) / 4);
+        const bgB = Math.round((corners[0][2] + corners[1][2] + corners[2][2] + corners[3][2]) / 4);
+
+        let minX = w;
+        let maxX = 0;
+        let minY = h;
+        let maxY = 0;
+        let found = false;
+
+        const step = Math.max(1, Math.floor(Math.min(w, h) / 300));
+        for (let y = 0; y < h; y += step) {
+          for (let x = 0; x < w; x += step) {
+            const idx = (y * w + x) * 4;
+            const a = data[idx + 3];
+            if (a > 30) {
+              const dr = data[idx] - bgR;
+              const dg = data[idx + 1] - bgG;
+              const db = data[idx + 2] - bgB;
+              const dist = Math.sqrt(dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11);
+              if (dist > threshold) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+                found = true;
+              }
+            }
+          }
+        }
+
+        // Only crop if letterbox bars are noticeable (> 3.5% on any side)
+        if (found && (minX > w * 0.035 || maxX < w * 0.965 || minY > h * 0.035 || maxY < h * 0.965)) {
+          const pad = 2;
+          const cx = Math.max(0, minX - pad);
+          const cy = Math.max(0, minY - pad);
+          const cw = Math.min(w - cx, maxX - minX + 1 + pad * 2);
+          const ch = Math.min(h - cy, maxY - minY + 1 + pad * 2);
+
+          if (cw > 20 && ch > 20) {
+            const cropped = document.createElement('canvas');
+            cropped.width = cw;
+            cropped.height = ch;
+            const cctx = cropped.getContext('2d');
+            if (cctx) {
+              cctx.drawImage(canvas, cx, cy, cw, ch, 0, 0, cw, ch);
+              return resolve(cropped.toDataURL('image/png'));
+            }
+          }
+        }
+        resolve(typeof canvasOrImage === 'string' ? canvasOrImage : canvas.toDataURL('image/png'));
+      });
+    } catch {
+      resolve(canvasOrImage);
+    }
+  });
+};
+
+/**
+ * Automatically fits any uploaded image into a vibrant, full-card square tile (600x600).
+ * - Crops off any letterboxing bars.
+ * - If square: scales cleanly to 100% full bleed.
+ * - If wide banner / emblem: fills the square with an ambient blurred background from the artwork,
+ *   and centers the crisp artwork scaled so all letters and details are 100% visible (never cut off like 'NGKO').
+ */
+export const autoFitGameCard = (canvasOrImage, targetSize = 600) => {
+  return new Promise((resolve) => {
+    cropLetterboxBars(canvasOrImage).then((croppedSource) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth || img.width;
+          const h = img.naturalHeight || img.height;
+          if (!w || !h) return resolve(croppedSource);
+
+          const out = document.createElement('canvas');
+          out.width = targetSize;
+          out.height = targetSize;
+          const ctx = out.getContext('2d');
+          if (!ctx) return resolve(croppedSource);
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+
+          const aspect = w / h;
+          // If already near square (0.85 to 1.15), scale to full-bleed square directly
+          if (aspect >= 0.85 && aspect <= 1.15) {
+            ctx.drawImage(img, 0, 0, targetSize, targetSize);
+            return resolve(out.toDataURL('image/png'));
+          }
+
+          // If wide or tall:
+          // 1. Draw ambient blurred cover backdrop so the entire 600x600 card is full of color
+          ctx.save();
+          const bgScale = Math.max(targetSize / w, targetSize / h);
+          const bgW = w * bgScale;
+          const bgH = h * bgScale;
+          ctx.drawImage(img, (targetSize - bgW) / 2, (targetSize - bgH) / 2, bgW, bgH);
+          ctx.restore();
+
+          // Dark vignette gradient for contrast
+          const grad = ctx.createRadialGradient(targetSize / 2, targetSize / 2, targetSize * 0.2, targetSize / 2, targetSize / 2, targetSize * 0.72);
+          grad.addColorStop(0, 'rgba(15, 17, 24, 0.35)');
+          grad.addColorStop(1, 'rgba(10, 11, 16, 0.88)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, targetSize, targetSize);
+
+          // 2. Draw foreground artwork centered and scaled so the ENTIRE emblem, text, and character are 100% visible
+          const fgScale = Math.min((targetSize * 0.94) / w, (targetSize * 0.94) / h);
+          const fgW = Math.round(w * fgScale);
+          const fgH = Math.round(h * fgScale);
+          const fgX = Math.round((targetSize - fgW) / 2);
+          const fgY = Math.round((targetSize - fgH) / 2);
+
+          ctx.drawImage(img, fgX, fgY, fgW, fgH);
+          resolve(out.toDataURL('image/png'));
+        } catch {
+          resolve(croppedSource);
+        }
+      };
+      img.onerror = () => resolve(croppedSource);
+      img.src = typeof croppedSource === 'string' ? croppedSource : canvasOrImage;
+    });
+  });
+};
+
+/**
  * Convenience helper to compress an uploaded logo file as PNG and automatically cut its background
  * (white, black, or any color). Always returns a string data URL (or null on failure).
  */
@@ -407,23 +577,39 @@ export const processLogoFileWithAutoCut = async (
     feather = 20,
     targetColor = 'auto',
     cutInnerHoles = false,
+    forGameCard = false,
   } = {}
 ) => {
   const dim = Number(maxWidth || maxDimension) || 800;
   const rawPng = await compressImageFile(file, dim, 0.92, 'png');
   if (!rawPng) return null;
-  if (!autoCut) return rawPng;
-  try {
-    const cutPng = await removeImageBackground(rawPng, tolerance, feather, {
-      targetColor,
-      cutInnerHoles,
-      maxDimension: dim,
-      forceCut: true,
-    });
-    return typeof cutPng === 'string' && cutPng.startsWith('data:image/') ? cutPng : rawPng;
-  } catch {
-    return rawPng;
+
+  let processed = rawPng;
+  if (autoCut) {
+    try {
+      const cutPng = await removeImageBackground(rawPng, tolerance, feather, {
+        targetColor,
+        cutInnerHoles,
+        maxDimension: dim,
+        forceCut: true,
+      });
+      if (typeof cutPng === 'string' && cutPng.startsWith('data:image/')) {
+        processed = cutPng;
+      }
+    } catch {}
   }
+
+  // When used for a game card tile, ensure it auto-crops letterbox bars and fills the full card
+  if (forGameCard) {
+    try {
+      const fitted = await autoFitGameCard(processed, 600);
+      if (typeof fitted === 'string' && fitted.startsWith('data:image/')) {
+        return fitted;
+      }
+    } catch {}
+  }
+
+  return processed;
 };
 
 /**

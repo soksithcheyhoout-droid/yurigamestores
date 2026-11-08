@@ -28,17 +28,21 @@ export default function ImageCropModal({
   onSave,
   onCancel,
   enableAutoCut = true,
+  isLogo = false,
 }) {
+  const isLogoMode = Boolean(isLogo || (title && title.toLowerCase().includes('logo')));
   const [zoom, setZoom] = useState(1);
   const [minZoom, setMinZoom] = useState(0.5);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [autoCutBg, setAutoCutBg] = useState(false);
+  const [autoCutBg, setAutoCutBg] = useState(() => Boolean(isLogoMode || enableAutoCut));
   const [isProcessingCut, setIsProcessingCut] = useState(false);
   const [cutImageSrc, setCutImageSrc] = useState(null);
   const [fitMode, setFitMode] = useState('cover'); // 'cover' | 'contain'
   const [previewUrl, setPreviewUrl] = useState('');
+
+  const isTransparentMode = Boolean(autoCutBg || isLogoMode);
 
   const imgRef = useRef(null);
   const canvasRef = useRef(null);
@@ -47,6 +51,22 @@ export default function ImageCropModal({
   const [imgDimensions, setImgDimensions] = useState({ width: 0, height: 0 });
 
   const activeSrc = (autoCutBg && cutImageSrc) ? cutImageSrc : imageSrc;
+
+  // Automatically trigger background cut on open if in logo mode or auto-cut requested
+  useEffect(() => {
+    if (isOpen && (isLogoMode || enableAutoCut) && imageSrc && !cutImageSrc) {
+      setIsProcessingCut(true);
+      removeImageBackground(imageSrc, 85, 20, { targetColor: 'auto', forceCut: true, trim: true })
+        .then((cut) => {
+          if (cut) {
+            setCutImageSrc(cut);
+            setAutoCutBg(true);
+          }
+        })
+        .catch((err) => console.warn('Initial auto-cut failed:', err))
+        .finally(() => setIsProcessingCut(false));
+    }
+  }, [isOpen, imageSrc, isLogoMode, enableAutoCut, cutImageSrc]);
 
   // Load image when imageSrc or activeSrc changes
   useEffect(() => {
@@ -110,29 +130,31 @@ export default function ImageCropModal({
 
     ctx.clearRect(0, 0, cw, ch);
 
-    // Draw dark checkerboard / neutral background
-    ctx.fillStyle = '#0f1118';
-    ctx.fillRect(0, 0, cw, ch);
-
     const iw = imgDimensions.width || img.width;
     const ih = imgDimensions.height || img.height;
     if (!iw || !ih) return;
 
-    // Draw ambient blurred backdrop so there are never harsh voids
-    ctx.save();
-    ctx.filter = 'blur(12px) brightness(0.65)';
-    const bgScale = Math.max(cw / iw, ch / ih) * 1.1;
-    const bgW = iw * bgScale;
-    const bgH = ih * bgScale;
-    ctx.drawImage(img, (cw - bgW) / 2, (ch - bgH) / 2, bgW, bgH);
-    ctx.restore();
+    if (!isTransparentMode) {
+      // Draw dark checkerboard / neutral background ONLY for non-transparent game cards
+      ctx.fillStyle = '#0f1118';
+      ctx.fillRect(0, 0, cw, ch);
 
-    // Subtle dark gradient
-    const grad = ctx.createRadialGradient(cw / 2, ch / 2, cw * 0.2, cw / 2, ch / 2, cw * 0.75);
-    grad.addColorStop(0, 'rgba(15, 17, 24, 0.2)');
-    grad.addColorStop(1, 'rgba(10, 11, 16, 0.85)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, cw, ch);
+      // Draw ambient blurred backdrop so there are never harsh voids
+      ctx.save();
+      ctx.filter = 'blur(12px) brightness(0.65)';
+      const bgScale = Math.max(cw / iw, ch / ih) * 1.1;
+      const bgW = iw * bgScale;
+      const bgH = ih * bgScale;
+      ctx.drawImage(img, (cw - bgW) / 2, (ch - bgH) / 2, bgW, bgH);
+      ctx.restore();
+
+      // Subtle dark gradient
+      const grad = ctx.createRadialGradient(cw / 2, ch / 2, cw * 0.2, cw / 2, ch / 2, cw * 0.75);
+      grad.addColorStop(0, 'rgba(15, 17, 24, 0.2)');
+      grad.addColorStop(1, 'rgba(10, 11, 16, 0.85)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, cw, ch);
+    }
 
     // Calculate scaled foreground dimensions
     const baseScale = Math.max(cw / iw, ch / ih);
@@ -149,11 +171,11 @@ export default function ImageCropModal({
     ctx.drawImage(img, dx, dy, dw, dh);
 
     try {
-      setPreviewUrl(canvas.toDataURL('image/png', 0.85));
+      setPreviewUrl(canvas.toDataURL('image/png', 0.9));
     } catch {
       // Ignore security errors on cross-origin images
     }
-  }, [zoom, pan, imgDimensions, imgLoaded]);
+  }, [zoom, pan, imgDimensions, imgLoaded, isTransparentMode]);
 
   useEffect(() => {
     drawViewport();
@@ -246,21 +268,25 @@ export default function ImageCropModal({
     const iw = imgDimensions.width || img.width;
     const ih = imgDimensions.height || img.height;
 
-    // Draw ambient backdrop
-    outCtx.save();
-    outCtx.filter = 'blur(16px) brightness(0.65)';
-    const bgScale = Math.max(ow / iw, oh / ih) * 1.1;
-    const bgW = iw * bgScale;
-    const bgH = ih * bgScale;
-    outCtx.drawImage(img, (ow - bgW) / 2, (oh - bgH) / 2, bgW, bgH);
-    outCtx.restore();
+    outCtx.clearRect(0, 0, ow, oh);
 
-    // Dark gradient
-    const grad = outCtx.createRadialGradient(ow / 2, oh / 2, ow * 0.2, ow / 2, oh / 2, ow * 0.75);
-    grad.addColorStop(0, 'rgba(15, 17, 24, 0.2)');
-    grad.addColorStop(1, 'rgba(10, 11, 16, 0.85)');
-    outCtx.fillStyle = grad;
-    outCtx.fillRect(0, 0, ow, oh);
+    if (!isTransparentMode) {
+      // Draw ambient backdrop only for game cards (never for logos or cutouts)
+      outCtx.save();
+      outCtx.filter = 'blur(16px) brightness(0.65)';
+      const bgScale = Math.max(ow / iw, oh / ih) * 1.1;
+      const bgW = iw * bgScale;
+      const bgH = ih * bgScale;
+      outCtx.drawImage(img, (ow - bgW) / 2, (oh - bgH) / 2, bgW, bgH);
+      outCtx.restore();
+
+      // Dark gradient
+      const grad = outCtx.createRadialGradient(ow / 2, oh / 2, ow * 0.2, ow / 2, oh / 2, ow * 0.75);
+      grad.addColorStop(0, 'rgba(15, 17, 24, 0.2)');
+      grad.addColorStop(1, 'rgba(10, 11, 16, 0.85)');
+      outCtx.fillStyle = grad;
+      outCtx.fillRect(0, 0, ow, oh);
+    }
 
     // Scale factors relative to viewport canvas
     const previewCanvas = canvasRef.current;
@@ -278,13 +304,18 @@ export default function ImageCropModal({
     outCtx.drawImage(img, dx, dy, dw, dh);
 
     let dataUrl = '';
-    try {
-      dataUrl = outCanvas.toDataURL('image/webp', 0.88);
-      if (!dataUrl || !dataUrl.startsWith('data:image/webp')) {
-        dataUrl = outCanvas.toDataURL('image/png', 0.9);
-      }
-    } catch {
+    if (isTransparentMode) {
+      // Always save transparent cutouts as clean, lossless PNG
       dataUrl = outCanvas.toDataURL('image/png');
+    } else {
+      try {
+        dataUrl = outCanvas.toDataURL('image/webp', 0.88);
+        if (!dataUrl || !dataUrl.startsWith('data:image/webp')) {
+          dataUrl = outCanvas.toDataURL('image/png', 0.9);
+        }
+      } catch {
+        dataUrl = outCanvas.toDataURL('image/png');
+      }
     }
     onSave?.(dataUrl);
   };
@@ -328,7 +359,16 @@ export default function ImageCropModal({
           <div className="flex flex-col items-center gap-4">
             <div
               ref={containerRef}
-              className="relative w-[280px] h-[280px] sm:w-[340px] sm:h-[340px] rounded-2xl overflow-hidden border-2 border-dashed border-[#E3062F]/70 shadow-2xl cursor-grab active:cursor-grabbing select-none bg-slate-950 flex items-center justify-center"
+              className="relative w-[280px] h-[280px] sm:w-[340px] sm:h-[340px] rounded-2xl overflow-hidden border-2 border-dashed border-[#E3062F]/70 shadow-2xl cursor-grab active:cursor-grabbing select-none flex items-center justify-center"
+              style={isTransparentMode ? {
+                backgroundImage:
+                  'linear-gradient(45deg, #1e293b 25%, transparent 25%), linear-gradient(-45deg, #1e293b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1e293b 75%), linear-gradient(-45deg, transparent 75%, #1e293b 75%)',
+                backgroundSize: '16px 16px',
+                backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
+                backgroundColor: '#0f172a',
+              } : {
+                backgroundColor: '#020617',
+              }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
@@ -461,15 +501,26 @@ export default function ImageCropModal({
             {/* Scaled-down realistic storefront card representation */}
             {aspectRatio === 1 ? (
               <div className="w-[180px] rounded-2xl bg-gradient-to-b from-[#181926]/95 to-[#0b0c12]/98 border border-slate-800/90 shadow-xl overflow-hidden pointer-events-none select-none">
-                <div className="relative aspect-square w-full overflow-hidden bg-[#101118]">
+                <div
+                  className="relative aspect-square w-full overflow-hidden flex items-center justify-center p-1.5"
+                  style={isTransparentMode ? {
+                    backgroundImage:
+                      'linear-gradient(45deg, #1e293b 25%, transparent 25%), linear-gradient(-45deg, #1e293b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1e293b 75%), linear-gradient(-45deg, transparent 75%, #1e293b 75%)',
+                    backgroundSize: '12px 12px',
+                    backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0',
+                    backgroundColor: '#0f172a',
+                  } : {
+                    backgroundColor: '#101118',
+                  }}
+                >
                   <img
                     src={previewUrl || activeSrc}
                     alt="Preview"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                   <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-black/85 px-1.5 py-0.5 text-[8px] font-black text-emerald-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    IN STOCK
+                    {isLogoMode ? 'TRANSPARENT' : 'IN STOCK'}
                   </span>
                 </div>
                 <div className="p-2.5 flex flex-col items-center gap-1.5 text-center">
@@ -477,7 +528,7 @@ export default function ImageCropModal({
                     {gameName}
                   </span>
                   <span className="w-full py-1 rounded-full bg-gradient-to-r from-[#e3062f] to-[#ff2b54] text-white text-[10px] font-black uppercase tracking-wider">
-                    TOP UP
+                    {isLogoMode ? 'LOGO' : 'TOP UP'}
                   </span>
                 </div>
               </div>

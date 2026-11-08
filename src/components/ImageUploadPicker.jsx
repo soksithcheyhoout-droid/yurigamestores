@@ -91,7 +91,7 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
           transparentBorderProbes++;
           return;
         }
-        if (a >= 120) {
+        if (a >= 50) {
           borderSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
         }
       };
@@ -107,6 +107,43 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
         for (let d = 0; d < insetDepth; d++) {
           sampleBorderPoint(d, y);
           sampleBorderPoint(width - 1 - d, y);
+        }
+      }
+
+      // If the outer border has transparent padding, scan inward to find the actual background edge
+      if (borderSamples.length === 0 || transparentBorderProbes > totalBorderProbes * 0.35) {
+        const maxScanDepth = Math.floor(Math.min(width, height) * 0.45);
+        for (let x = 0; x < width; x += step * 2) {
+          for (let y = 0; y < maxScanDepth; y++) {
+            const idx = (y * width + x) * 4;
+            if (data[idx + 3] >= 50) {
+              borderSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+              break;
+            }
+          }
+          for (let y = height - 1; y >= height - 1 - maxScanDepth; y--) {
+            const idx = (y * width + x) * 4;
+            if (data[idx + 3] >= 50) {
+              borderSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+              break;
+            }
+          }
+        }
+        for (let y = 0; y < height; y += step * 2) {
+          for (let x = 0; x < maxScanDepth; x++) {
+            const idx = (y * width + x) * 4;
+            if (data[idx + 3] >= 50) {
+              borderSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+              break;
+            }
+          }
+          for (let x = width - 1; x >= width - 1 - maxScanDepth; x--) {
+            const idx = (y * width + x) * 4;
+            if (data[idx + 3] >= 50) {
+              borderSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+              break;
+            }
+          }
         }
       }
 
@@ -127,9 +164,9 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
       const bgPalette = [];
 
       if (targetColor === 'white') {
-        bgPalette.push([255, 255, 255], [245, 245, 245], [235, 235, 235]);
+        bgPalette.push([255, 255, 255], [245, 245, 245], [235, 235, 235], [225, 225, 225]);
       } else if (targetColor === 'black') {
-        bgPalette.push([0, 0, 0], [15, 15, 18], [28, 28, 34]);
+        bgPalette.push([0, 0, 0], [10, 10, 14], [18, 18, 24], [28, 28, 36], [38, 38, 48], [50, 50, 60]);
       } else if (targetColor && targetColor !== 'auto' && targetColor.startsWith('#')) {
         const parsed = parseHexColor(targetColor);
         if (parsed) bgPalette.push(parsed);
@@ -141,15 +178,22 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
       // Add dominant border color clusters when in 'auto' mode (or if no explicit target color matched)
       if (borderSamples.length > 0 && (targetColor === 'auto' || bgPalette.length === 0)) {
         if (topCluster) {
-          bgPalette.push([
-            Math.round(topCluster.sumR / topCluster.count),
-            Math.round(topCluster.sumG / topCluster.count),
-            Math.round(topCluster.sumB / topCluster.count),
-          ]);
+          const topR = Math.round(topCluster.sumR / topCluster.count);
+          const topG = Math.round(topCluster.sumG / topCluster.count);
+          const topB = Math.round(topCluster.sumB / topCluster.count);
+          const topLum = topR * 0.299 + topG * 0.587 + topB * 0.114;
+          bgPalette.push([topR, topG, topB]);
+
+          // If detected background is dark/black, add dark anchors so flood fill removes dark blur & vignetting
+          if (topLum < 65) {
+            bgPalette.push([0, 0, 0], [10, 10, 14], [18, 18, 24], [28, 28, 36]);
+          } else if (topLum > 200) {
+            bgPalette.push([255, 255, 255], [245, 245, 245]);
+          }
         }
         for (let i = 1; i < Math.min(4, sortedClusters.length); i++) {
           const c = sortedClusters[i];
-          if (c.count >= borderSamples.length * 0.12) {
+          if (c.count >= borderSamples.length * 0.10) {
             bgPalette.push([
               Math.round(c.sumR / c.count),
               Math.round(c.sumG / c.count),
@@ -159,9 +203,10 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
         }
       }
 
-      // If >82% of the outer border is already transparent and targetColor is 'auto',
+      // If >88% of outer border is already transparent and targetColor is 'auto' (without forceCut),
       // the image is already a cut-out transparent PNG — keep its outline intact and just auto-trim.
       const alreadyTransparent =
+        !options?.forceCut &&
         targetColor === 'auto' &&
         totalBorderProbes > 0 &&
         (transparentBorderProbes / totalBorderProbes >= 0.82 || bgPalette.length === 0);

@@ -269,7 +269,7 @@ export default function AdminDashboard({ onBackToStore }) {
     onSave: null,
   });
 
-  const openCropModal = ({ imageSrc, title, gameName, aspectRatio = 1, enableAutoCut = true, onSave }) => {
+  const openCropModal = ({ imageSrc, title, gameName, aspectRatio = 1, enableAutoCut = true, isLogo = false, onSave }) => {
     setCropModalConfig({
       isOpen: true,
       imageSrc,
@@ -277,6 +277,7 @@ export default function AdminDashboard({ onBackToStore }) {
       gameName: gameName || 'Game Preview',
       aspectRatio,
       enableAutoCut,
+      isLogo: Boolean(isLogo || (title && title.toLowerCase().includes('logo'))),
       onSave: async (croppedDataUrl) => {
         setCropModalConfig((prev) => ({ ...prev, isOpen: false }));
         if (onSave) {
@@ -1037,22 +1038,48 @@ export default function AdminDashboard({ onBackToStore }) {
 
   const handleUploadSiteLogoFile = async (file) => {
     if (!file) return;
+    setIsProcessingSiteLogo(true);
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const rawSrc = ev.target?.result;
-      if (!rawSrc) return;
+      if (!rawSrc) {
+        setIsProcessingSiteLogo(false);
+        return;
+      }
+      setOriginalSiteLogo(rawSrc);
+
+      let processedSrc = rawSrc;
+      if (autoCutLogoBg) {
+        try {
+          const cut = await removeImageBackground(rawSrc, logoTolerance, 20, {
+            targetColor: resolveLogoTargetColor(),
+            cutInnerHoles: logoCutInner,
+            trim: true,
+            forceCut: true,
+          });
+          if (cut && typeof cut === 'string' && cut.startsWith('data:image/')) {
+            processedSrc = cut;
+          }
+        } catch (e) {
+          console.warn('Auto cut on upload failed:', e);
+        }
+      }
+
+      setIsProcessingSiteLogo(false);
+
       openCropModal({
-        imageSrc: rawSrc,
-        title: 'Crop & Size Website Master Logo',
+        imageSrc: processedSrc,
+        title: 'Crop & Position Website Master Logo',
         gameName: 'YuriGameStore',
         aspectRatio: 1,
-        enableAutoCut: true,
+        enableAutoCut: autoCutLogoBg,
+        isLogo: true,
         onSave: async (croppedUrl) => {
           setIsProcessingSiteLogo(true);
           try {
             await handleSaveSiteLogo(
               croppedUrl,
-              'Website logo updated & perfectly fitted — live across the entire website!'
+              'Website logo updated & 100% transparent — live across the entire website!'
             );
           } finally {
             setIsProcessingSiteLogo(false);
@@ -1064,22 +1091,53 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   const handleManualCutSiteLogo = async () => {
+    setIsProcessingSiteLogo(true);
+    try {
+      const rawCandidate = originalSiteLogo || siteLogoState || getSiteLogo();
+      const sourceLogo = isValidLogoUrl(rawCandidate) ? rawCandidate : DEFAULT_SITE_LOGO;
+
+      const cutUrl = await removeImageBackground(sourceLogo, logoTolerance, 20, {
+        targetColor: resolveLogoTargetColor(),
+        cutInnerHoles: logoCutInner,
+        trim: true,
+        forceCut: true,
+      });
+
+      if (cutUrl && typeof cutUrl === 'string' && cutUrl.startsWith('data:image/')) {
+        if (!originalSiteLogo) {
+          setOriginalSiteLogo(sourceLogo);
+        }
+        await handleSaveSiteLogo(
+          cutUrl,
+          'Logo background cleanly cut to 100% transparent PNG (no blur) & saved live!'
+        );
+      } else {
+        showToast('Could not cut background. Try increasing Cut Strength or choosing Black BG.');
+      }
+    } catch (err) {
+      console.error('Manual cut site logo failed:', err);
+      showToast('Error removing background from current logo.');
+    } finally {
+      setIsProcessingSiteLogo(false);
+    }
+  };
+
+  const handleOpenSiteLogoCrop = () => {
     const rawCandidate = originalSiteLogo || siteLogoState || getSiteLogo();
-    const sourceLogo = isValidLogoUrl(rawCandidate) && !String(rawCandidate).startsWith('/assets/uploads/')
-      ? rawCandidate
-      : DEFAULT_SITE_LOGO;
+    const sourceLogo = isValidLogoUrl(rawCandidate) ? rawCandidate : DEFAULT_SITE_LOGO;
     openCropModal({
       imageSrc: sourceLogo,
-      title: 'Crop, Cut Background & Size Website Logo',
+      title: 'Crop & Position Website Master Logo',
       gameName: 'YuriGameStore',
       aspectRatio: 1,
-      enableAutoCut: true,
+      enableAutoCut: autoCutLogoBg,
+      isLogo: true,
       onSave: async (croppedUrl) => {
         setIsProcessingSiteLogo(true);
         try {
           await handleSaveSiteLogo(
             croppedUrl,
-            'Website logo background removed & saved live across the store!'
+            'Website logo positioned & saved live with transparent background!'
           );
         } finally {
           setIsProcessingSiteLogo(false);
@@ -1111,6 +1169,7 @@ export default function AdminDashboard({ onBackToStore }) {
       gameName: game.name,
       aspectRatio: 1,
       enableAutoCut: true,
+      isLogo: true,
       onSave: async (croppedUrl) => {
         await handleUpdateGameInfo(game.id, { image: croppedUrl });
         showToast(`Logo for ${game.name} updated & fitted to full card!`);
@@ -3494,10 +3553,21 @@ export default function AdminDashboard({ onBackToStore }) {
                       onClick={handleManualCutSiteLogo}
                       disabled={isProcessingSiteLogo}
                       className="px-4 py-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-black text-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition-colors"
-                      title="Cut white, black, or colored background from the current logo right now"
+                      title="Cut white, black, or colored background from the current logo into 100% transparent PNG right now"
                     >
                       <Sparkles size={15} />
                       <span>Cut Current Logo Background Now</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleOpenSiteLogoCrop}
+                      disabled={isProcessingSiteLogo}
+                      className="px-3.5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition-colors"
+                      title="Adjust position, zoom, and framing of website logo"
+                    >
+                      <Move size={15} className="text-[#E3062F]" />
+                      <span>Crop & Position</span>
                     </button>
                   </div>
 
@@ -4587,6 +4657,7 @@ export default function AdminDashboard({ onBackToStore }) {
         gameName={cropModalConfig.gameName}
         aspectRatio={cropModalConfig.aspectRatio}
         enableAutoCut={cropModalConfig.enableAutoCut}
+        isLogo={cropModalConfig.isLogo}
         onSave={cropModalConfig.onSave}
         onCancel={closeCropModal}
       />

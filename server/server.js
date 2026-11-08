@@ -122,11 +122,12 @@ const REDIRECT_HOSTS = new Set([
 ]);
 
 app.use((req, res, next) => {
-  const rawHost = req.headers.host || '';
-  const host = rawHost.split(':')[0].toLowerCase();
+  const forwardedHost = String(req.headers['x-forwarded-host'] || '').split(',')[0].trim().split(':')[0].toLowerCase();
+  const rawHost = String(req.headers.host || '').split(':')[0].toLowerCase();
+  const host = forwardedHost || rawHost;
 
   // If request arrived on legacy or alias domains, permanently 301 redirect to primary domain
-  if (REDIRECT_HOSTS.has(host)) {
+  if (REDIRECT_HOSTS.has(host) || (host.endsWith('.up.railway.app') && !req.path.startsWith('/health') && !req.path.startsWith('/api/health'))) {
     const targetUrl = `https://${CANONICAL_HOST}${req.originalUrl}`;
     res.setHeader('Location', targetUrl);
     return res.status(301).end();
@@ -3429,10 +3430,10 @@ app.delete('/api/admin/coming-soon/:id', requireAdminAuth, (req, res) => {
 
 // 4d. Update Game (Option 5: Stock Open/Close, Logo, Banner, Name)
 // Parameterized route registered AFTER the specific /import route above.
-app.post('/api/admin/games/:gameId', requireAdminAuth, (req, res) => {
+app.post('/api/admin/games/:gameId', requireAdminAuth, async (req, res) => {
   const { gameId } = req.params;
   const sanitized = sanitizeUploadPayload(req.body || {}, `game_${gameId}`);
-  const updated = updateGameConfig(gameId, sanitized);
+  const updated = await updateGameConfig(gameId, sanitized);
   if (!updated) {
     return res.status(404).json({ success: false, error: 'Game not found' });
   }

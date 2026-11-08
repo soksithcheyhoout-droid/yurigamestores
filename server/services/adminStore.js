@@ -808,11 +808,8 @@ export function loadAdminConfig() {
 // Persist config to disk
 
 export function saveAdminConfig({ skipDb = false } = {}) {
-
   try {
-
     adminConfig.updatedAt = new Date().toISOString();
-
     const persistedConfig = {
       ...adminConfig,
       contacts: {
@@ -821,23 +818,34 @@ export function saveAdminConfig({ skipDb = false } = {}) {
       },
     };
     fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(persistedConfig, null, 2), 'utf-8');
-
   } catch (err) {
-
     console.warn('[Admin Store] Could not write admin config:', err.message);
-
   }
 
   // Also persist to MySQL so the config (incl. imported games) survives Railway redeploys.
-  // skipDb is used during the startup disk-load so a fresh (empty) container cannot
-  // overwrite the durable DB copy with defaults before loadAdminConfigFromDb() runs.
-  if (!skipDb) saveAdminConfigToDb();
+  if (!skipDb) return saveAdminConfigToDb();
+  return Promise.resolve();
 }
 
 // ---- Durable persistence in MySQL (survives container redeploys) ----
 function mergeLoadedConfig(loaded) {
   const gamesMerged = DEFAULT_GAMES.map((defGame) => {
-    const found = (loaded.games || []).find((g) => g.id === defGame.id || g.slug === defGame.slug);
+    const found = (loaded.games || []).find((g) => {
+      const gId = String(g?.id || '').toLowerCase();
+      const gSlug = String(g?.slug || '').toLowerCase();
+      const gCode = String(g?.providerCode || g?.code || '').toLowerCase();
+      const gName = String(g?.name || '').toLowerCase();
+      const defId = String(defGame.id || '').toLowerCase();
+      const defSlug = String(defGame.slug || '').toLowerCase();
+      const defCode = String(defGame.providerCode || defGame.code || '').toLowerCase();
+      const defName = String(defGame.name || '').toLowerCase();
+      return (
+        gId === defId || gId === defSlug ||
+        gSlug === defSlug || gSlug === defId ||
+        (gCode && (gCode === defCode || gCode === defId || gCode === defSlug)) ||
+        (gName && defName && gName === defName)
+      );
+    });
     if (!found) return defGame;
     const validImage = resolveValidGameImage(found, defGame.image);
     const validBanner = resolveValidBannerImage({ ...found, image: found.banner, gameSlug: defGame.slug }, defGame.banner);
@@ -903,11 +911,9 @@ async function ensureAppConfigTable() {
   return true;
 }
 
-async function saveAdminConfigToDb() {
+export async function saveAdminConfigToDb() {
   try {
     if (!pool) return;
-    // Create the table defensively so the very first save always succeeds, even if the
-    // startup load never ran (e.g. DB was briefly unreachable at boot).
     await ensureAppConfigTable();
     const json = JSON.stringify({
       ...adminConfig,
@@ -917,9 +923,29 @@ async function saveAdminConfigToDb() {
       'INSERT INTO `app_config` (config_key, config_json) VALUES (?, ?) ON DUPLICATE KEY UPDATE config_json = VALUES(config_json)',
       ['admin_config', json]
     );
+
+    // Save each individual game under game_<id> to guarantee durability even if overall payload is large
+    for (const g of (adminConfig.games || [])) {
+      const keys = [g.id, g.slug, g.providerCode, g.code].filter(Boolean);
+      for (const k of keys) {
+        const cleanKey = `game_${String(k).toLowerCase()}`;
+        await pool.query(
+          'INSERT INTO `app_config` (config_key, config_json) VALUES (?, ?) ON DUPLICATE KEY UPDATE config_json = VALUES(config_json)',
+          [cleanKey, JSON.stringify(g)]
+        ).catch((e) => console.warn(`[Admin Store] Game ${cleanKey} save notice:`, e.message));
+      }
+    }
+
+    if (adminConfig.siteLogo) {
+      await pool.query(
+        'INSERT INTO `app_config` (config_key, config_json) VALUES (?, ?) ON DUPLICATE KEY UPDATE config_json = VALUES(config_json)',
+        ['site_logo', JSON.stringify({ siteLogo: adminConfig.siteLogo })]
+      ).catch(() => {});
+    }
+
     console.log('[Admin Store] Admin config saved to database (durable).');
   } catch (err) {
-    console.warn('[Admin Store] DB config save notice:', err.message);
+    console.error('[Admin Store] DB config save error:', err.message);
   }
 }
 
@@ -928,20 +954,52 @@ export async function loadAdminConfigFromDb() {
   try {
     if (!pool) return false;
     await ensureAppConfigTable();
-    const [rows] = await pool.query('SELECT config_json FROM `app_config` WHERE config_key = ? LIMIT 1', ['admin_config']);
+    const [rows] = await pool.query('SELECT config_key, config_json FROM `app_config`');
     if (!rows.length) {
-      // No durable copy yet — seed it from whatever we loaded from disk/defaults.
       await saveAdminConfigToDb();
       return false;
     }
-    const loaded = JSON.parse(rows[0].config_json);
-    if (loaded && Array.isArray(loaded.games)) {
-      adminConfig = mergeLoadedConfig(loaded);
-      // Persist the sanitized/healed config back to disk and DB so broken ephemeral paths are permanently healed
-      saveAdminConfig();
-      console.log('[Admin Store] Admin config loaded from database (durable).');
-      return true;
+    const rowMap = new Map(rows.map((r) => [r.config_key, r.config_json]));
+    const mainJson = rowMap.get('admin_config');
+    let loaded = null;
+    if (mainJson) {
+      try { loaded = JSON.parse(mainJson); } catch {}
     }
+    if (!loaded || typeof loaded !== 'object') {
+      loaded = { games: [] };
+    }
+
+    // Also overlay any individual game rows (game_ff, game_ml, etc.) from MySQL
+    const loadedGames = Array.isArray(loaded.games) ? [...loaded.games] : [];
+    for (const [key, val] of rowMap.entries()) {
+      if (key.startsWith('game_')) {
+        try {
+          const gData = JSON.parse(val);
+          const gCode = key.replace(/^game_/, '').toLowerCase();
+          const existingIdx = loadedGames.findIndex((eg) =>
+            String(eg.id || eg.slug || eg.providerCode || eg.code || '').toLowerCase() === gCode
+          );
+          if (existingIdx !== -1) {
+            loadedGames[existingIdx] = { ...loadedGames[existingIdx], ...gData };
+          } else {
+            loadedGames.push(gData);
+          }
+        } catch {}
+      }
+    }
+    loaded.games = loadedGames;
+
+    if (rowMap.has('site_logo')) {
+      try {
+        const logoData = JSON.parse(rowMap.get('site_logo'));
+        if (logoData?.siteLogo) loaded.siteLogo = logoData.siteLogo;
+      } catch {}
+    }
+
+    adminConfig = mergeLoadedConfig(loaded);
+    saveAdminConfig({ skipDb: true });
+    console.log('[Admin Store] Admin config loaded from database (durable).');
+    return true;
   } catch (err) {
     console.warn('[Admin Store] DB config load notice:', err.message);
   }
@@ -1491,7 +1549,7 @@ export function removeGame(gameId) {
 
 
 // Game Stock & Logo Update
-export function updateGameConfig(gameId, updateData = {}) {
+export async function updateGameConfig(gameId, updateData = {}) {
   const target = String(gameId || '').trim().toLowerCase();
   const idx = adminConfig.games.findIndex((g) =>
     String(g.id || '').toLowerCase() === target ||
@@ -1525,7 +1583,7 @@ export function updateGameConfig(gameId, updateData = {}) {
     providerGid: updateData.providerGid !== undefined ? String(updateData.providerGid).trim() : current.providerGid,
   };
 
-  saveAdminConfig();
+  await saveAdminConfig();
   return adminConfig.games[idx];
 }
 

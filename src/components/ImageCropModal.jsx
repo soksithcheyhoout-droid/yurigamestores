@@ -277,7 +277,15 @@ export default function ImageCropModal({
     outCtx.imageSmoothingQuality = 'high';
     outCtx.drawImage(img, dx, dy, dw, dh);
 
-    const dataUrl = outCanvas.toDataURL('image/png', 0.95);
+    let dataUrl = '';
+    try {
+      dataUrl = outCanvas.toDataURL('image/webp', 0.88);
+      if (!dataUrl || !dataUrl.startsWith('data:image/webp')) {
+        dataUrl = outCanvas.toDataURL('image/png', 0.9);
+      }
+    } catch {
+      dataUrl = outCanvas.toDataURL('image/png');
+    }
     onSave?.(dataUrl);
   };
 

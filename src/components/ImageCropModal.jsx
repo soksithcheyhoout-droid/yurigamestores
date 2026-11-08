@@ -27,22 +27,22 @@ export default function ImageCropModal({
   aspectRatio = 1, // 1 for game cards (1:1 square), 16/9 for banners
   onSave,
   onCancel,
-  enableAutoCut = true,
+  enableAutoCut = false,
   isLogo = false,
 }) {
-  const isLogoMode = Boolean(isLogo || (title && title.toLowerCase().includes('logo')));
+  const isLogoMode = Boolean(isLogo);
   const [zoom, setZoom] = useState(1);
   const [minZoom, setMinZoom] = useState(0.5);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [autoCutBg, setAutoCutBg] = useState(() => Boolean(isLogoMode || enableAutoCut));
+  const [autoCutBg, setAutoCutBg] = useState(() => Boolean(isLogo && enableAutoCut));
   const [isProcessingCut, setIsProcessingCut] = useState(false);
   const [cutImageSrc, setCutImageSrc] = useState(null);
   const [fitMode, setFitMode] = useState('cover'); // 'cover' | 'contain'
   const [previewUrl, setPreviewUrl] = useState('');
 
-  const isTransparentMode = Boolean(autoCutBg || isLogoMode);
+  const isTransparentMode = Boolean(autoCutBg);
 
   const imgRef = useRef(null);
   const canvasRef = useRef(null);
@@ -52,9 +52,9 @@ export default function ImageCropModal({
 
   const activeSrc = (autoCutBg && cutImageSrc) ? cutImageSrc : imageSrc;
 
-  // Automatically trigger background cut on open if in logo mode or auto-cut requested
+  // Automatically trigger background cut on open only if explicitly requested as a logo cut
   useEffect(() => {
-    if (isOpen && (isLogoMode || enableAutoCut) && imageSrc && !cutImageSrc) {
+    if (isOpen && isLogo && enableAutoCut && imageSrc && !cutImageSrc) {
       setIsProcessingCut(true);
       removeImageBackground(imageSrc, 85, 20, { targetColor: 'auto', forceCut: true, trim: true })
         .then((cut) => {
@@ -66,7 +66,7 @@ export default function ImageCropModal({
         .catch((err) => console.warn('Initial auto-cut failed:', err))
         .finally(() => setIsProcessingCut(false));
     }
-  }, [isOpen, imageSrc, isLogoMode, enableAutoCut, cutImageSrc]);
+  }, [isOpen, imageSrc, isLogo, enableAutoCut, cutImageSrc]);
 
   // Load image when imageSrc or activeSrc changes
   useEffect(() => {
@@ -135,24 +135,8 @@ export default function ImageCropModal({
     if (!iw || !ih) return;
 
     if (!isTransparentMode) {
-      // Draw dark checkerboard / neutral background ONLY for non-transparent game cards
-      ctx.fillStyle = '#0f1118';
-      ctx.fillRect(0, 0, cw, ch);
-
-      // Draw ambient blurred backdrop so there are never harsh voids
-      ctx.save();
-      ctx.filter = 'blur(12px) brightness(0.65)';
-      const bgScale = Math.max(cw / iw, ch / ih) * 1.1;
-      const bgW = iw * bgScale;
-      const bgH = ih * bgScale;
-      ctx.drawImage(img, (cw - bgW) / 2, (ch - bgH) / 2, bgW, bgH);
-      ctx.restore();
-
-      // Subtle dark gradient
-      const grad = ctx.createRadialGradient(cw / 2, ch / 2, cw * 0.2, cw / 2, ch / 2, cw * 0.75);
-      grad.addColorStop(0, 'rgba(15, 17, 24, 0.2)');
-      grad.addColorStop(1, 'rgba(10, 11, 16, 0.85)');
-      ctx.fillStyle = grad;
+      // Solid neutral dark background - zero blur or dark vignette smudges
+      ctx.fillStyle = '#0b0d14';
       ctx.fillRect(0, 0, cw, ch);
     }
 
@@ -271,20 +255,8 @@ export default function ImageCropModal({
     outCtx.clearRect(0, 0, ow, oh);
 
     if (!isTransparentMode) {
-      // Draw ambient backdrop only for game cards (never for logos or cutouts)
-      outCtx.save();
-      outCtx.filter = 'blur(16px) brightness(0.65)';
-      const bgScale = Math.max(ow / iw, oh / ih) * 1.1;
-      const bgW = iw * bgScale;
-      const bgH = ih * bgScale;
-      outCtx.drawImage(img, (ow - bgW) / 2, (oh - bgH) / 2, bgW, bgH);
-      outCtx.restore();
-
-      // Dark gradient
-      const grad = outCtx.createRadialGradient(ow / 2, oh / 2, ow * 0.2, ow / 2, oh / 2, ow * 0.75);
-      grad.addColorStop(0, 'rgba(15, 17, 24, 0.2)');
-      grad.addColorStop(1, 'rgba(10, 11, 16, 0.85)');
-      outCtx.fillStyle = grad;
+      // Solid neutral dark background - zero blur or dark vignette smudges
+      outCtx.fillStyle = '#0b0d14';
       outCtx.fillRect(0, 0, ow, oh);
     }
 
@@ -470,24 +442,44 @@ export default function ImageCropModal({
                 </button>
               </div>
 
-              {/* Auto-Cut Background Toggle */}
-              {enableAutoCut && (
-                <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 cursor-pointer select-none">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={14} className="text-emerald-400" />
-                    <span className="text-xs font-bold text-slate-200">
-                      Auto-Cut Background (make transparent)
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={autoCutBg}
+              {/* Background Mode Selector */}
+              <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl space-y-2">
+                <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                  <span>Background Mode</span>
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${autoCutBg ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}>
+                    {autoCutBg ? 'Transparent Cut' : 'Original Background (No Cut)'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleAutoCut(false)}
+                    className={`py-2 px-2.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 border ${
+                      !autoCutBg
+                        ? 'bg-rose-600 text-white border-rose-500 shadow-md'
+                        : 'bg-slate-800 text-slate-400 hover:text-white border-slate-700'
+                    }`}
+                  >
+                    <Check size={13} className={!autoCutBg ? 'opacity-100' : 'opacity-0'} />
+                    <span>Keep Original (No Cut)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleAutoCut(true)}
                     disabled={isProcessingCut}
-                    onChange={(e) => handleToggleAutoCut(e.target.checked)}
-                    className="accent-emerald-500 w-4 h-4 cursor-pointer"
-                  />
-                </label>
-              )}
+                    className={`py-2 px-2.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 border ${
+                      autoCutBg
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                        : 'bg-slate-800 text-slate-400 hover:text-white border-slate-700'
+                    }`}
+                  >
+                    <Sparkles size={13} className={isProcessingCut ? 'animate-spin' : ''} />
+                    <span>{isProcessingCut ? 'Cutting...' : 'Cut Background'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 

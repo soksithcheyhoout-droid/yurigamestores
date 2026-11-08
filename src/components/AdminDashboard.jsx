@@ -40,7 +40,8 @@ import {
   CalendarDays,
   ShoppingCart,
   Activity,
-  Move
+  Move,
+  Scissors
 } from 'lucide-react';
 import YuriGameLogo, { DEFAULT_SITE_LOGO, getSiteLogo, setSiteLogo, isValidLogoUrl } from './YuriGameLogo';
 import AdminAnalyticsPanel from './AdminAnalyticsPanel';
@@ -3726,6 +3727,40 @@ export default function AdminDashboard({ onBackToStore }) {
                         </div>
                         <input
                           type="file"
+                          id="cs-image-nocut"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const rawSrc = ev.target?.result;
+                                if (!rawSrc) return;
+                                openCropModal({
+                                  imageSrc: rawSrc,
+                                  title: `Fit Coming Soon Card (Keep Background)`,
+                                  gameName: comingSoonName || 'Coming Soon Game',
+                                  aspectRatio: 1,
+                                  enableAutoCut: false,
+                                  isLogo: false,
+                                  onSave: async (croppedUrl) => {
+                                    setComingSoonImage(croppedUrl);
+                                    showToast('Coming soon image ready!');
+                                  },
+                                });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                        <label htmlFor="cs-image-nocut" className="px-3 py-1.5 rounded-lg bg-violet-600/30 hover:bg-violet-600/50 text-white text-[11px] font-black border border-violet-500/50 cursor-pointer flex items-center gap-1.5">
+                          <UploadCloud size={13} className="text-white" /> Upload Image (No Cut)
+                        </label>
+
+                        <input
+                          type="file"
                           id="cs-logo-file"
                           accept="image/png,image/jpeg,image/webp,image/gif"
                           className="hidden"
@@ -3742,6 +3777,7 @@ export default function AdminDashboard({ onBackToStore }) {
                                   gameName: comingSoonName || 'Coming Soon Game',
                                   aspectRatio: 1,
                                   enableAutoCut: true,
+                                  isLogo: true,
                                   onSave: async (croppedUrl) => {
                                     setComingSoonImage(croppedUrl);
                                     showToast('Coming soon logo sized & ready!');
@@ -3754,7 +3790,7 @@ export default function AdminDashboard({ onBackToStore }) {
                           }}
                         />
                         <label htmlFor="cs-logo-file" className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold border border-slate-700 cursor-pointer flex items-center gap-1.5">
-                          <UploadCloud size={13} className="text-violet-400" /> Upload Logo (Auto-Cut)
+                          <Scissors size={13} className="text-violet-400" /> Upload Logo (Auto-Cut)
                         </label>
                       </div>
                       <div className="flex flex-col gap-2">
@@ -3868,7 +3904,48 @@ export default function AdminDashboard({ onBackToStore }) {
                         <span>{game.maintenance === true ? 'Maintenance ON — click to allow top-up' : 'Mark "Cannot Top-Up" (Maintenance)'}</span>
                       </button>
 
-                      {/* Native Device File Input for Game Logo */}
+                      {/* Native Device File Input for Game Card (Keep Background / No Cut) */}
+                      <div className="relative">
+                        <input
+                          type="file"
+                          id={`game-image-nocut-${game.id}`}
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const rawSrc = ev.target?.result;
+                                if (!rawSrc) return;
+                                openCropModal({
+                                  imageSrc: rawSrc,
+                                  title: `Crop & Fit ${game.name} Card (Keep Background)`,
+                                  gameName: game.name,
+                                  aspectRatio: 1,
+                                  enableAutoCut: false,
+                                  isLogo: false,
+                                  onSave: async (croppedUrl) => {
+                                    await handleUpdateGameInfo(game.id, { image: croppedUrl });
+                                    showToast(`Image for ${game.name} updated with original background!`);
+                                  },
+                                });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                            e.target.value = '';
+                          }}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor={`game-image-nocut-${game.id}`}
+                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white text-xs font-black shadow-md cursor-pointer flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
+                        >
+                          <UploadCloud size={14} className="text-white" />
+                          <span>Upload Image (Keep Background / No Cut)</span>
+                        </label>
+                      </div>
+
+                      {/* Native Device File Input for Game Logo (Auto-Cut BG) */}
                       <div className="relative">
                         <input
                           type="file"
@@ -3883,13 +3960,14 @@ export default function AdminDashboard({ onBackToStore }) {
                                 if (!rawSrc) return;
                                 openCropModal({
                                   imageSrc: rawSrc,
-                                  title: `Crop & Size ${game.name} Logo (Full Card)`,
+                                  title: `Crop & Cut ${game.name} Logo`,
                                   gameName: game.name,
                                   aspectRatio: 1,
                                   enableAutoCut: true,
+                                  isLogo: true,
                                   onSave: async (croppedUrl) => {
                                     await handleUpdateGameInfo(game.id, { image: croppedUrl });
-                                    showToast(`Logo for ${game.name} updated & fitted to full card!`);
+                                    showToast(`Logo for ${game.name} cut & updated!`);
                                   },
                                 });
                               };
@@ -3903,7 +3981,7 @@ export default function AdminDashboard({ onBackToStore }) {
                           htmlFor={`game-logo-file-${game.id}`}
                           className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold border border-slate-700 cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
                         >
-                          <UploadCloud size={14} className="text-[#E3062F]" />
+                          <Scissors size={13} className="text-emerald-400" />
                           <span>Upload Logo (Auto-Cut BG)</span>
                         </label>
                       </div>

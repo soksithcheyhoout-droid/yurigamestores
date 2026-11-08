@@ -3240,9 +3240,21 @@ function saveBase64ToFile(base64Str, prefix = 'img') {
 function sanitizeUploadPayload(body = {}, prefix = 'img') {
   if (!body || typeof body !== 'object') return body;
   const clone = { ...body };
-  // Keep compact data URLs (e.g., compressed & background-cut PNG logos) directly in adminConfig
-  // so they persist durably in MySQL across redeploys and do not trigger Vite dev server reloads.
-  const MAX_INLINE_DATA_URL_LENGTH = 2_500_000;
+  if (clone.image && typeof clone.image === 'object') {
+    clone.image = clone.image.url || clone.image.src || '';
+  }
+  if (clone.banner && typeof clone.banner === 'object') {
+    clone.banner = clone.banner.url || clone.banner.src || '';
+  }
+  if (clone.image === '[object Object]' || clone.image === 'undefined' || clone.image === 'null') {
+    delete clone.image;
+  }
+  if (clone.banner === '[object Object]' || clone.banner === 'undefined' || clone.banner === 'null') {
+    delete clone.banner;
+  }
+  // Keep data URLs (logos, game tiles, slide banners) directly in adminConfig so they persist
+  // durably in MySQL app_config (LONGTEXT) across Railway container redeploys and never get wiped!
+  const MAX_INLINE_DATA_URL_LENGTH = 15_000_000;
   if (clone.image && typeof clone.image === 'string' && clone.image.startsWith('data:image/')) {
     if (clone.image.length > MAX_INLINE_DATA_URL_LENGTH) {
       clone.image = saveBase64ToFile(clone.image, `${prefix}_icon`);
@@ -3455,7 +3467,8 @@ app.post('/api/admin/contacts', requireAdminAuth, (req, res) => {
 });
 
 app.post('/api/admin/site-logo', requireAdminAuth, (req, res) => {
-  const rawLogo = req.body?.siteLogo !== undefined ? req.body.siteLogo : req.body?.logo;
+  const raw = req.body?.siteLogo !== undefined ? req.body.siteLogo : req.body?.logo;
+  const rawLogo = raw && typeof raw === 'object' ? (raw.url || raw.src || '') : raw;
   const savedLogo = updateSiteLogo(rawLogo);
   return res.json({ success: true, siteLogo: savedLogo });
 });
@@ -3704,6 +3717,9 @@ if (fs.existsSync(distPath)) {
   console.log(`📦 Serving production build from: ${distPath}`);
   app.use(express.static(distPath));
   app.use((req, res, next) => {
+    if (req.path.startsWith('/assets/')) {
+      return res.status(404).end();
+    }
     if ((req.method === 'GET' || req.method === 'HEAD') && !req.path.startsWith('/api') && !req.path.startsWith('/health')) {
       return res.sendFile(path.join(distPath, 'index.html'));
     }

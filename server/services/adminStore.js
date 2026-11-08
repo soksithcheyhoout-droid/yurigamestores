@@ -589,8 +589,57 @@ const stagedAdminChallenges = new Map();
 
 const activeAdminSessions = new Map();
 
+const PUBLIC_ROOT_DIR = path.resolve(process.cwd(), 'public');
 
+export function getDefaultBannerForSlug(gameSlug = '') {
+  const s = String(gameSlug || '').toLowerCase();
+  if (s.includes('roblox') || s === 'robuxsend') return '/assets/games/roblox_hero_4k.jpg';
+  if (s.includes('free-fire') || s === 'ff') return '/assets/banners/banner_freefire.jpg';
+  if (s.includes('angkor') || s === 'rosangkor') return '/assets/games/ros_angkor.png';
+  if (s.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
+  return '/assets/banners/banner_mlbb.jpg';
+}
 
+export function getDefaultGameImageForId(gameIdOrSlug = '') {
+  const s = String(gameIdOrSlug || '').toLowerCase();
+  if (s === 'robuxsend' || s.includes('roblox')) return '/assets/games/roblox_kh.png';
+  if (s === 'ff' || s.includes('free-fire')) return '/assets/games/ff_kh.png';
+  if (s === 'rosangkor' || s.includes('angkor')) return '/assets/games/ros_angkor.png';
+  if (s === 'roslegacy' || s.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
+  if (s === 'ml' || s.includes('mobile-legends')) return '/assets/games/ml_kh.png';
+  return '/assets/brand/yurigame-logo.png';
+}
+
+export function resolveValidAssetUrl(rawUrl, fallbackUrl = '/assets/brand/yurigame-logo.png') {
+  if (!rawUrl) return fallbackUrl;
+  const candidate = typeof rawUrl === 'object' && rawUrl !== null
+    ? String(rawUrl.url || rawUrl.src || '').trim()
+    : String(rawUrl).trim();
+  if (
+    !candidate ||
+    candidate === '[object Object]' ||
+    candidate === 'undefined' ||
+    candidate === 'null' ||
+    candidate.includes('harikitopup.com')
+  ) {
+    return fallbackUrl;
+  }
+  if (candidate.startsWith('data:image/')) {
+    return candidate;
+  }
+  if (/^https?:\/\//i.test(candidate)) {
+    return candidate;
+  }
+  if (candidate.startsWith('/')) {
+    const cleanRel = candidate.split('?')[0].split('#')[0].replace(/^\/+/, '');
+    const fullDiskPath = path.join(PUBLIC_ROOT_DIR, cleanRel);
+    if (fs.existsSync(fullDiskPath)) {
+      return candidate;
+    }
+    return fallbackUrl;
+  }
+  return fallbackUrl;
+}
 
 // Load persisted config from disk (outside repo)
 
@@ -606,7 +655,7 @@ export function loadAdminConfig() {
 
       if (loaded && Array.isArray(loaded.games)) {
 
-        // Merge with defaults to ensure all 4 default games are strictly present
+        // Merge with defaults to ensure all core games are strictly present
 
         const gamesMerged = DEFAULT_GAMES.map((defGame) => {
 
@@ -620,6 +669,10 @@ export function loadAdminConfig() {
 
             ...found,
 
+            image: resolveValidAssetUrl(found.image, defGame.image),
+
+            banner: resolveValidAssetUrl(found.banner, defGame.banner),
+
             fields: defGame.fields, // enforce correct fields for RoS & Roblox
 
             packages: Array.isArray(found.packages) && found.packages.length > 0 ? found.packages : defGame.packages
@@ -631,9 +684,28 @@ export function loadAdminConfig() {
 
 
         const defKeys = new Set(DEFAULT_GAMES.flatMap((g) => [g.id, g.slug].filter(Boolean)));
-        const importedGames = (loaded.games || []).filter((g) => g && !defKeys.has(g.id) && !defKeys.has(g.slug));
+        const importedGames = (loaded.games || [])
+          .filter((g) => g && !defKeys.has(g.id) && !defKeys.has(g.slug))
+          .map((g) => ({
+            ...g,
+            image: resolveValidAssetUrl(g.image, getDefaultGameImageForId(g.id || g.slug)),
+            banner: resolveValidAssetUrl(g.banner, getDefaultBannerForSlug(g.slug || g.id)),
+          }));
 
-        const loadedSiteLogo = String(loaded.siteLogo || loaded.contacts?.siteLogo || '/assets/brand/yurigame-logo.png').trim() || '/assets/brand/yurigame-logo.png';
+        const loadedSiteLogo = resolveValidAssetUrl(
+          loaded.siteLogo || loaded.contacts?.siteLogo,
+          '/assets/brand/yurigame-logo.png'
+        );
+
+        const loadedBanners = (Array.isArray(loaded.banners) && loaded.banners.length > 0 ? loaded.banners : DEFAULT_BANNERS).map((b, idx) => {
+          const defBanner = DEFAULT_BANNERS[idx] || DEFAULT_BANNERS[0];
+          const fallbackImg = getDefaultBannerForSlug(b?.gameSlug || defBanner?.gameSlug);
+          return {
+            ...defBanner,
+            ...b,
+            image: resolveValidAssetUrl(b?.image, fallbackImg),
+          };
+        });
 
         adminConfig = {
 
@@ -656,9 +728,12 @@ export function loadAdminConfig() {
             };
           })(),
 
-          banners: Array.isArray(loaded.banners) ? loaded.banners : DEFAULT_BANNERS,
+          banners: loadedBanners,
 
-          comingSoonGames: Array.isArray(loaded.comingSoonGames) ? loaded.comingSoonGames : [],
+          comingSoonGames: (Array.isArray(loaded.comingSoonGames) ? loaded.comingSoonGames : []).map((cs) => ({
+            ...cs,
+            image: resolveValidAssetUrl(cs?.image, '/assets/brand/yurigame-logo.png'),
+          })),
 
           updatedAt: loaded.updatedAt || new Date().toISOString()
 
@@ -685,8 +760,6 @@ export function loadAdminConfig() {
   return adminConfig;
 
 }
-
-
 
 // Persist config to disk
 
@@ -722,33 +795,58 @@ function mergeLoadedConfig(loaded) {
   const gamesMerged = DEFAULT_GAMES.map((defGame) => {
     const found = (loaded.games || []).find((g) => g.id === defGame.id || g.slug === defGame.slug);
     if (!found) return defGame;
+    const validImage = resolveValidAssetUrl(found.image, defGame.image);
+    const validBanner = resolveValidAssetUrl(found.banner, defGame.banner);
     // One-time refresh for RoS Angkor: if the stored copy predates the real RosAngkor pack catalog
-    // (pack codes start with "dm"), adopt the current default config but keep the admin's logo/banner.
+    // (pack codes start with "dm"), adopt the current default config but keep the admin's valid logo/banner.
     if (defGame.id === 'rosangkor') {
       const hasRealPacks = Array.isArray(found.packages) && found.packages.some((p) => String(p.code || '').startsWith('dm'));
       if (!hasRealPacks) {
-        return { ...defGame, image: found.image || defGame.image, banner: found.banner || defGame.banner };
+        return { ...defGame, image: validImage, banner: validBanner };
       }
     }
     return {
       ...defGame,
       ...found,
+      image: validImage,
+      banner: validBanner,
       fields: defGame.fields,
       packages: Array.isArray(found.packages) && found.packages.length > 0 ? found.packages : defGame.packages,
     };
   });
   const defKeys = new Set(DEFAULT_GAMES.flatMap((g) => [g.id, g.slug].filter(Boolean)));
-  const importedGames = (loaded.games || []).filter((g) => g && !defKeys.has(g.id) && !defKeys.has(g.slug));
-  const mergedSiteLogo = String(
-    loaded.siteLogo || loaded.contacts?.siteLogo || adminConfig.siteLogo || '/assets/brand/yurigame-logo.png'
-  ).trim() || '/assets/brand/yurigame-logo.png';
+  const importedGames = (loaded.games || [])
+    .filter((g) => g && !defKeys.has(g.id) && !defKeys.has(g.slug))
+    .map((g) => ({
+      ...g,
+      image: resolveValidAssetUrl(g.image, getDefaultGameImageForId(g.id || g.slug)),
+      banner: resolveValidAssetUrl(g.banner, getDefaultBannerForSlug(g.slug || g.id)),
+    }));
+  const mergedSiteLogo = resolveValidAssetUrl(
+    loaded.siteLogo || loaded.contacts?.siteLogo || adminConfig.siteLogo,
+    '/assets/brand/yurigame-logo.png'
+  );
+  const rawBanners = Array.isArray(loaded.banners) && loaded.banners.length > 0 ? loaded.banners : adminConfig.banners;
+  const mergedBanners = (rawBanners || DEFAULT_BANNERS).map((b, idx) => {
+    const defBanner = DEFAULT_BANNERS[idx] || DEFAULT_BANNERS[0];
+    const fallbackImg = getDefaultBannerForSlug(b?.gameSlug || defBanner?.gameSlug);
+    return {
+      ...defBanner,
+      ...b,
+      image: resolveValidAssetUrl(b?.image, fallbackImg),
+    };
+  });
+  const mergedComingSoon = (Array.isArray(loaded.comingSoonGames) ? loaded.comingSoonGames : (adminConfig.comingSoonGames || [])).map((cs) => ({
+    ...cs,
+    image: resolveValidAssetUrl(cs?.image, '/assets/brand/yurigame-logo.png'),
+  }));
   return {
     siteLogo: mergedSiteLogo,
     games: [...gamesMerged, ...importedGames],
     mlbbEvents: Array.isArray(loaded.mlbbEvents) ? loaded.mlbbEvents : adminConfig.mlbbEvents,
     contacts: { ...adminConfig.contacts, ...(loaded.contacts || {}), siteLogo: mergedSiteLogo, telegramBotToken: '' },
-    banners: Array.isArray(loaded.banners) ? loaded.banners : adminConfig.banners,
-    comingSoonGames: Array.isArray(loaded.comingSoonGames) ? loaded.comingSoonGames : (adminConfig.comingSoonGames || []),
+    banners: mergedBanners,
+    comingSoonGames: mergedComingSoon,
     updatedAt: loaded.updatedAt || new Date().toISOString(),
   };
 }
@@ -795,6 +893,8 @@ export async function loadAdminConfigFromDb() {
     const loaded = JSON.parse(rows[0].config_json);
     if (loaded && Array.isArray(loaded.games)) {
       adminConfig = mergeLoadedConfig(loaded);
+      // Persist the sanitized/healed config back to disk and DB so broken ephemeral paths are permanently healed
+      saveAdminConfig();
       console.log('[Admin Store] Admin config loaded from database (durable).');
       return true;
     }
@@ -1124,7 +1224,10 @@ function stripInternalPackageFields(pkg = {}) {
 
 function getPublicContacts() {
   const contacts = adminConfig.contacts || {};
-  const siteLogo = adminConfig.siteLogo || contacts.siteLogo || '/assets/brand/yurigame-logo.png';
+  const siteLogo = resolveValidAssetUrl(
+    adminConfig.siteLogo || contacts.siteLogo,
+    '/assets/brand/yurigame-logo.png'
+  );
   return {
     siteLogo,
     telegramUrl: contacts.telegramUrl || '',
@@ -1138,11 +1241,16 @@ function getPublicContacts() {
 
 // Get clean configuration for public storefront.
 export function getPublicSiteConfig() {
-  const siteLogo = adminConfig.siteLogo || adminConfig.contacts?.siteLogo || '/assets/brand/yurigame-logo.png';
+  const siteLogo = resolveValidAssetUrl(
+    adminConfig.siteLogo || adminConfig.contacts?.siteLogo,
+    '/assets/brand/yurigame-logo.png'
+  );
   return {
     siteLogo,
     games: adminConfig.games.map((game) => ({
       ...game,
+      image: resolveValidAssetUrl(game.image, getDefaultGameImageForId(game.id || game.slug)),
+      banner: resolveValidAssetUrl(game.banner, getDefaultBannerForSlug(game.slug || game.id)),
       packages: (game.packages || [])
         .filter((pkg) => pkg.inStock !== false)
         .map(stripInternalPackageFields),
@@ -1151,13 +1259,22 @@ export function getPublicSiteConfig() {
       .filter((event) => event.isOpen === true)
       .map((event) => ({
         ...event,
+        banner: resolveValidAssetUrl(event.banner, '/assets/games/mlbb_hero_4k.jpg'),
         packages: (event.packages || [])
           .filter((pkg) => pkg.inStock !== false)
           .map(stripInternalPackageFields),
       })),
     contacts: getPublicContacts(),
-    banners: (adminConfig.banners || []).filter((banner) => banner.active !== false),
-    comingSoonGames: Array.isArray(adminConfig.comingSoonGames) ? adminConfig.comingSoonGames : [],
+    banners: (adminConfig.banners || [])
+      .filter((banner) => banner.active !== false)
+      .map((banner) => ({
+        ...banner,
+        image: resolveValidAssetUrl(banner.image, getDefaultBannerForSlug(banner.gameSlug)),
+      })),
+    comingSoonGames: (Array.isArray(adminConfig.comingSoonGames) ? adminConfig.comingSoonGames : []).map((cs) => ({
+      ...cs,
+      image: resolveValidAssetUrl(cs?.image, '/assets/brand/yurigame-logo.png'),
+    })),
   };
 }
 
@@ -1166,10 +1283,11 @@ export function addComingSoonGame({ name, image } = {}) {
   const cleanName = String(name || '').trim().slice(0, 80);
   if (!cleanName) return null;
   if (!Array.isArray(adminConfig.comingSoonGames)) adminConfig.comingSoonGames = [];
+  const validImage = resolveValidAssetUrl(image, '/assets/brand/yurigame-logo.png');
   const entry = {
     id: `cs_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
     name: cleanName,
-    image: String(image || '').slice(0, 500000),
+    image: String(validImage || '').slice(0, 2000000),
     comingSoon: true,
     createdAt: new Date().toISOString(),
   };
@@ -1194,10 +1312,26 @@ export function removeComingSoonGame(id) {
 export function getAdminClientConfig() {
   const safeContacts = { ...(adminConfig.contacts || {}) };
   delete safeContacts.telegramBotToken;
-  const siteLogo = adminConfig.siteLogo || safeContacts.siteLogo || '/assets/brand/yurigame-logo.png';
+  const siteLogo = resolveValidAssetUrl(
+    adminConfig.siteLogo || safeContacts.siteLogo,
+    '/assets/brand/yurigame-logo.png'
+  );
   return {
     ...adminConfig,
     siteLogo,
+    games: (adminConfig.games || []).map((game) => ({
+      ...game,
+      image: resolveValidAssetUrl(game.image, getDefaultGameImageForId(game.id || game.slug)),
+      banner: resolveValidAssetUrl(game.banner, getDefaultBannerForSlug(game.slug || game.id)),
+    })),
+    banners: (adminConfig.banners || []).map((banner) => ({
+      ...banner,
+      image: resolveValidAssetUrl(banner.image, getDefaultBannerForSlug(banner.gameSlug)),
+    })),
+    comingSoonGames: (adminConfig.comingSoonGames || []).map((cs) => ({
+      ...cs,
+      image: resolveValidAssetUrl(cs?.image, '/assets/brand/yurigame-logo.png'),
+    })),
     contacts: {
       ...safeContacts,
       siteLogo,
@@ -1324,11 +1458,20 @@ export function updateGameConfig(gameId, updateData = {}) {
   if (idx === -1) return null;
 
   const current = adminConfig.games[idx];
+  const fallbackImg = getDefaultGameImageForId(current.id || current.slug);
+  const fallbackBan = getDefaultBannerForSlug(current.slug || current.id);
+  const nextImage = updateData.image !== undefined
+    ? resolveValidAssetUrl(updateData.image, resolveValidAssetUrl(current.image, fallbackImg))
+    : resolveValidAssetUrl(current.image, fallbackImg);
+  const nextBanner = updateData.banner !== undefined
+    ? resolveValidAssetUrl(updateData.banner, resolveValidAssetUrl(current.banner, fallbackBan))
+    : resolveValidAssetUrl(current.banner, fallbackBan);
+
   adminConfig.games[idx] = {
     ...current,
     name: updateData.name || current.name,
-    image: updateData.image || current.image,
-    banner: updateData.banner || current.banner,
+    image: nextImage,
+    banner: nextBanner,
     badge: updateData.badge || current.badge,
     stockOpen: typeof updateData.stockOpen === 'boolean' ? updateData.stockOpen : current.stockOpen,
     maintenance: typeof updateData.maintenance === 'boolean' ? updateData.maintenance : (current.maintenance || false),
@@ -1702,7 +1845,7 @@ export function deletePackageFromMlbbEvent(eventId, pkgId) {
 
 // Contact Settings & Website Brand Logo
 export function updateSiteLogo(newLogoStr) {
-  const resolvedLogo = String(newLogoStr || '').trim() || '/assets/brand/yurigame-logo.png';
+  const resolvedLogo = resolveValidAssetUrl(newLogoStr, '/assets/brand/yurigame-logo.png');
   adminConfig.siteLogo = resolvedLogo;
   adminConfig.contacts = {
     ...(adminConfig.contacts || DEFAULT_CONTACTS),
@@ -1722,8 +1865,8 @@ export function updateContactSettings(newContacts = {}) {
   const rawUrl = newContacts.telegramUrl !== undefined ? newContacts.telegramUrl : current.telegramUrl;
   const url = normalizeTelegramUrl(rawUrl, username);
   const nextSiteLogo = newContacts.siteLogo !== undefined
-    ? (String(newContacts.siteLogo || '').trim() || '/assets/brand/yurigame-logo.png')
-    : (adminConfig.siteLogo || current.siteLogo || '/assets/brand/yurigame-logo.png');
+    ? resolveValidAssetUrl(newContacts.siteLogo, '/assets/brand/yurigame-logo.png')
+    : resolveValidAssetUrl(adminConfig.siteLogo || current.siteLogo, '/assets/brand/yurigame-logo.png');
 
   adminConfig.siteLogo = nextSiteLogo;
   adminConfig.contacts = {
@@ -1753,71 +1896,48 @@ export function updateContactSettings(newContacts = {}) {
 // Slide Banners Management
 
 export function addSlideBanner(bannerData = {}) {
-
+  const slug = bannerData.gameSlug || 'mobile-legends';
+  const fallbackImg = getDefaultBannerForSlug(slug);
   const newBanner = {
-
     id: bannerData.id || `banner_${Date.now()}`,
-
     title: bannerData.title || 'Special Promotion',
-
     subtitle: bannerData.subtitle || 'Limited time top-up offers',
-
     actionLabel: bannerData.actionLabel || 'Shop Now',
-
-    image: bannerData.image || '/assets/games/mlbb_hero_4k.jpg',
-
-    gameSlug: bannerData.gameSlug || 'mobile-legends',
-
+    image: resolveValidAssetUrl(bannerData.image, fallbackImg),
+    gameSlug: slug,
     active: bannerData.active !== false
-
   };
 
-
-
   adminConfig.banners.push(newBanner);
-
   saveAdminConfig();
-
   return newBanner;
-
 }
 
 
 
 export function updateSlideBanner(bannerId, updateData = {}) {
-
   const idx = adminConfig.banners.findIndex((b) => b.id === bannerId);
-
   if (idx === -1) return null;
 
-
-
   const current = adminConfig.banners[idx];
+  const nextSlug = updateData.gameSlug || current.gameSlug || 'mobile-legends';
+  const fallbackImg = getDefaultBannerForSlug(nextSlug);
+  const nextImage = updateData.image !== undefined
+    ? resolveValidAssetUrl(updateData.image, resolveValidAssetUrl(current.image, fallbackImg))
+    : resolveValidAssetUrl(current.image, fallbackImg);
 
   adminConfig.banners[idx] = {
-
     ...current,
-
     title: updateData.title || current.title,
-
     subtitle: updateData.subtitle || current.subtitle,
-
     actionLabel: updateData.actionLabel || current.actionLabel,
-
-    image: updateData.image || current.image,
-
-    gameSlug: updateData.gameSlug || current.gameSlug,
-
+    image: nextImage,
+    gameSlug: nextSlug,
     active: typeof updateData.active === 'boolean' ? updateData.active : current.active
-
   };
 
-
-
   saveAdminConfig();
-
   return adminConfig.banners[idx];
-
 }
 
 

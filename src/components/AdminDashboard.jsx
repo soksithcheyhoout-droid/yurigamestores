@@ -41,7 +41,7 @@ import {
   ShoppingCart,
   Activity
 } from 'lucide-react';
-import YuriGameLogo, { DEFAULT_SITE_LOGO, getSiteLogo, setSiteLogo } from './YuriGameLogo';
+import YuriGameLogo, { DEFAULT_SITE_LOGO, getSiteLogo, setSiteLogo, isValidLogoUrl } from './YuriGameLogo';
 import AdminAnalyticsPanel from './AdminAnalyticsPanel';
 import ImageUploadPicker, {
   compressImageFile,
@@ -50,6 +50,29 @@ import ImageUploadPicker, {
 } from './ImageUploadPicker';
 import { syncGamesWithAdminConfig } from '../data/games';
 import { formatPrice } from '../data/regionStore';
+
+function getFallbackGameTile(gameOrCode) {
+  const code = String(
+    typeof gameOrCode === 'object' && gameOrCode !== null
+      ? (gameOrCode.providerCode || gameOrCode.id || gameOrCode.slug || gameOrCode.code || '')
+      : (gameOrCode || '')
+  ).toLowerCase();
+  if (code === 'robuxsend' || code.includes('roblox')) return '/assets/games/roblox_kh.png';
+  if (code === 'ff' || code.includes('free-fire')) return '/assets/games/ff_kh.png';
+  if (code === 'rosangkor' || code.includes('angkor')) return '/assets/games/ros_angkor.png';
+  if (code === 'roslegacy' || code.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
+  if (code === 'ml' || code.includes('mobile-legends')) return '/assets/games/ml_kh.png';
+  return DEFAULT_SITE_LOGO;
+}
+
+function getFallbackBanner(slugOrCode) {
+  const s = String(slugOrCode || '').toLowerCase();
+  if (s.includes('roblox') || s === 'robuxsend') return '/assets/games/roblox_hero_4k.jpg';
+  if (s.includes('free-fire') || s === 'ff') return '/assets/banners/banner_freefire.jpg';
+  if (s.includes('angkor') || s === 'rosangkor') return '/assets/games/ros_angkor.png';
+  if (s.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
+  return '/assets/banners/banner_mlbb.jpg';
+}
 
 export default function AdminDashboard({ onBackToStore }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -468,15 +491,16 @@ export default function AdminDashboard({ onBackToStore }) {
   const updateClientCaches = (configData) => {
     if (!configData || typeof window === 'undefined') return;
     try {
-      const resolvedSiteLogo =
+      const candidateSiteLogo =
         configData.siteLogo ||
         configData.contacts?.siteLogo ||
         getSiteLogo();
+      const resolvedSiteLogo = isValidLogoUrl(candidateSiteLogo)
+        ? candidateSiteLogo
+        : DEFAULT_SITE_LOGO;
 
-      if (resolvedSiteLogo) {
-        setSiteLogo(resolvedSiteLogo);
-        setSiteLogoState(resolvedSiteLogo);
-      }
+      setSiteLogo(resolvedSiteLogo);
+      setSiteLogoState(resolvedSiteLogo);
 
       if (Array.isArray(configData.games) && configData.games.length > 0) {
         syncGamesWithAdminConfig(configData.games);
@@ -500,18 +524,25 @@ export default function AdminDashboard({ onBackToStore }) {
       if (Array.isArray(configData.banners)) {
         const activeBanners = configData.banners.filter((b) => b.active !== false);
         if (activeBanners.length > 0) {
-          const mappedSlides = activeBanners.map((b) => ({
-            id: b.id,
-            image: b.image,
-            fallbackImage: b.image,
-            title: b.title,
-            actionLabel: b.actionLabel || 'Shop now',
-            providerCode:
-              b.gameSlug === 'roblox' ? 'robuxsend' :
-                b.gameSlug === 'mobile-legends' ? 'ml' :
-                  b.gameSlug === 'free-fire' ? 'ff' : 'roslegacy',
-            position: 'center',
-          }));
+          const mappedSlides = activeBanners.map((b) => {
+            const safeFallback = getFallbackBanner(b.gameSlug || b.title);
+            const rawImg = isValidLogoUrl(b.image) && !String(b.image).startsWith('/assets/uploads/')
+              ? b.image
+              : safeFallback;
+            return {
+              id: b.id,
+              image: rawImg,
+              fallbackImage: safeFallback,
+              title: b.title,
+              actionLabel: b.actionLabel || 'Shop now',
+              providerCode:
+                b.gameSlug === 'roblox' ? 'robuxsend' :
+                  b.gameSlug === 'mobile-legends' ? 'ml' :
+                    b.gameSlug === 'free-fire' ? 'ff' :
+                      b.gameSlug === 'rosangkor' ? 'rosangkor' : 'roslegacy',
+              position: 'center',
+            };
+          });
           window.localStorage.setItem('yurigame_hero_slides_v2', JSON.stringify(mappedSlides));
         }
       }
@@ -520,21 +551,38 @@ export default function AdminDashboard({ onBackToStore }) {
       if (Array.isArray(configData.games) && configData.games.length > 0) {
         const mappedGames = configData.games.map((g) => {
           const code = g.providerCode || g.id || g.code;
+          const fallbackTile = getFallbackGameTile(g);
+          const fallbackBan = getFallbackBanner(code);
+          const validImg = isValidLogoUrl(g.image) && !String(g.image).startsWith('/assets/uploads/')
+            ? g.image
+            : fallbackTile;
+          const validBan = isValidLogoUrl(g.banner) && !String(g.banner).startsWith('/assets/uploads/')
+            ? g.banner
+            : fallbackBan;
           return {
             id: `sora_${code}`,
-            slug: g.slug || (code === 'robuxsend' ? 'roblox' : code === 'ml' ? 'mobile-legends' : code === 'ff' ? 'free-fire' : 'ros-legacy'),
+            slug: g.slug || (
+              code === 'robuxsend' ? 'roblox' :
+                code === 'ml' ? 'mobile-legends' :
+                  code === 'ff' ? 'free-fire' :
+                    code === 'rosangkor' ? 'rosangkor' : 'ros-legacy'
+            ),
             provider: 'soratopup',
             providerCode: code,
             orderingEnabled: true,
-            verificationMode: g.verificationMode || (code === 'robuxsend' ? 'official' : 'none'),
+            verificationMode: g.verificationMode || (code === 'robuxsend' ? 'official' : code === 'rosangkor' ? 'live' : 'none'),
             name: g.name,
             publisher:
               g.publisher ||
-              (code === 'robuxsend' ? 'Roblox Corp' : code === 'roslegacy' ? 'NetEase' : code === 'ml' ? 'Moonton' : code === 'ff' ? 'Garena' : 'Official Publisher'),
+              (code === 'robuxsend' ? 'Roblox Corp' :
+                code === 'rosangkor' ? 'RoS Angkor' :
+                  code === 'roslegacy' ? 'RoS Legacy' :
+                    code === 'ml' ? 'Moonton' :
+                      code === 'ff' ? 'Garena' : 'Official Publisher'),
             category: 'popular',
             badge: g.badge || (code === 'robuxsend' ? 'Instant Robux' : 'Official Top-Up'),
-            image: g.image,
-            banner: g.banner || g.image,
+            image: validImg,
+            banner: validBan,
             description: g.description || '',
             currency: code === 'robuxsend' ? 'Robux' : 'Diamonds',
             needServer: Boolean(g.needServer),
@@ -868,8 +916,11 @@ export default function AdminDashboard({ onBackToStore }) {
   // =====================================
   // ACTIONS: Website Brand Logo & Auto-Cut Background
   // =====================================
-  const handleSaveSiteLogo = async (newLogoStr, customToastMsg = '') => {
-    const resolved = String(newLogoStr || '').trim() || DEFAULT_SITE_LOGO;
+  const handleSaveSiteLogo = async (newLogoInput, customToastMsg = '') => {
+    const candidate = newLogoInput && typeof newLogoInput === 'object'
+      ? String(newLogoInput.url || newLogoInput.src || '').trim()
+      : String(newLogoInput || '').trim();
+    const resolved = isValidLogoUrl(candidate) ? candidate : DEFAULT_SITE_LOGO;
     // Optimistically update everywhere on the page & browser favicon immediately
     setSiteLogoState(resolved);
     setSiteLogo(resolved);
@@ -883,7 +934,7 @@ export default function AdminDashboard({ onBackToStore }) {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
-        const savedLogo = data.siteLogo || resolved;
+        const savedLogo = isValidLogoUrl(data.siteLogo) ? data.siteLogo : resolved;
         setSiteLogoState(savedLogo);
         setSiteLogo(savedLogo);
         setConfig((prev) => {
@@ -942,8 +993,10 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   const handleManualCutSiteLogo = async () => {
-    const sourceLogo = originalSiteLogo || siteLogoState || getSiteLogo();
-    if (!sourceLogo) return;
+    const rawCandidate = originalSiteLogo || siteLogoState || getSiteLogo();
+    const sourceLogo = isValidLogoUrl(rawCandidate) && !String(rawCandidate).startsWith('/assets/uploads/')
+      ? rawCandidate
+      : DEFAULT_SITE_LOGO;
     setIsProcessingSiteLogo(true);
     try {
       showToast('Cutting background from website logo...');
@@ -981,10 +1034,13 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   const handleCutExistingGameLogo = async (game) => {
-    if (!game?.image) return;
+    const sourceImg = isValidLogoUrl(game?.image) && !String(game.image).startsWith('/assets/uploads/')
+      ? game.image
+      : getFallbackGameTile(game);
+    if (!sourceImg) return;
     try {
       showToast(`Cutting background for ${game.name} logo...`);
-      const cutOut = await removeImageBackground(game.image, logoTolerance, 20, {
+      const cutOut = await removeImageBackground(sourceImg, logoTolerance, 20, {
         targetColor: resolveLogoTargetColor(),
         cutInnerHoles: logoCutInner,
         trim: true,
@@ -2288,9 +2344,13 @@ export default function AdminDashboard({ onBackToStore }) {
                   <div className="flex items-center gap-3">
                     <div className="relative group shrink-0">
                       <img
-                        src={selectedGame.image}
+                        src={selectedGame.image || getFallbackGameTile(selectedGame)}
                         alt={selectedGame.name}
                         className="w-14 h-14 rounded-xl object-cover border border-slate-700 shadow-md"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = getFallbackGameTile(selectedGame);
+                        }}
                       />
                       <input
                         type="file"
@@ -2997,6 +3057,10 @@ export default function AdminDashboard({ onBackToStore }) {
                     src={siteLogoState || DEFAULT_SITE_LOGO}
                     alt="Website Brand Logo"
                     className="w-full h-full object-contain drop-shadow-md"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = DEFAULT_SITE_LOGO;
+                    }}
                   />
                 </div>
                 <div>
@@ -3185,9 +3249,13 @@ export default function AdminDashboard({ onBackToStore }) {
                   >
                     <div className="relative h-44 bg-slate-950">
                       <img
-                        src={b.image}
+                        src={b.image || getFallbackBanner(b.gameSlug)}
                         alt={b.title}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = getFallbackBanner(b.gameSlug);
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-4 flex flex-col justify-end">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-[#E3062F] text-white w-max mb-1">
@@ -3303,6 +3371,10 @@ export default function AdminDashboard({ onBackToStore }) {
                       src={siteLogoState || DEFAULT_SITE_LOGO}
                       alt="Website Brand Logo Preview"
                       className="max-h-32 max-w-full object-contain drop-shadow-[0_6px_18px_rgba(0,0,0,0.65)] transition-transform duration-200 hover:scale-105"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = DEFAULT_SITE_LOGO;
+                      }}
                     />
                     <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/75 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
                       Transparent PNG Preview
@@ -3310,21 +3382,13 @@ export default function AdminDashboard({ onBackToStore }) {
                   </div>
 
                   {/* Live Storefront Header Simulation */}
-                  <div className="rounded-xl border border-slate-800 bg-[#07090e] px-3.5 py-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <YuriGameLogo size={36} className="rounded-lg" />
-                      <div>
-                        <div className="text-xs font-black text-white leading-tight">
-                          YURI<span className="text-[#E3062F]">GAME</span>
-                        </div>
-                        <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                          Live Homepage Header
-                        </div>
-                      </div>
+                  <div className="rounded-xl border border-slate-800 bg-[#07090e] px-3.5 py-2.5 flex items-center justify-between gap-2 overflow-hidden">
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <YuriGameLogo size="sm" showBadge={false} inverse />
                     </div>
-                    <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1">
+                    <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1 shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      Live
+                      Live Header
                     </span>
                   </div>
                 </div>
@@ -3615,9 +3679,13 @@ export default function AdminDashboard({ onBackToStore }) {
                     <div>
                       <div className="relative mb-3 rounded-xl overflow-hidden h-32 bg-slate-950">
                         <img
-                          src={game.image}
+                          src={game.image || getFallbackGameTile(game)}
                           alt={game.name}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = getFallbackGameTile(game);
+                          }}
                         />
                         <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${game.stockOpen ? 'bg-emerald-500 text-white' : 'bg-rose-600 text-white'
                           }`}>

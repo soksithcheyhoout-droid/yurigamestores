@@ -1,10 +1,53 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ShieldCheck, Zap } from 'lucide-react';
 import { fetchSoraGameWithPackages } from '../data/soraStore';
-import YuriGameLogo, { getSiteLogo } from './YuriGameLogo';
+import YuriGameLogo, { getSiteLogo, isValidLogoUrl } from './YuriGameLogo';
 
 const AUTO_PLAY_MS = 6500;
 const HERO_CACHE_KEY = 'yurigame_hero_slides_v2';
+
+function getFallbackBannerForSlide(slideOrSlug) {
+  const raw = typeof slideOrSlug === 'object' && slideOrSlug !== null
+    ? `${slideOrSlug.gameSlug || ''} ${slideOrSlug.providerCode || ''} ${slideOrSlug.id || ''} ${slideOrSlug.title || ''}`
+    : String(slideOrSlug || '');
+  const s = raw.toLowerCase();
+  if (s.includes('roblox') || s.includes('robux')) return '/assets/games/roblox_hero_4k.jpg';
+  if (s.includes('free-fire') || s.includes('free fire') || s.includes('ff')) return '/assets/banners/banner_freefire.jpg';
+  if (s.includes('angkor') || s.includes('rosangkor')) return '/assets/games/ros_angkor.png';
+  if (s.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
+  return '/assets/banners/banner_mlbb.jpg';
+}
+
+function isUsableBannerUrl(val) {
+  if (!isValidLogoUrl(val)) return false;
+  const s = String(val).trim();
+  // Legacy ephemeral container uploads (/assets/uploads/...) are wiped on Railway redeploy
+  if (s.startsWith('/assets/uploads/')) return false;
+  return true;
+}
+
+function sanitizeSlide(rawSlide, idx = 0) {
+  const s = rawSlide && typeof rawSlide === 'object' ? rawSlide : {};
+  const fallback = getFallbackBannerForSlide(s);
+  const cleanImage = isUsableBannerUrl(s.image) ? String(s.image).trim() : fallback;
+  const slug = String(s.gameSlug || s.providerCode || '').toLowerCase();
+  const providerCode = s.providerCode || (
+    slug.includes('roblox') || slug === 'robuxsend' ? 'robuxsend' :
+      slug.includes('free-fire') || slug === 'ff' ? 'ff' :
+        slug.includes('angkor') || slug === 'rosangkor' ? 'rosangkor' :
+          slug.includes('ros') ? 'roslegacy' : 'ml'
+  );
+  return {
+    id: s.id || `slide_${idx}`,
+    image: cleanImage,
+    fallbackImage: fallback,
+    title: s.title || 'Featured Top-Up Promotion',
+    actionLabel: s.actionLabel || 'Shop now',
+    providerCode,
+    position: s.position || 'center',
+    kind: s.kind,
+  };
+}
 
 function getCachedSlides() {
   try {
@@ -12,7 +55,11 @@ function getCachedSlides() {
     const raw = window.localStorage.getItem(HERO_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const sanitized = parsed.map((s, idx) => sanitizeSlide(s, idx));
+      window.localStorage.setItem(HERO_CACHE_KEY, JSON.stringify(sanitized));
+      return sanitized;
+    }
   } catch {}
   return null;
 }
@@ -20,8 +67,8 @@ function getCachedSlides() {
 const PROMO_SLIDES = [
   {
     id: 'roblox-live',
-    image: '/assets/games/current_roblox.jpg',
-    fallbackImage: '/assets/games/current_roblox.jpg',
+    image: '/assets/games/roblox_hero_4k.jpg',
+    fallbackImage: '/assets/games/roblox_hero_4k.jpg',
     title: 'Roblox Robux fast delivery with official username verification',
     actionLabel: 'Open Roblox Robux packages',
     providerCode: 'robuxsend',
@@ -30,6 +77,7 @@ const PROMO_SLIDES = [
   {
     id: 'mlbb-anniversary',
     image: '/assets/banners/banner_mlbb.jpg',
+    fallbackImage: '/assets/banners/banner_mlbb.jpg',
     title: 'Mobile Legends KH direct diamonds top-up with fast 5-second sync',
     actionLabel: 'Open Mobile Legends KH packages',
     providerCode: 'ml',
@@ -38,6 +86,7 @@ const PROMO_SLIDES = [
   {
     id: 'free-fire-diamonds',
     image: '/assets/banners/banner_freefire.jpg',
+    fallbackImage: '/assets/banners/banner_freefire.jpg',
     title: 'Free Fire diamonds official top-up with instant UID verification',
     actionLabel: 'Open Free Fire packages',
     providerCode: 'ff',
@@ -45,18 +94,14 @@ const PROMO_SLIDES = [
   },
   {
     id: 'ros-legacy-live',
-    image: '/assets/games/current_ros-legacy.jpg',
-    fallbackImage: '/assets/games/current_ros-legacy.jpg',
+    image: '/assets/games/ros_legacy_kh.webp',
+    fallbackImage: '/assets/games/ros_legacy_kh.webp',
     title: 'RoS Legacy direct top-up with dedicated admin fulfillment',
     actionLabel: 'Open RoS Legacy packages',
     providerCode: 'roslegacy',
     position: 'center',
   },
 ];
-
-function wrapIndex(index) {
-  return (index + PROMO_SLIDES.length) % PROMO_SLIDES.length;
-}
 
 export default function Hero({ onSelectGame }) {
   const [slides, setSlides] = useState(() => getCachedSlides() || PROMO_SLIDES);
@@ -69,12 +114,22 @@ export default function Hero({ onSelectGame }) {
   const didSwipe = useRef(false);
 
   useEffect(() => {
-    const syncBrandLogo = () => setBrandLogo(getSiteLogo());
-    window.addEventListener('yurigame_site_logo_changed', syncBrandLogo);
-    window.addEventListener('yurigame_site_config_updated', syncBrandLogo);
+    const syncBrandAndSlides = (event) => {
+      setBrandLogo(getSiteLogo());
+      const updatedBanners = event?.detail?.banners;
+      if (Array.isArray(updatedBanners) && updatedBanners.length > 0) {
+        const mapped = updatedBanners.map((b, idx) => sanitizeSlide(b, idx));
+        setSlides(mapped);
+      } else {
+        const cached = getCachedSlides();
+        if (cached && cached.length > 0) setSlides(cached);
+      }
+    };
+    window.addEventListener('yurigame_site_logo_changed', syncBrandAndSlides);
+    window.addEventListener('yurigame_site_config_updated', syncBrandAndSlides);
     return () => {
-      window.removeEventListener('yurigame_site_logo_changed', syncBrandLogo);
-      window.removeEventListener('yurigame_site_config_updated', syncBrandLogo);
+      window.removeEventListener('yurigame_site_logo_changed', syncBrandAndSlides);
+      window.removeEventListener('yurigame_site_config_updated', syncBrandAndSlides);
     };
   }, []);
 
@@ -83,24 +138,12 @@ export default function Hero({ onSelectGame }) {
       .then(r => r.json())
       .then(d => {
         if (d.success && Array.isArray(d.banners) && d.banners.length > 0) {
-          const mapped = d.banners.map(b => {
-            const bannerImg = (b.image && String(b.image).trim())
-              ? b.image
-              : (b.gameSlug === 'mobile-legends' ? '/assets/banners/banner_mlbb.jpg' : b.gameSlug === 'free-fire' ? '/assets/banners/banner_freefire.jpg' : '/assets/games/current_roblox.jpg');
-            return {
-              id: b.id,
-              image: bannerImg,
-              fallbackImage: bannerImg,
-              title: b.title,
-              actionLabel: b.actionLabel || 'Shop now',
-              providerCode: b.gameSlug === 'roblox' ? 'robuxsend' : b.gameSlug === 'mobile-legends' ? 'ml' : b.gameSlug === 'free-fire' ? 'ff' : 'roslegacy',
-              position: 'center'
-            };
-          });
+          const mapped = d.banners.map((b, idx) => sanitizeSlide(b, idx));
 
-          // Avoid remounting identical slides on refresh to keep render 100% glitch-free
           setSlides(current => {
-            const isSame = current.length === mapped.length && current.every((s, i) => s.id === mapped[i]?.id && s.image === mapped[i]?.image);
+            const isSame =
+              current.length === mapped.length &&
+              current.every((s, i) => s.id === mapped[i]?.id && s.image === mapped[i]?.image && s.fallbackImage === mapped[i]?.fallbackImage);
             return isSame ? current : mapped;
           });
 
@@ -252,34 +295,49 @@ export default function Hero({ onSelectGame }) {
                       <span className="yurigame-brand-slide-cta">View rewards</span>
                     </div>
                     <div className="yurigame-brand-slide-logo">
-                      <img src={brandLogo} alt="" draggable="false" />
+                      <img
+                        src={brandLogo}
+                        alt=""
+                        draggable="false"
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = '/assets/brand/yurigame-logo.png';
+                        }}
+                      />
                     </div>
                   </div>
                 ) : (
                   <>
                     <img
-                      src={activeSlide.image}
+                      src={activeSlide.image || activeSlide.fallbackImage || '/assets/banners/banner_mlbb.jpg'}
                       alt=""
                       aria-hidden="true"
                       className="topbar-promo-backdrop"
+                      loading="eager"
                       draggable="false"
                       onError={(event) => {
+                        const fb = activeSlide.fallbackImage && activeSlide.fallbackImage !== activeSlide.image
+                          ? activeSlide.fallbackImage
+                          : getFallbackBannerForSlide(activeSlide);
                         event.currentTarget.onerror = null;
-                        event.currentTarget.src = activeSlide.fallbackImage || '/assets/games/mlbb_hero_4k.jpg';
+                        event.currentTarget.src = fb || '/assets/banners/banner_mlbb.jpg';
                       }}
                     />
                     <div className="topbar-promo-image-frame">
                       <img
-                        src={activeSlide.image}
+                        src={activeSlide.image || activeSlide.fallbackImage || '/assets/banners/banner_mlbb.jpg'}
                         alt={activeSlide.title}
                         className="topbar-promo-image"
-                        style={{ objectPosition: activeSlide.position }}
-                        loading={activeIndex === 0 ? 'eager' : 'lazy'}
-                        fetchPriority={activeIndex === 0 ? 'high' : 'auto'}
+                        style={{ objectPosition: activeSlide.position || 'center' }}
+                        loading="eager"
+                        fetchPriority="high"
                         draggable="false"
                         onError={(event) => {
+                          const fb = activeSlide.fallbackImage && activeSlide.fallbackImage !== activeSlide.image
+                            ? activeSlide.fallbackImage
+                            : getFallbackBannerForSlide(activeSlide);
                           event.currentTarget.onerror = null;
-                          event.currentTarget.src = activeSlide.fallbackImage || '/assets/games/mlbb_hero_4k.jpg';
+                          event.currentTarget.src = fb || '/assets/banners/banner_mlbb.jpg';
                         }}
                       />
                     </div>

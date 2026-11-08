@@ -74,36 +74,44 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
         return null;
       };
 
-      // 1. Sample all 4 outer borders (and 1px inset) to accurately detect background color(s)
-      // Works for white, black, or any solid/gradient/checkerboard background color.
-      const borderCoords = [];
+      // 1. Sample outer border strips (0..3px inset along all 4 edges) to detect background color(s).
+      // Handles full-bleed backgrounds (white, black, any color, gradients) AND rounded-corner icons
+      // while preserving already-transparent PNG stickers in 'auto' mode.
+      const borderSamples = [];
       const step = Math.max(1, Math.floor(Math.min(width, height) / 120));
-      for (let x = 0; x < width; x += step) {
-        borderCoords.push([x, 0], [x, height - 1]);
-        if (height > 4) borderCoords.push([x, 1], [x, height - 2]);
-      }
-      for (let y = 0; y < height; y += step) {
-        borderCoords.push([0, y], [width - 1, y]);
-        if (width > 4) borderCoords.push([1, y], [width - 2, y]);
-      }
+      let totalBorderProbes = 0;
+      let transparentBorderProbes = 0;
 
-      let transparentBorderCount = 0;
-      const clusters = new Map();
-      let opaqueBorderCount = 0;
-
-      for (const [bx, by] of borderCoords) {
-        if (bx < 0 || bx >= width || by < 0 || by >= height) continue;
+      const sampleBorderPoint = (bx, by) => {
+        if (bx < 0 || bx >= width || by < 0 || by >= height) return;
+        totalBorderProbes++;
         const idx = (by * width + bx) * 4;
         const a = data[idx + 3];
-        if (a < 30) {
-          transparentBorderCount++;
-          continue;
+        if (a < 35) {
+          transparentBorderProbes++;
+          return;
         }
-        opaqueBorderCount++;
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
-        // Quantize into 16-level buckets to cluster dominant border colors
+        if (a >= 120) {
+          borderSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+        }
+      };
+
+      const insetDepth = Math.min(4, Math.max(1, Math.floor(Math.min(width, height) * 0.02)));
+      for (let x = 0; x < width; x += step) {
+        for (let d = 0; d < insetDepth; d++) {
+          sampleBorderPoint(x, d);
+          sampleBorderPoint(x, height - 1 - d);
+        }
+      }
+      for (let y = 0; y < height; y += step) {
+        for (let d = 0; d < insetDepth; d++) {
+          sampleBorderPoint(d, y);
+          sampleBorderPoint(width - 1 - d, y);
+        }
+      }
+
+      const clusters = new Map();
+      for (const [r, g, b] of borderSamples) {
         const key = `${r >> 4}_${g >> 4}_${b >> 4}`;
         const existing = clusters.get(key);
         if (existing) {
@@ -119,18 +127,19 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
       const bgPalette = [];
 
       if (targetColor === 'white') {
-        bgPalette.push([255, 255, 255], [246, 246, 246]);
+        bgPalette.push([255, 255, 255], [245, 245, 245], [235, 235, 235]);
       } else if (targetColor === 'black') {
-        bgPalette.push([0, 0, 0], [15, 15, 18]);
+        bgPalette.push([0, 0, 0], [15, 15, 18], [28, 28, 34]);
       } else if (targetColor && targetColor !== 'auto' && targetColor.startsWith('#')) {
         const parsed = parseHexColor(targetColor);
         if (parsed) bgPalette.push(parsed);
       }
 
-      // Add dominant border color clusters
-      if (opaqueBorderCount > 0) {
-        const sortedClusters = [...clusters.values()].sort((a, b) => b.count - a.count);
-        const topCluster = sortedClusters[0];
+      const sortedClusters = [...clusters.values()].sort((a, b) => b.count - a.count);
+      const topCluster = sortedClusters[0];
+
+      // Add dominant border color clusters when in 'auto' mode (or if no explicit target color matched)
+      if (borderSamples.length > 0 && (targetColor === 'auto' || bgPalette.length === 0)) {
         if (topCluster) {
           bgPalette.push([
             Math.round(topCluster.sumR / topCluster.count),
@@ -138,10 +147,9 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
             Math.round(topCluster.sumB / topCluster.count),
           ]);
         }
-        // Include secondary/tertiary border clusters (handles gradients & checkerboard backgrounds)
         for (let i = 1; i < Math.min(4, sortedClusters.length); i++) {
           const c = sortedClusters[i];
-          if (c.count >= opaqueBorderCount * 0.12) {
+          if (c.count >= borderSamples.length * 0.12) {
             bgPalette.push([
               Math.round(c.sumR / c.count),
               Math.round(c.sumG / c.count),
@@ -151,10 +159,12 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
         }
       }
 
-      // If border is already mostly transparent and no explicit target color was requested, just auto-trim
+      // If >82% of the outer border is already transparent and targetColor is 'auto',
+      // the image is already a cut-out transparent PNG — keep its outline intact and just auto-trim.
       const alreadyTransparent =
         targetColor === 'auto' &&
-        (transparentBorderCount >= borderCoords.length * 0.78 || bgPalette.length === 0);
+        totalBorderProbes > 0 &&
+        (transparentBorderProbes / totalBorderProbes >= 0.82 || bgPalette.length === 0);
 
       // Helper: distance from pixel at `dataIdx` to closest background palette color
       const getClosestBgInfo = (dataIdx) => {
@@ -227,6 +237,9 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
           const cx = curr % width;
           const cy = Math.floor(curr / width);
           const cDataIdx = curr * 4;
+          const origR = data[cDataIdx];
+          const origG = data[cDataIdx + 1];
+          const origB = data[cDataIdx + 2];
           const cAlpha = data[cDataIdx + 3];
 
           let currDist = 0;
@@ -244,14 +257,14 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
             const factor = (currDist - tolerance) / Math.max(1, feather);
             data[cDataIdx + 3] = Math.round(data[cDataIdx + 3] * factor);
             if (factor > 0.05) {
-              data[cDataIdx] = Math.min(255, Math.max(0, Math.round((data[cDataIdx] - currBg[0] * (1 - factor)) / factor)));
-              data[cDataIdx + 1] = Math.min(255, Math.max(0, Math.round((data[cDataIdx + 1] - currBg[1] * (1 - factor)) / factor)));
-              data[cDataIdx + 2] = Math.min(255, Math.max(0, Math.round((data[cDataIdx + 2] - currBg[2] * (1 - factor)) / factor)));
+              data[cDataIdx] = Math.min(255, Math.max(0, Math.round((origR - currBg[0] * (1 - factor)) / factor)));
+              data[cDataIdx + 1] = Math.min(255, Math.max(0, Math.round((origG - currBg[1] * (1 - factor)) / factor)));
+              data[cDataIdx + 2] = Math.min(255, Math.max(0, Math.round((origB - currBg[2] * (1 - factor)) / factor)));
             }
           }
 
-          // Expand to neighbors if current pixel is part of the background or soft boundary
-          if (currDist <= tolerance + feather * 0.65) {
+          // Expand to neighbors if current pixel is transparent margin or part of the background
+          if (cAlpha < 30 || currDist <= tolerance + feather * 0.65) {
             for (let d = 0; d < 8; d++) {
               const nx = cx + dirsX[d];
               const ny = cy + dirsY[d];
@@ -267,13 +280,12 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
               }
 
               const { dist: nDist } = getClosestBgInfo(nDataIdx);
-              // Also check local color continuity for smooth gradients
-              const stepDr = data[nDataIdx] - data[cDataIdx];
-              const stepDg = data[nDataIdx + 1] - data[cDataIdx + 1];
-              const stepDb = data[nDataIdx + 2] - data[cDataIdx + 2];
+              const stepDr = data[nDataIdx] - origR;
+              const stepDg = data[nDataIdx + 1] - origG;
+              const stepDb = data[nDataIdx + 2] - origB;
               const stepDist = Math.sqrt(stepDr * stepDr + stepDg * stepDg + stepDb * stepDb);
 
-              if (nDist <= maxReachDist || (stepDist <= 14 && nDist <= maxReachDist * 1.25)) {
+              if (nDist <= maxReachDist || (cAlpha >= 30 && stepDist <= 14 && nDist <= maxReachDist * 1.25)) {
                 visited[nIdx] = 1;
                 queue[tail++] = nIdx;
               }
@@ -386,35 +398,34 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
 
 /**
  * Convenience helper to compress an uploaded logo file as PNG and automatically cut its background
- * (white, black, or any color).
+ * (white, black, or any color). Always returns a string data URL (or null on failure).
  */
 export const processLogoFileWithAutoCut = async (
   file,
   {
     autoCut = true,
-    maxDimension = 600,
+    maxWidth = 800,
+    maxDimension = 800,
     tolerance = 48,
     feather = 20,
     targetColor = 'auto',
     cutInnerHoles = false,
   } = {}
 ) => {
-  const rawPng = await compressImageFile(file, maxDimension, 0.9, 'png');
-  if (!rawPng) return { url: null, originalUrl: null, wasCut: false };
-  if (!autoCut) return { url: rawPng, originalUrl: rawPng, wasCut: false };
+  const dim = Number(maxWidth || maxDimension) || 800;
+  const rawPng = await compressImageFile(file, dim, 0.92, 'png');
+  if (!rawPng) return null;
+  if (!autoCut) return rawPng;
   try {
     const cutPng = await removeImageBackground(rawPng, tolerance, feather, {
       targetColor,
       cutInnerHoles,
-      maxDimension,
+      maxDimension: dim,
+      forceCut: true,
     });
-    return {
-      url: cutPng || rawPng,
-      originalUrl: rawPng,
-      wasCut: Boolean(cutPng),
-    };
+    return typeof cutPng === 'string' && cutPng.startsWith('data:image/') ? cutPng : rawPng;
   } catch {
-    return { url: rawPng, originalUrl: rawPng, wasCut: false };
+    return rawPng;
   }
 };
 
@@ -468,7 +479,11 @@ export const compressImageFile = (file, maxDimension = 1200, quality = 0.85, for
           ctx.drawImage(img, 0, 0, width, height);
 
           // Preserve PNG transparency if input is PNG or format requested is PNG
-          const isPng = file.type === 'image/png' || format === 'png' || file.name?.toLowerCase().endsWith('.png');
+          const isPng =
+            file.type === 'image/png' ||
+            format === 'png' ||
+            (typeof format === 'object' && format?.forcePng === true) ||
+            file.name?.toLowerCase().endsWith('.png');
           const outputMime = isPng ? 'image/png' : 'image/jpeg';
           const compressed = canvas.toDataURL(outputMime, isPng ? undefined : quality);
           resolve(compressed);

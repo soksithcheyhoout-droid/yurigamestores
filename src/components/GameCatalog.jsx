@@ -38,6 +38,31 @@ function getStartingPrice(game) {
   return prices.length ? Math.min(...prices) : 0;
 }
 
+function getSafeGameImage(game, candidateUrl) {
+  const code = String(game?.providerCode || game?.code || game?.id || game?.slug || '').replace(/^sora_/, '').toLowerCase();
+  const nameLower = String(game?.name || '').toLowerCase();
+  const fallback =
+    code === 'robuxsend' || code.includes('roblox') ? '/assets/games/roblox_kh.png' :
+    code === 'ff' || code.includes('free-fire') ? '/assets/games/ff_kh.png' :
+    code === 'rosangkor' || code.includes('angkor') || nameLower.includes('angkor') ? '/assets/games/ros_angkor.png' :
+    code === 'roslegacy' || code.includes('ros') ? '/assets/games/ros_legacy_kh.webp' :
+    '/assets/games/ml_kh.png';
+  const raw = typeof candidateUrl === 'object' && candidateUrl !== null
+    ? String(candidateUrl.url || candidateUrl.src || '').trim()
+    : String(candidateUrl || '').trim();
+  if (
+    !raw ||
+    raw === '[object Object]' ||
+    raw === 'undefined' ||
+    raw === 'null' ||
+    raw.includes('harikitopup.com') ||
+    raw.startsWith('/assets/uploads/')
+  ) {
+    return fallback;
+  }
+  return raw;
+}
+
 export default function GameCatalog({
   onSelectGame,
   selectedCategory: externalCategory,
@@ -72,12 +97,18 @@ export default function GameCatalog({
             const agCode = String(ag.providerCode || ag.id || ag.code || '').toLowerCase();
             return agCode === code || String(ag.slug || '').toLowerCase() === String(g.slug || '').toLowerCase();
           });
-          if (!match) return g;
+          if (!match) {
+            return {
+              ...g,
+              image: getSafeGameImage(g, g.image),
+            };
+          }
+          const nextImage = getSafeGameImage(match, match.image || g.image);
           return {
             ...g,
             name: match.name || g.name,
-            image: match.image || g.image,
-            banner: match.banner || match.image || g.banner,
+            image: nextImage,
+            banner: match.banner || nextImage || g.banner,
             stockOpen: match.stockOpen !== false,
             maintenance: match.maintenance === true,
           };
@@ -303,18 +334,13 @@ export default function GameCatalog({
                 >
                   <div className="relative aspect-square w-full overflow-hidden rounded-lg sm:rounded-xl border border-slate-700/50 bg-[#12131C] shadow-inner">
                     <img
-                      src={game.image}
+                      src={getSafeGameImage(game, game.image)}
                       alt={game.name}
                       loading="lazy"
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       onError={(event) => {
                         event.currentTarget.onerror = null;
-                        const fallback =
-                          game.providerCode === 'robuxsend' ? '/assets/games/current_roblox.jpg' :
-                            game.providerCode === 'ff' ? '/assets/games/current_free-fire.jpg' :
-                              game.providerCode === 'roslegacy' ? '/assets/games/current_ros-legacy.jpg' :
-                                '/assets/games/current_mobile-legends.jpg';
-                        event.currentTarget.src = fallback;
+                        event.currentTarget.src = getSafeGameImage(game, '');
                       }}
                     />
                     <span className="pointer-events-none absolute inset-x-0 bottom-0 h-6 sm:h-10 bg-gradient-to-t from-black/65 to-transparent" />

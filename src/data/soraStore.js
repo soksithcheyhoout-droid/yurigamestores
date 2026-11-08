@@ -73,10 +73,20 @@ export const CANONICAL_GAME_SLUGS = {
   ml: 'mobile-legends',
   ff: 'free-fire',
   roslegacy: 'ros-legacy',
+  rosangkor: 'rosangkor',
 };
 
+function isUsableAssetUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const s = url.trim();
+  if (!s || s === '[object Object]' || s === 'undefined' || s === 'null') return false;
+  if (s.includes('harikitopup.com')) return false;
+  if (s.startsWith('/assets/uploads/')) return false;
+  return s.startsWith('/') || s.startsWith('data:image/') || /^https?:\/\//i.test(s);
+}
+
 export function mapSoraGame(game) {
-  const code = String(game?.code || '').trim();
+  const code = String(game?.code || game?.providerCode || game?.id || '').trim();
   if (!code) return null;
 
   const slug = CANONICAL_GAME_SLUGS[code] || `sora-${code}`;
@@ -85,24 +95,31 @@ export function mapSoraGame(game) {
     code === 'robuxsend' ? '/assets/games/roblox_kh.png' :
     code === 'ml' ? '/assets/games/ml_kh.png' :
     code === 'ff' ? '/assets/games/ff_kh.png' :
+    code === 'rosangkor' ? '/assets/games/ros_angkor.png' :
     '/assets/games/ros_legacy_kh.webp';
 
   const defaultBanner =
     code === 'robuxsend' ? '/assets/games/roblox_hero_4k.jpg' :
     code === 'ml' ? '/assets/games/mlbb_hero_4k.jpg' :
     code === 'ff' ? '/assets/games/freefire_hero_4k.jpg' :
-    '/assets/brand/yurigame-logo.webp';
+    code === 'rosangkor' ? '/assets/games/ros_angkor.png' :
+    '/assets/games/ros_legacy_kh.webp';
 
-  const rawImage = String(game?.image || '');
-  const rawBanner = String(game?.banner || game?.image || '');
-  const finalImage = (!rawImage || rawImage.includes('harikitopup.com')) ? defaultTile : rawImage;
-  const finalBanner = (!rawBanner || rawBanner.includes('harikitopup.com')) ? defaultBanner : rawBanner;
+  const rawImage = typeof game?.image === 'object' && game?.image !== null
+    ? String(game.image.url || game.image.src || '')
+    : String(game?.image || '');
+  const rawBanner = typeof game?.banner === 'object' && game?.banner !== null
+    ? String(game.banner.url || game.banner.src || '')
+    : String(game?.banner || rawImage || '');
+  const finalImage = isUsableAssetUrl(rawImage) ? rawImage.trim() : defaultTile;
+  const finalBanner = isUsableAssetUrl(rawBanner) ? rawBanner.trim() : defaultBanner;
 
   const publisherMap = {
     robuxsend: 'Roblox Corp',
     ml: 'Moonton',
     ff: 'Garena',
-    roslegacy: 'NetEase',
+    roslegacy: 'RoS Legacy',
+    rosangkor: 'RoS Angkor',
   };
   const publisher = game?.publisher || publisherMap[code] || 'Official Publisher';
 
@@ -196,6 +213,16 @@ export const FALLBACK_FOUR_GAMES = [
     verificationMode: 'format',
     fields: [{ name: 'Username', required: true, type: 'text', options: [] }],
   },
+  {
+    code: 'rosangkor',
+    name: 'RoS Angkor',
+    image: '/assets/games/ros_angkor.png',
+    banner: '/assets/games/ros_angkor.png',
+    description: 'RoS Angkor diamonds — instant auto top-up. Enter your Player ID.',
+    needServer: false,
+    verificationMode: 'live',
+    fields: [{ name: 'Player ID', required: true, type: 'text', options: [] }],
+  },
 ];
 
 const FALLBACK_PACKAGES_BY_CODE = {
@@ -246,7 +273,27 @@ export function getCachedCatalogue() {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed?.games) && parsed.games.length > 0) {
-      return parsed;
+      const sanitizedGames = parsed.games.map((g) => {
+        const code = String(g?.providerCode || g?.code || g?.id || '').replace(/^sora_/, '').trim();
+        const defTile =
+          code === 'robuxsend' ? '/assets/games/roblox_kh.png' :
+          code === 'ml' ? '/assets/games/ml_kh.png' :
+          code === 'ff' ? '/assets/games/ff_kh.png' :
+          code === 'rosangkor' ? '/assets/games/ros_angkor.png' :
+          '/assets/games/ros_legacy_kh.webp';
+        const defBanner =
+          code === 'robuxsend' ? '/assets/games/roblox_hero_4k.jpg' :
+          code === 'ml' ? '/assets/games/mlbb_hero_4k.jpg' :
+          code === 'ff' ? '/assets/games/freefire_hero_4k.jpg' :
+          code === 'rosangkor' ? '/assets/games/ros_angkor.png' :
+          '/assets/games/ros_legacy_kh.webp';
+        return {
+          ...g,
+          image: isUsableAssetUrl(g?.image) ? String(g.image).trim() : defTile,
+          banner: isUsableAssetUrl(g?.banner) ? String(g.banner).trim() : defBanner,
+        };
+      });
+      return { ...parsed, games: sanitizedGames };
     }
   } catch {}
   return null;

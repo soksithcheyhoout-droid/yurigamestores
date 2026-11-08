@@ -20,20 +20,36 @@ function updateBrowserFavicon(logoUrl) {
   } catch {}
 }
 
+export function isValidLogoUrl(val) {
+  if (!val || typeof val !== 'string') return false;
+  const clean = val.trim();
+  if (!clean || clean === '[object Object]' || clean === 'undefined' || clean === 'null') {
+    return false;
+  }
+  return (
+    clean.startsWith('data:image/') ||
+    clean.startsWith('/') ||
+    clean.startsWith('https://') ||
+    clean.startsWith('http://')
+  );
+}
+
 export function getSiteLogo() {
-  if (memorySiteLogo) return memorySiteLogo;
+  if (isValidLogoUrl(memorySiteLogo)) return memorySiteLogo;
   if (typeof window !== 'undefined') {
     try {
       const direct = window.localStorage.getItem(SITE_LOGO_STORAGE_KEY);
-      if (direct && direct.trim()) {
+      if (isValidLogoUrl(direct)) {
         memorySiteLogo = direct.trim();
         return memorySiteLogo;
+      } else if (direct) {
+        window.localStorage.removeItem(SITE_LOGO_STORAGE_KEY);
       }
       const rawCfg = window.localStorage.getItem(SITE_CONFIG_CACHE_KEY);
       if (rawCfg) {
         const parsed = JSON.parse(rawCfg);
         const fromCfg = parsed?.siteLogo || parsed?.contacts?.siteLogo;
-        if (fromCfg && String(fromCfg).trim()) {
+        if (isValidLogoUrl(fromCfg)) {
           memorySiteLogo = String(fromCfg).trim();
           return memorySiteLogo;
         }
@@ -44,8 +60,8 @@ export function getSiteLogo() {
 }
 
 export function isCustomSiteLogo(logoUrl) {
-  const clean = String(logoUrl || '').trim();
-  if (!clean) return false;
+  if (!isValidLogoUrl(logoUrl)) return false;
+  const clean = String(logoUrl).trim();
   return (
     clean !== DEFAULT_SITE_LOGO &&
     clean !== '/assets/brand/yurigame-logo.webp' &&
@@ -54,7 +70,11 @@ export function isCustomSiteLogo(logoUrl) {
 }
 
 export function setSiteLogo(newLogo) {
-  const clean = String(newLogo || '').trim() || DEFAULT_SITE_LOGO;
+  const candidate =
+    newLogo && typeof newLogo === 'object' && typeof newLogo.url === 'string'
+      ? newLogo.url
+      : newLogo;
+  const clean = isValidLogoUrl(candidate) ? String(candidate).trim() : DEFAULT_SITE_LOGO;
   memorySiteLogo = clean;
   if (typeof window !== 'undefined') {
     try {
@@ -156,7 +176,8 @@ export default function YuriGameLogo({
     };
   }, []);
 
-  const activeLogo = overrideLogo || siteLogo || DEFAULT_SITE_LOGO;
+  const candidateLogo = overrideLogo || siteLogo || DEFAULT_SITE_LOGO;
+  const activeLogo = isValidLogoUrl(candidateLogo) ? candidateLogo : DEFAULT_SITE_LOGO;
   const customLogo = isCustomSiteLogo(activeLogo);
 
   return (

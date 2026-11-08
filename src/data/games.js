@@ -139,8 +139,46 @@ export const GAMES = [
       { id: "sora_roslegacy_1500", code: "1500", providerCode: "1500", name: "1,500 Diamonds", price: 26.00, bonus: "Super Value", popular: true },
       { id: "sora_roslegacy_2000", code: "2000", providerCode: "2000", name: "2,000 Diamonds", price: 36.00, bonus: "VIP Mega Pack", popular: true }
     ]
+  },
+  {
+    id: "rosangkor",
+    slug: "rosangkor",
+    provider: "soratopup",
+    providerCode: "rosangkor",
+    name: "RoS Angkor",
+    publisher: "RoS Angkor",
+    category: "popular",
+    type: "shooter",
+    currency: "Diamonds",
+    hot: true,
+    featured: true,
+    banner: "/assets/games/ros_angkor.png",
+    image: "/assets/games/ros_angkor.png",
+    badge: "Instant Auto Top-Up",
+    orderingEnabled: true,
+    verificationMode: "live",
+    description: "RoS Angkor diamonds — instant auto top-up. Enter your Player ID (6–12 digits).",
+    fields: [
+      { key: "userId", label: "Player ID", placeholder: "Enter your RoS Angkor Player ID", type: "text", required: true }
+    ],
+    packages: [
+      { id: "rosangkor_dm80", code: "dm80", providerCode: "dm80", name: "80 Diamonds", price: 1.00, bonus: "", popular: false },
+      { id: "rosangkor_dm160", code: "dm160", providerCode: "dm160", name: "160 Diamonds", price: 2.00, bonus: "", popular: false },
+      { id: "rosangkor_dm240", code: "dm240", providerCode: "dm240", name: "240 Diamonds", price: 3.00, bonus: "", popular: false },
+      { id: "rosangkor_dm400", code: "dm400", providerCode: "dm400", name: "400 Diamonds", price: 5.00, bonus: "", popular: false },
+      { id: "rosangkor_dm800", code: "dm800", providerCode: "dm800", name: "800 Diamonds", price: 10.00, bonus: "Popular", popular: true },
+      { id: "rosangkor_dm1600", code: "dm1600", providerCode: "dm1600", name: "1,600 Diamonds", price: 20.00, bonus: "Best Value", popular: true }
+    ]
   }
 ];
+
+function isValidGameAssetUrl(val) {
+  if (!val || typeof val !== 'string') return false;
+  const s = val.trim();
+  if (!s || s === '[object Object]' || s === 'undefined' || s === 'null') return false;
+  if (s.includes('harikitopup.com') || s.startsWith('/assets/uploads/')) return false;
+  return s.startsWith('/') || s.startsWith('data:image/') || /^https?:\/\//i.test(s);
+}
 
 // Compatibility lookup function: maps supported slugs, provider ids, and legacy aliases.
 // Unknown identifiers return null instead of silently opening Roblox.
@@ -166,6 +204,9 @@ export function findAuthorizedGame(identifier) {
   if (clean.includes('freefire') || clean.includes('free-fire')) {
     return GAMES.find((game) => game.id === 'ff') || null;
   }
+  if (clean.includes('angkor')) {
+    return GAMES.find((game) => game.id === 'rosangkor') || null;
+  }
   if (clean.includes('ros') || clean.includes('legacy')) {
     return GAMES.find((game) => game.id === 'roslegacy') || null;
   }
@@ -186,8 +227,8 @@ export function syncGamesWithAdminConfig(configuredGames) {
     );
     if (target) {
       if (cfg.name) target.name = cfg.name;
-      if (cfg.image) target.image = cfg.image;
-      if (cfg.banner) target.banner = cfg.banner;
+      if (isValidGameAssetUrl(cfg.image)) target.image = cfg.image.trim();
+      if (isValidGameAssetUrl(cfg.banner)) target.banner = cfg.banner.trim();
       if (typeof cfg.stockOpen === 'boolean') target.stockOpen = cfg.stockOpen;
       if (Array.isArray(cfg.packages) && cfg.packages.length > 0) {
         target.packages = cfg.packages;

@@ -39,7 +39,8 @@ import {
   TrendingUp,
   CalendarDays,
   ShoppingCart,
-  Activity
+  Activity,
+  Move
 } from 'lucide-react';
 import YuriGameLogo, { DEFAULT_SITE_LOGO, getSiteLogo, setSiteLogo, isValidLogoUrl } from './YuriGameLogo';
 import AdminAnalyticsPanel from './AdminAnalyticsPanel';

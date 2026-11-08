@@ -51,18 +51,49 @@ import ImageUploadPicker, {
 import { syncGamesWithAdminConfig } from '../data/games';
 import { formatPrice } from '../data/regionStore';
 
+const LEGACY_PLACEHOLDER_ASSETS = new Set([
+  '/assets/games/current_roblox.jpg',
+  '/assets/games/current_mobile-legends.jpg',
+  '/assets/games/current_free-fire.jpg',
+  '/assets/games/current_ros-legacy.jpg',
+  '/assets/brand/yurigame-logo.webp',
+]);
+
 function getFallbackGameTile(gameOrCode) {
   const code = String(
     typeof gameOrCode === 'object' && gameOrCode !== null
       ? (gameOrCode.providerCode || gameOrCode.id || gameOrCode.slug || gameOrCode.code || '')
       : (gameOrCode || '')
   ).toLowerCase();
+  const nameLower = String(typeof gameOrCode === 'object' ? gameOrCode?.name || '' : '').toLowerCase();
   if (code === 'robuxsend' || code.includes('roblox')) return '/assets/games/roblox_kh.png';
   if (code === 'ff' || code.includes('free-fire')) return '/assets/games/ff_kh.png';
-  if (code === 'rosangkor' || code.includes('angkor')) return '/assets/games/ros_angkor.png';
+  if (code === 'rosangkor' || code.includes('angkor') || nameLower.includes('angkor')) return '/assets/games/ros_angkor.png';
   if (code === 'roslegacy' || code.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
   if (code === 'ml' || code.includes('mobile-legends')) return '/assets/games/ml_kh.png';
   return DEFAULT_SITE_LOGO;
+}
+
+function getSafeAdminGameImage(game) {
+  const fallback = getFallbackGameTile(game);
+  const raw = typeof game?.image === 'object' && game?.image !== null
+    ? String(game.image.url || game.image.src || '').trim()
+    : String(game?.image || '').trim();
+  if (
+    !isValidLogoUrl(raw) ||
+    raw.startsWith('/assets/uploads/') ||
+    LEGACY_PLACEHOLDER_ASSETS.has(raw)
+  ) {
+    return fallback;
+  }
+  const code = String(game?.providerCode || game?.id || game?.slug || game?.code || '').toLowerCase();
+  if (code && code !== 'ml' && !code.includes('mobile-legends')) {
+    const lower = raw.toLowerCase();
+    if (lower.includes('ml_kh') || lower.includes('mlbb') || lower.includes('mobile-legends')) {
+      return fallback;
+    }
+  }
+  return raw;
 }
 
 function getFallbackBanner(slugOrCode) {
@@ -200,6 +231,21 @@ export default function AdminDashboard({ onBackToStore }) {
   const [logoCustomBgHex, setLogoCustomBgHex] = useState('#ffffff');
   const [logoCutInner, setLogoCutInner] = useState(false);
   const [logoTolerance, setLogoTolerance] = useState(48);
+
+  useEffect(() => {
+    const syncLogoState = () => {
+      const current = getSiteLogo();
+      if (isValidLogoUrl(current)) {
+        setSiteLogoState(current);
+      }
+    };
+    window.addEventListener('yurigame_site_logo_changed', syncLogoState);
+    window.addEventListener('yurigame_site_config_updated', syncLogoState);
+    return () => {
+      window.removeEventListener('yurigame_site_logo_changed', syncLogoState);
+      window.removeEventListener('yurigame_site_config_updated', syncLogoState);
+    };
+  }, []);
 
   const resolveLogoTargetColor = () => (logoBgColorMode === 'custom' ? logoCustomBgHex : logoBgColorMode);
 
@@ -518,7 +564,7 @@ export default function AdminDashboard({ onBackToStore }) {
         },
         comingSoonGames: configData.comingSoonGames || [],
       };
-      window.localStorage.setItem('yurigame_site_config_cache_v2', JSON.stringify(siteConfigPayload));
+      window.localStorage.setItem('yurigame_site_config_cache_v3', JSON.stringify(siteConfigPayload));
 
       // 2. Hero slides cache (homepage carousel renders updated slides on refresh)
       if (Array.isArray(configData.banners)) {
@@ -526,7 +572,7 @@ export default function AdminDashboard({ onBackToStore }) {
         if (activeBanners.length > 0) {
           const mappedSlides = activeBanners.map((b) => {
             const safeFallback = getFallbackBanner(b.gameSlug || b.title);
-            const rawImg = isValidLogoUrl(b.image) && !String(b.image).startsWith('/assets/uploads/')
+            const rawImg = isValidLogoUrl(b.image) && !String(b.image).startsWith('/assets/uploads/') && !LEGACY_PLACEHOLDER_ASSETS.has(String(b.image).trim())
               ? b.image
               : safeFallback;
             return {
@@ -543,7 +589,7 @@ export default function AdminDashboard({ onBackToStore }) {
               position: 'center',
             };
           });
-          window.localStorage.setItem('yurigame_hero_slides_v2', JSON.stringify(mappedSlides));
+          window.localStorage.setItem('yurigame_hero_slides_v3', JSON.stringify(mappedSlides));
         }
       }
 
@@ -551,12 +597,9 @@ export default function AdminDashboard({ onBackToStore }) {
       if (Array.isArray(configData.games) && configData.games.length > 0) {
         const mappedGames = configData.games.map((g) => {
           const code = g.providerCode || g.id || g.code;
-          const fallbackTile = getFallbackGameTile(g);
+          const validImg = getSafeAdminGameImage(g);
           const fallbackBan = getFallbackBanner(code);
-          const validImg = isValidLogoUrl(g.image) && !String(g.image).startsWith('/assets/uploads/')
-            ? g.image
-            : fallbackTile;
-          const validBan = isValidLogoUrl(g.banner) && !String(g.banner).startsWith('/assets/uploads/')
+          const validBan = isValidLogoUrl(g.banner) && !String(g.banner).startsWith('/assets/uploads/') && !LEGACY_PLACEHOLDER_ASSETS.has(String(g.banner).trim())
             ? g.banner
             : fallbackBan;
           return {
@@ -594,7 +637,7 @@ export default function AdminDashboard({ onBackToStore }) {
             sales: 'API',
           };
         });
-        window.localStorage.setItem('yurigame_catalogue_cache_v2', JSON.stringify({
+        window.localStorage.setItem('yurigame_catalogue_cache_v3', JSON.stringify({
           games: mappedGames,
           count: mappedGames.length,
           fetchedAt: new Date().toISOString(),
@@ -2344,7 +2387,7 @@ export default function AdminDashboard({ onBackToStore }) {
                   <div className="flex items-center gap-3">
                     <div className="relative group shrink-0">
                       <img
-                        src={selectedGame.image || getFallbackGameTile(selectedGame)}
+                        src={getSafeAdminGameImage(selectedGame)}
                         alt={selectedGame.name}
                         className="w-14 h-14 rounded-xl object-cover border border-slate-700 shadow-md"
                         onError={(e) => {
@@ -3054,7 +3097,7 @@ export default function AdminDashboard({ onBackToStore }) {
                   }}
                 >
                   <img
-                    src={siteLogoState || DEFAULT_SITE_LOGO}
+                    src={(isValidLogoUrl(siteLogoState) && siteLogoState) || getSiteLogo() || DEFAULT_SITE_LOGO}
                     alt="Website Brand Logo"
                     className="w-full h-full object-contain drop-shadow-md"
                     onError={(e) => {
@@ -3368,7 +3411,7 @@ export default function AdminDashboard({ onBackToStore }) {
                     }}
                   >
                     <img
-                      src={siteLogoState || DEFAULT_SITE_LOGO}
+                      src={(isValidLogoUrl(siteLogoState) && siteLogoState) || getSiteLogo() || DEFAULT_SITE_LOGO}
                       alt="Website Brand Logo Preview"
                       className="max-h-32 max-w-full object-contain drop-shadow-[0_6px_18px_rgba(0,0,0,0.65)] transition-transform duration-200 hover:scale-105"
                       onError={(e) => {
@@ -3679,7 +3722,7 @@ export default function AdminDashboard({ onBackToStore }) {
                     <div>
                       <div className="relative mb-3 rounded-xl overflow-hidden h-32 bg-slate-950">
                         <img
-                          src={game.image || getFallbackGameTile(game)}
+                          src={getSafeAdminGameImage(game)}
                           alt={game.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {

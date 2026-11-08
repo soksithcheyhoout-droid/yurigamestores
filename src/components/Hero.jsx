@@ -4,7 +4,15 @@ import { fetchSoraGameWithPackages } from '../data/soraStore';
 import YuriGameLogo, { getSiteLogo, isValidLogoUrl } from './YuriGameLogo';
 
 const AUTO_PLAY_MS = 6500;
-const HERO_CACHE_KEY = 'yurigame_hero_slides_v2';
+const HERO_CACHE_KEY = 'yurigame_hero_slides_v3';
+
+const LEGACY_PLACEHOLDER_BANNERS = new Set([
+  '/assets/games/current_roblox.jpg',
+  '/assets/games/current_mobile-legends.jpg',
+  '/assets/games/current_free-fire.jpg',
+  '/assets/games/current_ros-legacy.jpg',
+  '/assets/brand/yurigame-logo.webp',
+]);
 
 function getFallbackBannerForSlide(slideOrSlug) {
   const raw = typeof slideOrSlug === 'object' && slideOrSlug !== null
@@ -22,7 +30,7 @@ function isUsableBannerUrl(val) {
   if (!isValidLogoUrl(val)) return false;
   const s = String(val).trim();
   // Legacy ephemeral container uploads (/assets/uploads/...) are wiped on Railway redeploy
-  if (s.startsWith('/assets/uploads/')) return false;
+  if (s.startsWith('/assets/uploads/') || LEGACY_PLACEHOLDER_BANNERS.has(s)) return false;
   return true;
 }
 
@@ -157,6 +165,21 @@ export default function Hero({ onSelectGame }) {
       .catch(() => {});
   }, []);
 
+  // Preload all slide images in memory so switching slides never flashes black or decodes late
+  useEffect(() => {
+    if (typeof window === 'undefined' || !Array.isArray(slides)) return;
+    slides.forEach((s) => {
+      if (s?.image) {
+        const img = new window.Image();
+        img.src = s.image;
+      }
+      if (s?.fallbackImage && s.fallbackImage !== s.image) {
+        const fb = new window.Image();
+        fb.src = s.fallbackImage;
+      }
+    });
+  }, [slides]);
+
   const wrapIndex = (index) => {
     return (index + slides.length) % slides.length;
   };
@@ -264,7 +287,7 @@ export default function Hero({ onSelectGame }) {
 
           <div className="topbar-promo-brandbar">
             <div className="topbar-promo-brand-lockup">
-              <YuriGameLogo size="xs" showBadge={false} inverse />
+              <YuriGameLogo size="sm" showBadge={false} inverse />
               <span className="topbar-promo-brand-divider" aria-hidden="true" />
               <span className="topbar-promo-brand-label">Official offers</span>
             </div>

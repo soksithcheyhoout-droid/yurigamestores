@@ -38,6 +38,14 @@ function getStartingPrice(game) {
   return prices.length ? Math.min(...prices) : 0;
 }
 
+const LEGACY_PLACEHOLDER_ASSETS = new Set([
+  '/assets/games/current_roblox.jpg',
+  '/assets/games/current_mobile-legends.jpg',
+  '/assets/games/current_free-fire.jpg',
+  '/assets/games/current_ros-legacy.jpg',
+  '/assets/brand/yurigame-logo.webp',
+]);
+
 function getSafeGameImage(game, candidateUrl) {
   const code = String(game?.providerCode || game?.code || game?.id || game?.slug || '').replace(/^sora_/, '').toLowerCase();
   const nameLower = String(game?.name || '').toLowerCase();
@@ -56,9 +64,17 @@ function getSafeGameImage(game, candidateUrl) {
     raw === 'undefined' ||
     raw === 'null' ||
     raw.includes('harikitopup.com') ||
-    raw.startsWith('/assets/uploads/')
+    raw.startsWith('/assets/uploads/') ||
+    LEGACY_PLACEHOLDER_ASSETS.has(raw) ||
+    (raw.startsWith('data:image/') && (!raw.includes(';base64,') || raw.length < 180))
   ) {
     return fallback;
+  }
+  if (code !== 'ml' && !code.includes('mobile-legends') && !nameLower.includes('mobile legends')) {
+    const lower = raw.toLowerCase();
+    if (lower.includes('ml_kh') || lower.includes('mlbb') || lower.includes('mobile-legends')) {
+      return fallback;
+    }
   }
   return raw;
 }
@@ -123,8 +139,9 @@ export default function GameCatalog({
     const handleSiteConfigUpdated = (event) => {
       if (Array.isArray(event?.detail?.games)) {
         mergeAdminOverrides(event.detail.games);
+      } else {
+        setReloadToken((t) => t + 1);
       }
-      setReloadToken((t) => t + 1);
     };
     window.addEventListener('yurigame_site_config_updated', handleSiteConfigUpdated);
     return () => window.removeEventListener('yurigame_site_config_updated', handleSiteConfigUpdated);
@@ -336,7 +353,7 @@ export default function GameCatalog({
                     <img
                       src={getSafeGameImage(game, game.image)}
                       alt={game.name}
-                      loading="lazy"
+                      loading="eager"
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       onError={(event) => {
                         event.currentTarget.onerror = null;

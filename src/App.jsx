@@ -60,7 +60,7 @@ export default function App() {
   const [siteConfig, setSiteConfig] = useState(() => {
     try {
       if (typeof window !== 'undefined') {
-        const raw = window.localStorage.getItem('yurigame_site_config_cache_v2');
+        const raw = window.localStorage.getItem('yurigame_site_config_cache_v3');
         if (raw) return JSON.parse(raw);
       }
     } catch { }
@@ -77,7 +77,7 @@ export default function App() {
     }
     try {
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem('yurigame_site_config_cache_v2', JSON.stringify(data));
+        window.localStorage.setItem('yurigame_site_config_cache_v3', JSON.stringify(data));
       }
     } catch { }
     if (Array.isArray(data.games) && data.games.length > 0) {

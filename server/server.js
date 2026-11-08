@@ -88,6 +88,10 @@ import {
   addSlideBanner,
   updateSlideBanner,
   deleteSlideBanner,
+  resolveValidGameImage,
+  resolveValidBannerImage,
+  getDefaultGameImageForId,
+  getDefaultBannerForSlug,
 } from './services/adminStore.js';
 import { checkRosAngkorPlayer } from './services/rosangkor.js';
 
@@ -1578,13 +1582,15 @@ const LOCAL_GAME_IMAGES = {
   ml: '/assets/games/ml_kh.png',
   ff: '/assets/games/ff_kh.png',
   roslegacy: '/assets/games/ros_legacy_kh.webp',
+  rosangkor: '/assets/games/ros_angkor.png',
 };
 
 const LOCAL_GAME_BANNERS = {
   robuxsend: '/assets/games/roblox_hero_4k.jpg',
   ml: '/assets/banners/banner_mlbb.jpg',
   ff: '/assets/banners/banner_freefire.jpg',
-  roslegacy: '/assets/brand/yurigame-logo.webp',
+  roslegacy: '/assets/games/ros_legacy_kh.webp',
+  rosangkor: '/assets/games/ros_angkor.png',
 };
 
 function publicSoraGame(game) {
@@ -1596,24 +1602,39 @@ function publicSoraGame(game) {
     String(g.providerCode || '').toLowerCase() === String(game.code || '').toLowerCase()
   );
 
-  const customImage = adminGame?.image && String(adminGame.image).trim();
-  const customBanner = adminGame?.banner && String(adminGame.banner).trim();
+  const code = String(game.code || '').toLowerCase();
+  const defaultTile = LOCAL_GAME_IMAGES[code] || getDefaultGameImageForId(code);
+  const defaultBanner = LOCAL_GAME_BANNERS[code] || getDefaultBannerForSlug(code, game.name);
+
+  const validImage = resolveValidGameImage(
+    adminGame || { ...game, id: code },
+    defaultTile
+  );
+  const validBanner = resolveValidBannerImage(
+    {
+      ...(adminGame || game),
+      image: adminGame?.banner || game.banner,
+      gameSlug: game.slug || code,
+    },
+    defaultBanner
+  );
 
   const publisherMap = {
     robuxsend: 'Roblox Corp',
     ml: 'Moonton',
     ff: 'Garena',
-    roslegacy: 'NetEase',
+    roslegacy: 'RoS Legacy',
+    rosangkor: 'RoS Angkor',
   };
 
   return {
     ...game,
     name: adminGame?.name || game.name,
-    publisher: adminGame?.publisher || publisherMap[game.code] || 'Official Publisher',
+    publisher: adminGame?.publisher || publisherMap[code] || 'Official Publisher',
     stockOpen: adminGame?.stockOpen !== false,
     adminMaintenance: adminGame?.maintenance === true,
-    image: customImage || LOCAL_GAME_IMAGES[game.code] || (game.image ? `/api/soratopup/image/${encodeURIComponent(game.code)}` : '/assets/games/mlbb_tile_4k.jpg'),
-    banner: customBanner || LOCAL_GAME_BANNERS[game.code] || customImage || LOCAL_GAME_IMAGES[game.code] || (game.banner || game.image || '/assets/games/mlbb_hero_4k.jpg'),
+    image: validImage,
+    banner: validBanner,
   };
 }
 
@@ -1623,6 +1644,13 @@ const CORE_GAME_CODES = new Set(['robuxsend', 'ml', 'ff', 'roslegacy']);
 function publicImportedGame(g) {
   const code = String(g.providerCode || g.id || '').toLowerCase();
   const h = getProviderHealth(code);
+  const defaultTile = LOCAL_GAME_IMAGES[code] || getDefaultGameImageForId(code || g.slug);
+  const defaultBanner = LOCAL_GAME_BANNERS[code] || getDefaultBannerForSlug(g.slug || code, g.name);
+  const validImage = resolveValidGameImage(g, defaultTile);
+  const validBanner = resolveValidBannerImage(
+    { ...g, image: g.banner || validImage, gameSlug: g.slug || code },
+    defaultBanner
+  );
   return {
     id: `sora_${code}`,
     code,
@@ -1634,8 +1662,8 @@ function publicImportedGame(g) {
     publisher: g.publisher && g.publisher !== 'Bay2Game' ? g.publisher : '',
     category: 'popular',
     badge: g.badge || 'Official Top-Up',
-    image: g.image || '/assets/games/mlbb_tile_4k.jpg',
-    banner: g.banner || g.image || '/assets/games/mlbb_hero_4k.jpg',
+    image: validImage,
+    banner: validBanner,
     description: g.description || '',
     currency: g.currency && g.currency !== 'Diamonds' ? g.currency : '',
     needServer: Array.isArray(g.fields) && g.fields.length > 1,
@@ -2199,16 +2227,16 @@ export async function fulfillVerifiedOrder(orderDetails = {}) {
       paymentMethod: paymentMethod || 'Bakong KHQR',
       playerDetails: cleanTargetGame === 'roslegacy'
         ? {
-            userId: cleanFieldValues[0] || playerDetails?.account || 'RoS Player',
-            account: cleanFieldValues[0] || playerDetails?.account || 'RoS Player',
-            username: cleanFieldValues[0] || playerDetails?.account || 'RoS Player',
-            password: cleanFieldValues[1] || playerDetails?.password || '',
-          }
+          userId: cleanFieldValues[0] || playerDetails?.account || 'RoS Player',
+          account: cleanFieldValues[0] || playerDetails?.account || 'RoS Player',
+          username: cleanFieldValues[0] || playerDetails?.account || 'RoS Player',
+          password: cleanFieldValues[1] || playerDetails?.password || '',
+        }
         : {
-            userId: cleanFieldValues[0] || playerDetails?.userId || playerDetails?.account || 'Player',
-            zoneId: cleanFieldValues[1] || playerDetails?.zoneId || '',
-            account: cleanFieldValues[0] || playerDetails?.account || playerDetails?.userId || 'Player',
-          },
+          userId: cleanFieldValues[0] || playerDetails?.userId || playerDetails?.account || 'Player',
+          zoneId: cleanFieldValues[1] || playerDetails?.zoneId || '',
+          account: cleanFieldValues[0] || playerDetails?.account || playerDetails?.userId || 'Player',
+        },
       verifiedPlayer: verifiedPlayer || cleanFieldValues[0] || playerDetails?.userId || 'Player',
       status: fulfillmentStatus,
       providerStatus: batch.status,

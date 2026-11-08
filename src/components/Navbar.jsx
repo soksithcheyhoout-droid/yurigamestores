@@ -15,11 +15,43 @@ import YuriGameLogo, { getSiteLogo } from './YuriGameLogo';
 import CountryFlag from './CountryFlag';
 
 const NAV_GAMES = [
-  { providerCode: 'robuxsend', name: 'Roblox', publisher: 'Official Username', image: '/assets/games/current_roblox.jpg', badge: 'Instant' },
-  { providerCode: 'ml', name: 'Mobile Legends KH', publisher: 'Moonton 5s Sync', image: '/assets/games/mlbb_tile_4k.jpg', badge: 'Hot' },
-  { providerCode: 'ff', name: 'Free Fire', publisher: 'Garena UID Direct', image: '/assets/games/current_free-fire.jpg', badge: 'Fast' },
-  { providerCode: 'roslegacy', name: 'RoS Legacy', publisher: 'Dedicated Admin', image: '/assets/games/current_ros-legacy.jpg', badge: 'Safe' },
+  { providerCode: 'robuxsend', name: 'Roblox', publisher: 'Official Username', image: '/assets/games/roblox_kh.png', badge: 'Instant' },
+  { providerCode: 'ml', name: 'Mobile Legends KH', publisher: 'Moonton 5s Sync', image: '/assets/games/ml_kh.png', badge: 'Hot' },
+  { providerCode: 'ff', name: 'Free Fire', publisher: 'Garena UID Direct', image: '/assets/games/ff_kh.png', badge: 'Fast' },
+  { providerCode: 'roslegacy', name: 'RoS Legacy', publisher: 'Dedicated Admin', image: '/assets/games/ros_legacy_kh.webp', badge: 'Safe' },
+  { providerCode: 'rosangkor', name: 'RoS Angkor', publisher: 'Instant Auto Top-Up', image: '/assets/games/ros_angkor.png', badge: 'Live' },
 ];
+
+function getSafeNavGameImage(game) {
+  const code = String(game?.providerCode || game?.id || game?.code || game?.slug || '').replace(/^sora_/, '').toLowerCase();
+  const nameLower = String(game?.name || '').toLowerCase();
+  const fallback =
+    code === 'robuxsend' || code.includes('roblox') ? '/assets/games/roblox_kh.png' :
+    code === 'ff' || code.includes('free-fire') ? '/assets/games/ff_kh.png' :
+    code === 'rosangkor' || code.includes('angkor') || nameLower.includes('angkor') ? '/assets/games/ros_angkor.png' :
+    code === 'roslegacy' || code.includes('ros') ? '/assets/games/ros_legacy_kh.webp' :
+    '/assets/games/ml_kh.png';
+  const raw = typeof game?.image === 'object' && game?.image !== null
+    ? String(game.image.url || game.image.src || '').trim()
+    : String(game?.image || '').trim();
+  if (
+    !raw ||
+    raw === '[object Object]' ||
+    raw === 'undefined' ||
+    raw === 'null' ||
+    raw.includes('harikitopup.com') ||
+    raw.startsWith('/assets/uploads/')
+  ) {
+    return fallback;
+  }
+  if (
+    (code === 'rosangkor' || code.includes('angkor') || nameLower.includes('angkor')) &&
+    (raw.includes('ml_kh') || raw.includes('mlbb') || raw.includes('mobile-legends'))
+  ) {
+    return '/assets/games/ros_angkor.png';
+  }
+  return raw;
+}
 
 export default function Navbar({
   onOpenLookup,
@@ -46,6 +78,7 @@ export default function Navbar({
         list.map((g) => ({
           ...g,
           providerCode: g.providerCode || g.id || g.code,
+          image: getSafeNavGameImage(g),
           badge: g.badge || (g.id === 'robuxsend' ? 'Instant' : g.id === 'ml' ? 'Hot' : 'Live'),
         }))
       );
@@ -144,11 +177,12 @@ export default function Navbar({
             className="group flex w-full items-center gap-3 rounded-xl border border-transparent bg-transparent p-2 text-left transition-all hover:border-[#E3062F]/40 hover:bg-[#1A1C25] cursor-pointer"
           >
             <img
-              src={game.image}
+              src={getSafeNavGameImage(game)}
               alt=""
               className="h-10 w-10 shrink-0 rounded-xl border border-[#262833] bg-slate-900 object-cover"
               onError={(e) => {
-                e.currentTarget.src = '/assets/games/mlbb_tile_4k.jpg';
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = getSafeNavGameImage({ ...game, image: '' });
               }}
             />
             <span className="min-w-0 flex-1">
@@ -187,7 +221,7 @@ export default function Navbar({
       </div>
 
       {/* Main Navbar Row */}
-      <div className="seagm-container flex h-[66px] items-center gap-3 lg:h-[72px] lg:gap-6">
+      <div className="seagm-container flex h-[76px] items-center gap-3 lg:h-[88px] lg:gap-6">
         {/* Brand Logo */}
         <a
           href="/"
@@ -198,7 +232,7 @@ export default function Navbar({
           className="group flex shrink-0 items-center no-underline transition-transform duration-200 hover:scale-[1.02]"
           aria-label="YuriGame Store home"
         >
-          <YuriGameLogo size="sm" showBadge={false} inverse />
+          <YuriGameLogo size="md" showBadge={false} inverse />
         </a>
 
         {/* Desktop PC Nav with Interactive Hover Animations */}
@@ -241,12 +275,12 @@ export default function Navbar({
                         className="group flex w-full items-center gap-2.5 rounded-xl border border-transparent p-2 text-left transition-all hover:border-[#E3062F]/40 hover:bg-[#1A1C25] cursor-pointer"
                       >
                         <img
-                          src={game.image || getSiteLogo()}
+                          src={getSafeNavGameImage(game)}
                           alt={game.name}
-                          className="h-8 w-8 rounded-lg object-contain border border-[#262835] bg-slate-900/80 p-0.5"
+                          className="h-8 w-8 rounded-lg object-cover border border-[#262835] bg-slate-900/80"
                           onError={(e) => {
                             e.currentTarget.onerror = null;
-                            e.currentTarget.src = getSiteLogo();
+                            e.currentTarget.src = getSafeNavGameImage({ ...game, image: '' });
                           }}
                         />
                         <div className="flex-1 min-w-0">

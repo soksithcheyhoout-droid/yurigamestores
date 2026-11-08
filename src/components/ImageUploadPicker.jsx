@@ -359,7 +359,7 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const a = data[(y * width + x) * 4 + 3];
-          if (a > 20) {
+          if (a > 50) {
             if (x < minX) minX = x;
             if (x > maxX) maxX = x;
             if (y < minY) minY = y;
@@ -370,21 +370,18 @@ export const removeImageBackground = (imageSource, tolerance = 48, feather = 20,
       }
 
       if (hasVisiblePixels && (maxX - minX > 16) && (maxY - minY > 16)) {
-        const pad = Math.max(4, Math.round(Math.max(maxX - minX, maxY - minY) * 0.04));
+        const pad = 2;
         const cropX = Math.max(0, minX - pad);
         const cropY = Math.max(0, minY - pad);
-        const cropW = Math.min(width - cropX, (maxX - minX) + pad * 2);
-        const cropH = Math.min(height - cropY, (maxY - minY) + pad * 2);
+        const cropW = Math.min(width - cropX, (maxX - minX + 1) + pad * 2);
+        const cropH = Math.min(height - cropY, (maxY - minY + 1) + pad * 2);
 
-        const maxDim = Math.max(cropW, cropH);
         const trimCanvas = document.createElement('canvas');
-        trimCanvas.width = maxDim;
-        trimCanvas.height = maxDim;
+        trimCanvas.width = cropW;
+        trimCanvas.height = cropH;
         const trimCtx = trimCanvas.getContext('2d');
         if (trimCtx) {
-          const offsetX = Math.floor((maxDim - cropW) / 2);
-          const offsetY = Math.floor((maxDim - cropH) / 2);
-          trimCtx.drawImage(canvas, cropX, cropY, cropW, cropH, offsetX, offsetY, cropW, cropH);
+          trimCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
           return resolve(trimCanvas.toDataURL('image/png'));
         }
       }

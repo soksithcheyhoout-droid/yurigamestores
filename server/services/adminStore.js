@@ -218,7 +218,7 @@ const DEFAULT_GAMES = [
 
     stockOpen: true,
 
-    banner: '/assets/brand/yurigame-logo.webp',
+    banner: '/assets/games/ros_legacy_kh.webp',
 
     image: '/assets/games/ros_legacy_kh.webp',
 
@@ -591,11 +591,11 @@ const activeAdminSessions = new Map();
 
 const PUBLIC_ROOT_DIR = path.resolve(process.cwd(), 'public');
 
-export function getDefaultBannerForSlug(gameSlug = '') {
-  const s = String(gameSlug || '').toLowerCase();
-  if (s.includes('roblox') || s === 'robuxsend') return '/assets/games/roblox_hero_4k.jpg';
-  if (s.includes('free-fire') || s === 'ff') return '/assets/banners/banner_freefire.jpg';
-  if (s.includes('angkor') || s === 'rosangkor') return '/assets/games/ros_angkor.png';
+export function getDefaultBannerForSlug(gameSlug = '', title = '') {
+  const s = `${String(gameSlug || '')} ${String(title || '')}`.toLowerCase();
+  if (s.includes('roblox') || s.includes('robux')) return '/assets/games/roblox_hero_4k.jpg';
+  if (s.includes('free-fire') || s.includes('free fire') || s === 'ff ') return '/assets/banners/banner_freefire.jpg';
+  if (s.includes('angkor') || s.includes('rosangkor')) return '/assets/games/ros_angkor.png';
   if (s.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
   return '/assets/banners/banner_mlbb.jpg';
 }
@@ -620,11 +620,15 @@ export function resolveValidAssetUrl(rawUrl, fallbackUrl = '/assets/brand/yuriga
     candidate === '[object Object]' ||
     candidate === 'undefined' ||
     candidate === 'null' ||
-    candidate.includes('harikitopup.com')
+    candidate.includes('harikitopup.com') ||
+    candidate.startsWith('/assets/uploads/')
   ) {
     return fallbackUrl;
   }
   if (candidate.startsWith('data:image/')) {
+    if (!candidate.includes(';base64,') || candidate.length < 64) {
+      return fallbackUrl;
+    }
     return candidate;
   }
   if (/^https?:\/\//i.test(candidate)) {
@@ -639,6 +643,40 @@ export function resolveValidAssetUrl(rawUrl, fallbackUrl = '/assets/brand/yuriga
     return fallbackUrl;
   }
   return fallbackUrl;
+}
+
+const LEGACY_PLACEHOLDER_GAME_IMAGES = new Set([
+  '/assets/games/current_roblox.jpg',
+  '/assets/games/current_mobile-legends.jpg',
+  '/assets/games/current_free-fire.jpg',
+  '/assets/games/current_ros-legacy.jpg',
+  '/assets/brand/yurigame-logo.webp',
+]);
+
+export function resolveValidGameImage(gameObj, fallbackUrl) {
+  const idOrSlug = `${gameObj?.id || ''} ${gameObj?.slug || ''} ${gameObj?.providerCode || ''} ${gameObj?.name || ''}`.toLowerCase();
+  const fb = fallbackUrl || getDefaultGameImageForId(idOrSlug);
+  const resolved = resolveValidAssetUrl(gameObj?.image, fb);
+  if (LEGACY_PLACEHOLDER_GAME_IMAGES.has(resolved)) {
+    return fb;
+  }
+  const isMlGame = idOrSlug.includes('mobile-legends') || String(gameObj?.id || '').toLowerCase() === 'ml';
+  if (
+    !isMlGame &&
+    (resolved.includes('ml_kh') || resolved.includes('mlbb') || resolved.includes('mobile-legends'))
+  ) {
+    return fb;
+  }
+  return resolved;
+}
+
+export function resolveValidBannerImage(bannerObj, fallbackUrl) {
+  const fb = fallbackUrl || getDefaultBannerForSlug(bannerObj?.gameSlug || bannerObj?.id, bannerObj?.title);
+  const resolved = resolveValidAssetUrl(bannerObj?.image, fb);
+  if (LEGACY_PLACEHOLDER_GAME_IMAGES.has(resolved)) {
+    return fb;
+  }
+  return resolved;
 }
 
 // Load persisted config from disk (outside repo)
@@ -669,9 +707,9 @@ export function loadAdminConfig() {
 
             ...found,
 
-            image: resolveValidAssetUrl(found.image, defGame.image),
+            image: resolveValidGameImage(found, defGame.image),
 
-            banner: resolveValidAssetUrl(found.banner, defGame.banner),
+            banner: resolveValidBannerImage({ ...found, image: found.banner, gameSlug: defGame.slug }, defGame.banner),
 
             fields: defGame.fields, // enforce correct fields for RoS & Roblox
 
@@ -688,8 +726,8 @@ export function loadAdminConfig() {
           .filter((g) => g && !defKeys.has(g.id) && !defKeys.has(g.slug))
           .map((g) => ({
             ...g,
-            image: resolveValidAssetUrl(g.image, getDefaultGameImageForId(g.id || g.slug)),
-            banner: resolveValidAssetUrl(g.banner, getDefaultBannerForSlug(g.slug || g.id)),
+            image: resolveValidGameImage(g, getDefaultGameImageForId(g.id || g.slug)),
+            banner: resolveValidBannerImage({ ...g, image: g.banner, gameSlug: g.slug || g.id }, getDefaultBannerForSlug(g.slug || g.id, g.name)),
           }));
 
         const loadedSiteLogo = resolveValidAssetUrl(
@@ -699,11 +737,11 @@ export function loadAdminConfig() {
 
         const loadedBanners = (Array.isArray(loaded.banners) && loaded.banners.length > 0 ? loaded.banners : DEFAULT_BANNERS).map((b, idx) => {
           const defBanner = DEFAULT_BANNERS[idx] || DEFAULT_BANNERS[0];
-          const fallbackImg = getDefaultBannerForSlug(b?.gameSlug || defBanner?.gameSlug);
+          const fallbackImg = getDefaultBannerForSlug(b?.gameSlug || defBanner?.gameSlug, b?.title || defBanner?.title);
           return {
             ...defBanner,
             ...b,
-            image: resolveValidAssetUrl(b?.image, fallbackImg),
+            image: resolveValidBannerImage(b, fallbackImg),
           };
         });
 
@@ -795,8 +833,8 @@ function mergeLoadedConfig(loaded) {
   const gamesMerged = DEFAULT_GAMES.map((defGame) => {
     const found = (loaded.games || []).find((g) => g.id === defGame.id || g.slug === defGame.slug);
     if (!found) return defGame;
-    const validImage = resolveValidAssetUrl(found.image, defGame.image);
-    const validBanner = resolveValidAssetUrl(found.banner, defGame.banner);
+    const validImage = resolveValidGameImage(found, defGame.image);
+    const validBanner = resolveValidBannerImage({ ...found, image: found.banner, gameSlug: defGame.slug }, defGame.banner);
     // One-time refresh for RoS Angkor: if the stored copy predates the real RosAngkor pack catalog
     // (pack codes start with "dm"), adopt the current default config but keep the admin's valid logo/banner.
     if (defGame.id === 'rosangkor') {
@@ -819,8 +857,8 @@ function mergeLoadedConfig(loaded) {
     .filter((g) => g && !defKeys.has(g.id) && !defKeys.has(g.slug))
     .map((g) => ({
       ...g,
-      image: resolveValidAssetUrl(g.image, getDefaultGameImageForId(g.id || g.slug)),
-      banner: resolveValidAssetUrl(g.banner, getDefaultBannerForSlug(g.slug || g.id)),
+      image: resolveValidGameImage(g, getDefaultGameImageForId(g.id || g.slug)),
+      banner: resolveValidBannerImage({ ...g, image: g.banner, gameSlug: g.slug || g.id }, getDefaultBannerForSlug(g.slug || g.id, g.name)),
     }));
   const mergedSiteLogo = resolveValidAssetUrl(
     loaded.siteLogo || loaded.contacts?.siteLogo || adminConfig.siteLogo,
@@ -829,11 +867,11 @@ function mergeLoadedConfig(loaded) {
   const rawBanners = Array.isArray(loaded.banners) && loaded.banners.length > 0 ? loaded.banners : adminConfig.banners;
   const mergedBanners = (rawBanners || DEFAULT_BANNERS).map((b, idx) => {
     const defBanner = DEFAULT_BANNERS[idx] || DEFAULT_BANNERS[0];
-    const fallbackImg = getDefaultBannerForSlug(b?.gameSlug || defBanner?.gameSlug);
+    const fallbackImg = getDefaultBannerForSlug(b?.gameSlug || defBanner?.gameSlug, b?.title || defBanner?.title);
     return {
       ...defBanner,
       ...b,
-      image: resolveValidAssetUrl(b?.image, fallbackImg),
+      image: resolveValidBannerImage(b, fallbackImg),
     };
   });
   const mergedComingSoon = (Array.isArray(loaded.comingSoonGames) ? loaded.comingSoonGames : (adminConfig.comingSoonGames || [])).map((cs) => ({
@@ -1249,8 +1287,8 @@ export function getPublicSiteConfig() {
     siteLogo,
     games: adminConfig.games.map((game) => ({
       ...game,
-      image: resolveValidAssetUrl(game.image, getDefaultGameImageForId(game.id || game.slug)),
-      banner: resolveValidAssetUrl(game.banner, getDefaultBannerForSlug(game.slug || game.id)),
+      image: resolveValidGameImage(game, getDefaultGameImageForId(game.id || game.slug)),
+      banner: resolveValidBannerImage({ ...game, image: game.banner, gameSlug: game.slug || game.id }, getDefaultBannerForSlug(game.slug || game.id, game.name)),
       packages: (game.packages || [])
         .filter((pkg) => pkg.inStock !== false)
         .map(stripInternalPackageFields),
@@ -1269,7 +1307,7 @@ export function getPublicSiteConfig() {
       .filter((banner) => banner.active !== false)
       .map((banner) => ({
         ...banner,
-        image: resolveValidAssetUrl(banner.image, getDefaultBannerForSlug(banner.gameSlug)),
+        image: resolveValidBannerImage(banner, getDefaultBannerForSlug(banner.gameSlug, banner.title)),
       })),
     comingSoonGames: (Array.isArray(adminConfig.comingSoonGames) ? adminConfig.comingSoonGames : []).map((cs) => ({
       ...cs,
@@ -1321,12 +1359,12 @@ export function getAdminClientConfig() {
     siteLogo,
     games: (adminConfig.games || []).map((game) => ({
       ...game,
-      image: resolveValidAssetUrl(game.image, getDefaultGameImageForId(game.id || game.slug)),
-      banner: resolveValidAssetUrl(game.banner, getDefaultBannerForSlug(game.slug || game.id)),
+      image: resolveValidGameImage(game, getDefaultGameImageForId(game.id || game.slug)),
+      banner: resolveValidBannerImage({ ...game, image: game.banner, gameSlug: game.slug || game.id }, getDefaultBannerForSlug(game.slug || game.id, game.name)),
     })),
     banners: (adminConfig.banners || []).map((banner) => ({
       ...banner,
-      image: resolveValidAssetUrl(banner.image, getDefaultBannerForSlug(banner.gameSlug)),
+      image: resolveValidBannerImage(banner, getDefaultBannerForSlug(banner.gameSlug, banner.title)),
     })),
     comingSoonGames: (adminConfig.comingSoonGames || []).map((cs) => ({
       ...cs,

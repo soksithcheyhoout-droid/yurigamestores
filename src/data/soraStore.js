@@ -76,12 +76,29 @@ export const CANONICAL_GAME_SLUGS = {
   rosangkor: 'rosangkor',
 };
 
-function isUsableAssetUrl(url) {
+const LEGACY_PLACEHOLDER_ASSETS = new Set([
+  '/assets/games/current_roblox.jpg',
+  '/assets/games/current_mobile-legends.jpg',
+  '/assets/games/current_free-fire.jpg',
+  '/assets/games/current_ros-legacy.jpg',
+  '/assets/brand/yurigame-logo.webp',
+]);
+
+function isUsableAssetUrl(url, gameCode = '') {
   if (!url || typeof url !== 'string') return false;
   const s = url.trim();
   if (!s || s === '[object Object]' || s === 'undefined' || s === 'null') return false;
   if (s.includes('harikitopup.com')) return false;
   if (s.startsWith('/assets/uploads/')) return false;
+  if (LEGACY_PLACEHOLDER_ASSETS.has(s)) return false;
+  if (s.startsWith('data:image/') && (!s.includes(';base64,') || s.length < 180)) return false;
+  const code = String(gameCode || '').toLowerCase();
+  if (code && code !== 'ml' && !code.includes('mobile-legends')) {
+    const lower = s.toLowerCase();
+    if (lower.includes('ml_kh') || lower.includes('mlbb') || lower.includes('mobile-legends')) {
+      return false;
+    }
+  }
   return s.startsWith('/') || s.startsWith('data:image/') || /^https?:\/\//i.test(s);
 }
 
@@ -111,8 +128,8 @@ export function mapSoraGame(game) {
   const rawBanner = typeof game?.banner === 'object' && game?.banner !== null
     ? String(game.banner.url || game.banner.src || '')
     : String(game?.banner || rawImage || '');
-  const finalImage = isUsableAssetUrl(rawImage) ? rawImage.trim() : defaultTile;
-  const finalBanner = isUsableAssetUrl(rawBanner) ? rawBanner.trim() : defaultBanner;
+  const finalImage = isUsableAssetUrl(rawImage, code) ? rawImage.trim() : defaultTile;
+  const finalBanner = isUsableAssetUrl(rawBanner, code) ? rawBanner.trim() : defaultBanner;
 
   const publisherMap = {
     robuxsend: 'Roblox Corp',
@@ -264,7 +281,7 @@ const FALLBACK_PACKAGES_BY_CODE = {
   ],
 };
 
-const CATALOGUE_CACHE_KEY = 'yurigame_catalogue_cache_v2';
+const CATALOGUE_CACHE_KEY = 'yurigame_catalogue_cache_v3';
 
 export function getCachedCatalogue() {
   try {
@@ -289,8 +306,8 @@ export function getCachedCatalogue() {
           '/assets/games/ros_legacy_kh.webp';
         return {
           ...g,
-          image: isUsableAssetUrl(g?.image) ? String(g.image).trim() : defTile,
-          banner: isUsableAssetUrl(g?.banner) ? String(g.banner).trim() : defBanner,
+          image: isUsableAssetUrl(g?.image, code) ? String(g.image).trim() : defTile,
+          banner: isUsableAssetUrl(g?.banner, code) ? String(g.banner).trim() : defBanner,
         };
       });
       return { ...parsed, games: sanitizedGames };

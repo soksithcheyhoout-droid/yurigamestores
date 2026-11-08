@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
 export const DEFAULT_SITE_LOGO = '/assets/brand/yurigame-logo.png';
-const SITE_LOGO_STORAGE_KEY = 'yurigame_site_logo_v1';
-const SITE_CONFIG_CACHE_KEY = 'yurigame_site_config_cache_v2';
+const SITE_LOGO_STORAGE_KEY = 'yurigame_site_logo_v2';
+const SITE_CONFIG_CACHE_KEY = 'yurigame_site_config_cache_v3';
 
 let memorySiteLogo = null;
-let didInitialRemoteCheck = false;
+const trimmedLogoCache = new Map();
 
 function updateBrowserFavicon(logoUrl) {
   if (typeof document === 'undefined' || !logoUrl) return;
@@ -23,15 +23,112 @@ function updateBrowserFavicon(logoUrl) {
 export function isValidLogoUrl(val) {
   if (!val || typeof val !== 'string') return false;
   const clean = val.trim();
-  if (!clean || clean === '[object Object]' || clean === 'undefined' || clean === 'null') {
+  if (
+    !clean ||
+    clean === '[object Object]' ||
+    clean === 'undefined' ||
+    clean === 'null' ||
+    clean === '/assets/brand/yurigame-logo.webp' ||
+    clean.startsWith('/assets/uploads/') ||
+    clean.includes('harikitopup.com')
+  ) {
     return false;
   }
+  if (clean.startsWith('data:image/')) {
+    return clean.includes(';base64,') && clean.length >= 180;
+  }
   return (
-    clean.startsWith('data:image/') ||
     clean.startsWith('/') ||
     clean.startsWith('https://') ||
     clean.startsWith('http://')
   );
+}
+
+/**
+ * Automatically tight-crops excess transparent margins around a logo image
+ * so the emblem/character fills 100% of its display container.
+ */
+function autoTrimTransparentLogo(srcUrl) {
+  return new Promise((resolve) => {
+    if (typeof document === 'undefined' || !isValidLogoUrl(srcUrl)) {
+      return resolve(srcUrl);
+    }
+    if (trimmedLogoCache.has(srcUrl)) {
+      return resolve(trimmedLogoCache.get(srcUrl));
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onerror = () => resolve(srcUrl);
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        if (!w || !h || w < 16 || h < 16) return resolve(srcUrl);
+        const maxDim = 512;
+        const scale = w > maxDim || h > maxDim ? maxDim / Math.max(w, h) : 1;
+        const cw = Math.max(1, Math.round(w * scale));
+        const ch = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return resolve(srcUrl);
+        ctx.drawImage(img, 0, 0, cw, ch);
+        const { data } = ctx.getImageData(0, 0, cw, ch);
+
+        let minX = cw;
+        let minY = ch;
+        let maxX = 0;
+        let maxY = 0;
+        let found = false;
+
+        for (let y = 0; y < ch; y++) {
+          for (let x = 0; x < cw; x++) {
+            const a = data[(y * cw + x) * 4 + 3];
+            if (a > 45) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+              found = true;
+            }
+          }
+        }
+
+        const boxW = maxX - minX + 1;
+        const boxH = maxY - minY + 1;
+        if (!found || boxW < 12 || boxH < 12) {
+          trimmedLogoCache.set(srcUrl, srcUrl);
+          return resolve(srcUrl);
+        }
+
+        // Only re-encode if trimming actually removes meaningful margin (>4% on any axis)
+        if (boxW >= cw * 0.96 && boxH >= ch * 0.96) {
+          trimmedLogoCache.set(srcUrl, srcUrl);
+          return resolve(srcUrl);
+        }
+
+        const pad = 2;
+        const sx = Math.max(0, minX - pad);
+        const sy = Math.max(0, minY - pad);
+        const sw = Math.min(cw - sx, boxW + pad * 2);
+        const sh = Math.min(ch - sy, boxH + pad * 2);
+
+        const out = document.createElement('canvas');
+        out.width = sw;
+        out.height = sh;
+        const outCtx = out.getContext('2d');
+        if (!outCtx) return resolve(srcUrl);
+        outCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+        const trimmedDataUrl = out.toDataURL('image/png');
+        trimmedLogoCache.set(srcUrl, trimmedDataUrl);
+        resolve(trimmedDataUrl);
+      } catch {
+        resolve(srcUrl);
+      }
+    };
+    img.src = srcUrl;
+  });
 }
 
 export function getSiteLogo() {
@@ -95,30 +192,32 @@ export function setSiteLogo(newLogo) {
   return clean;
 }
 
+let didInitialRemoteCheck = false;
+
 const SIZE_STYLES = {
   xs: {
-    mark: 'h-7 w-7 rounded-lg',
-    word: 'text-[13px]',
+    mark: 'h-10 w-auto min-w-[40px] max-w-[96px] sm:h-11 sm:min-w-[44px] sm:max-w-[110px]',
+    word: 'text-[14px] sm:text-[15.5px]',
     store: 'text-[6px]',
-    gap: 'gap-1.5',
-  },
-  sm: {
-    mark: 'h-9 w-9 rounded-xl',
-    word: 'text-[16px] sm:text-[17px]',
-    store: 'text-[6.5px]',
     gap: 'gap-2',
   },
-  md: {
-    mark: 'h-11 w-11 rounded-xl',
-    word: 'text-[20px]',
-    store: 'text-[7px]',
+  sm: {
+    mark: 'h-12 w-auto min-w-[48px] max-w-[125px] sm:h-14 sm:min-w-[56px] sm:max-w-[145px]',
+    word: 'text-[17px] sm:text-[19px]',
+    store: 'text-[6.5px]',
     gap: 'gap-2.5',
   },
+  md: {
+    mark: 'h-14 w-auto min-w-[56px] max-w-[150px] sm:h-16 sm:min-w-[64px] sm:max-w-[175px] lg:h-[70px] lg:min-w-[70px] lg:max-w-[195px]',
+    word: 'text-[19px] sm:text-[22px] lg:text-[24px]',
+    store: 'text-[7px]',
+    gap: 'gap-2.5 sm:gap-3',
+  },
   lg: {
-    mark: 'h-14 w-14 rounded-2xl',
-    word: 'text-[25px]',
+    mark: 'h-20 w-auto min-w-[80px] max-w-[220px] sm:h-24 sm:min-w-[96px] sm:max-w-[260px]',
+    word: 'text-[26px] sm:text-[30px]',
     store: 'text-[8px]',
-    gap: 'gap-3',
+    gap: 'gap-3.5',
   },
 };
 
@@ -131,6 +230,7 @@ export default function YuriGameLogo({
 }) {
   const styles = SIZE_STYLES[size] || SIZE_STYLES.md;
   const [siteLogo, setSiteLogoState] = useState(() => getSiteLogo());
+  const [trimmedOverride, setTrimmedOverride] = useState('');
 
   useEffect(() => {
     const handleLogoChange = (event) => {
@@ -178,7 +278,25 @@ export default function YuriGameLogo({
 
   const candidateLogo = overrideLogo || siteLogo || DEFAULT_SITE_LOGO;
   const activeLogo = isValidLogoUrl(candidateLogo) ? candidateLogo : DEFAULT_SITE_LOGO;
-  const customLogo = isCustomSiteLogo(activeLogo);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (trimmedLogoCache.has(activeLogo)) {
+      setTrimmedOverride(trimmedLogoCache.get(activeLogo));
+      return undefined;
+    }
+    setTrimmedOverride('');
+    autoTrimTransparentLogo(activeLogo).then((result) => {
+      if (!cancelled && result) {
+        setTrimmedOverride(result);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeLogo]);
+
+  const displayLogo = trimmedOverride || trimmedLogoCache.get(activeLogo) || activeLogo;
 
   return (
     <span
@@ -186,17 +304,15 @@ export default function YuriGameLogo({
       aria-label="YuriGame Store"
     >
       <span
-        className={`${styles.mark} relative shrink-0 overflow-hidden flex items-center justify-center ${
-          customLogo
-            ? 'bg-transparent'
-            : 'border border-[#e3062f]/25 bg-white shadow-[0_5px_16px_rgba(15,15,18,0.14)]'
-        }`}
+        className={`${styles.mark} relative shrink-0 overflow-visible flex items-center justify-center bg-transparent`}
         aria-hidden="true"
       >
         <img
-          src={activeLogo}
+          src={displayLogo}
           alt=""
-          className={`h-full w-full ${customLogo ? 'object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)]' : 'object-cover object-top'}`}
+          loading="eager"
+          fetchPriority="high"
+          className="h-full w-auto max-w-full object-contain drop-shadow-[0_3px_10px_rgba(0,0,0,0.55)]"
           draggable="false"
           onError={(e) => {
             if (!e.currentTarget.src.endsWith(DEFAULT_SITE_LOGO)) {
@@ -204,7 +320,6 @@ export default function YuriGameLogo({
             }
           }}
         />
-        {!customLogo && <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[#e3062f]" />}
       </span>
 
       <span className="flex min-w-0 flex-col leading-none">

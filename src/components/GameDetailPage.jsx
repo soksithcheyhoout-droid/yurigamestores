@@ -819,10 +819,11 @@ export default function GameDetailPage({
               onError={(e) => {
                 e.currentTarget.onerror = null;
                 e.currentTarget.src =
-                  game.providerCode === 'robuxsend' ? '/assets/games/current_roblox.jpg' :
-                  game.providerCode === 'ff' ? '/assets/games/current_free-fire.jpg' :
-                  game.providerCode === 'roslegacy' ? '/assets/games/current_ros-legacy.jpg' :
-                  '/assets/games/current_mobile-legends.jpg';
+                  game.providerCode === 'robuxsend' ? '/assets/games/roblox_kh.png' :
+                  game.providerCode === 'ff' ? '/assets/games/ff_kh.png' :
+                  game.providerCode === 'rosangkor' ? '/assets/games/ros_angkor.png' :
+                  game.providerCode === 'roslegacy' ? '/assets/games/ros_legacy_kh.webp' :
+                  '/assets/games/ml_kh.png';
               }}
             />
 

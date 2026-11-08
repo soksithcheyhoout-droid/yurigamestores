@@ -17,8 +17,8 @@ export const GAMES = [
     currency: "Robux",
     hot: true,
     featured: true,
-    banner: "/assets/games/current_roblox.jpg",
-    image: "/assets/games/current_roblox.jpg",
+    banner: "/assets/games/roblox_hero_4k.jpg",
+    image: "/assets/games/roblox_kh.png",
     badge: "Official Username",
     orderingEnabled: true,
     verificationMode: "official",
@@ -52,7 +52,7 @@ export const GAMES = [
     hot: true,
     featured: true,
     banner: "/assets/banners/banner_mlbb.jpg",
-    image: "/assets/games/current_mobile-legends.jpg",
+    image: "/assets/games/ml_kh.png",
     badge: "5s Moonton Sync",
     orderingEnabled: true,
     verificationMode: "live",
@@ -87,7 +87,7 @@ export const GAMES = [
     hot: true,
     featured: true,
     banner: "/assets/banners/banner_freefire.jpg",
-    image: "/assets/games/current_free-fire.jpg",
+    image: "/assets/games/ff_kh.png",
     badge: "Official Garena UID",
     orderingEnabled: true,
     verificationMode: "live",
@@ -120,8 +120,8 @@ export const GAMES = [
     currency: "Diamonds",
     hot: true,
     featured: true,
-    banner: "/assets/games/current_ros-legacy.jpg",
-    image: "/assets/games/current_ros-legacy.jpg",
+    banner: "/assets/games/ros_legacy_kh.webp",
+    image: "/assets/games/ros_legacy_kh.webp",
     badge: "Official Top-Up",
     orderingEnabled: true,
     verificationMode: "format",
@@ -172,11 +172,23 @@ export const GAMES = [
   }
 ];
 
-function isValidGameAssetUrl(val) {
+const LEGACY_PLACEHOLDER_ASSETS = new Set([
+  '/assets/games/current_roblox.jpg',
+  '/assets/games/current_mobile-legends.jpg',
+  '/assets/games/current_free-fire.jpg',
+  '/assets/games/current_ros-legacy.jpg',
+  '/assets/brand/yurigame-logo.webp',
+]);
+
+function isValidGameAssetUrl(val, gameId = '') {
   if (!val || typeof val !== 'string') return false;
   const s = val.trim();
   if (!s || s === '[object Object]' || s === 'undefined' || s === 'null') return false;
-  if (s.includes('harikitopup.com') || s.startsWith('/assets/uploads/')) return false;
+  if (s.includes('harikitopup.com') || s.startsWith('/assets/uploads/') || LEGACY_PLACEHOLDER_ASSETS.has(s)) return false;
+  const idLower = String(gameId || '').toLowerCase();
+  if (idLower && idLower !== 'ml' && !idLower.includes('mobile-legends')) {
+    if (s.includes('ml_kh') || s.includes('mlbb') || s.includes('mobile-legends')) return false;
+  }
   return s.startsWith('/') || s.startsWith('data:image/') || /^https?:\/\//i.test(s);
 }
 
@@ -227,8 +239,8 @@ export function syncGamesWithAdminConfig(configuredGames) {
     );
     if (target) {
       if (cfg.name) target.name = cfg.name;
-      if (isValidGameAssetUrl(cfg.image)) target.image = cfg.image.trim();
-      if (isValidGameAssetUrl(cfg.banner)) target.banner = cfg.banner.trim();
+      if (isValidGameAssetUrl(cfg.image, target.id)) target.image = cfg.image.trim();
+      if (isValidGameAssetUrl(cfg.banner, target.id)) target.banner = cfg.banner.trim();
       if (typeof cfg.stockOpen === 'boolean') target.stockOpen = cfg.stockOpen;
       if (Array.isArray(cfg.packages) && cfg.packages.length > 0) {
         target.packages = cfg.packages;

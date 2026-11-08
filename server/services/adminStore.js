@@ -458,6 +458,7 @@ export function normalizeTelegramUsername(input, fallback = '@Yur1Uchiha') {
 }
 
 const DEFAULT_CONTACTS = {
+  siteLogo: '/assets/brand/yurigame-logo.png',
   telegramUrl: 'https://t.me/Yur1Uchiha',
   telegramUsername: '@Yur1Uchiha',
   facebookUrl: 'https://facebook.com/yurigamestore',
@@ -558,6 +559,8 @@ const DEFAULT_BANNERS = [
 
 let adminConfig = {
 
+  siteLogo: '/assets/brand/yurigame-logo.png',
+
   games: DEFAULT_GAMES,
 
   mlbbEvents: DEFAULT_MLBB_EVENTS,
@@ -630,7 +633,11 @@ export function loadAdminConfig() {
         const defKeys = new Set(DEFAULT_GAMES.flatMap((g) => [g.id, g.slug].filter(Boolean)));
         const importedGames = (loaded.games || []).filter((g) => g && !defKeys.has(g.id) && !defKeys.has(g.slug));
 
+        const loadedSiteLogo = String(loaded.siteLogo || loaded.contacts?.siteLogo || '/assets/brand/yurigame-logo.png').trim() || '/assets/brand/yurigame-logo.png';
+
         adminConfig = {
+
+          siteLogo: loadedSiteLogo,
 
           games: [...gamesMerged, ...importedGames],
 
@@ -641,6 +648,7 @@ export function loadAdminConfig() {
             const uName = normalizeTelegramUsername(raw.telegramUsername || '@Yur1Uchiha');
             return {
               ...raw,
+              siteLogo: loadedSiteLogo,
               telegramUsername: uName,
               telegramUrl: normalizeTelegramUrl(raw.telegramUrl, uName),
               telegramAdmin1Name: normalizeTelegramUsername(raw.telegramAdmin1Name || '@Yur1Uchiha'),
@@ -731,10 +739,14 @@ function mergeLoadedConfig(loaded) {
   });
   const defKeys = new Set(DEFAULT_GAMES.flatMap((g) => [g.id, g.slug].filter(Boolean)));
   const importedGames = (loaded.games || []).filter((g) => g && !defKeys.has(g.id) && !defKeys.has(g.slug));
+  const mergedSiteLogo = String(
+    loaded.siteLogo || loaded.contacts?.siteLogo || adminConfig.siteLogo || '/assets/brand/yurigame-logo.png'
+  ).trim() || '/assets/brand/yurigame-logo.png';
   return {
+    siteLogo: mergedSiteLogo,
     games: [...gamesMerged, ...importedGames],
     mlbbEvents: Array.isArray(loaded.mlbbEvents) ? loaded.mlbbEvents : adminConfig.mlbbEvents,
-    contacts: { ...adminConfig.contacts, ...(loaded.contacts || {}), telegramBotToken: '' },
+    contacts: { ...adminConfig.contacts, ...(loaded.contacts || {}), siteLogo: mergedSiteLogo, telegramBotToken: '' },
     banners: Array.isArray(loaded.banners) ? loaded.banners : adminConfig.banners,
     comingSoonGames: Array.isArray(loaded.comingSoonGames) ? loaded.comingSoonGames : (adminConfig.comingSoonGames || []),
     updatedAt: loaded.updatedAt || new Date().toISOString(),
@@ -1112,7 +1124,9 @@ function stripInternalPackageFields(pkg = {}) {
 
 function getPublicContacts() {
   const contacts = adminConfig.contacts || {};
+  const siteLogo = adminConfig.siteLogo || contacts.siteLogo || '/assets/brand/yurigame-logo.png';
   return {
+    siteLogo,
     telegramUrl: contacts.telegramUrl || '',
     telegramUsername: contacts.telegramUsername || '',
     facebookUrl: contacts.facebookUrl || '',
@@ -1124,7 +1138,9 @@ function getPublicContacts() {
 
 // Get clean configuration for public storefront.
 export function getPublicSiteConfig() {
+  const siteLogo = adminConfig.siteLogo || adminConfig.contacts?.siteLogo || '/assets/brand/yurigame-logo.png';
   return {
+    siteLogo,
     games: adminConfig.games.map((game) => ({
       ...game,
       packages: (game.packages || [])
@@ -1178,10 +1194,13 @@ export function removeComingSoonGame(id) {
 export function getAdminClientConfig() {
   const safeContacts = { ...(adminConfig.contacts || {}) };
   delete safeContacts.telegramBotToken;
+  const siteLogo = adminConfig.siteLogo || safeContacts.siteLogo || '/assets/brand/yurigame-logo.png';
   return {
     ...adminConfig,
+    siteLogo,
     contacts: {
       ...safeContacts,
+      siteLogo,
       telegramBotConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN),
     },
   };
@@ -1202,9 +1221,9 @@ export function importProviderGame(providerGame = {}) {
     const raw = String(f).toLowerCase();
     const label = raw === 'userid' ? 'User ID'
       : raw === 'serverid' ? 'Server ID'
-      : raw === 'zoneid' ? 'Zone ID'
-      : raw === 'charname' ? 'Character Name'
-      : (String(f).charAt(0).toUpperCase() + String(f).slice(1));
+        : raw === 'zoneid' ? 'Zone ID'
+          : raw === 'charname' ? 'Character Name'
+            : (String(f).charAt(0).toUpperCase() + String(f).slice(1));
     const key = raw === 'userid' ? 'userId' : (raw === 'serverid' || raw === 'zoneid') ? 'zoneId' : (raw || `field_${i}`);
     return { key, label, placeholder: `Enter ${label}`, type: 'text', required: true };
   });
@@ -1681,7 +1700,19 @@ export function deletePackageFromMlbbEvent(eventId, pkgId) {
 
 
 
-// Contact Settings
+// Contact Settings & Website Brand Logo
+export function updateSiteLogo(newLogoStr) {
+  const resolvedLogo = String(newLogoStr || '').trim() || '/assets/brand/yurigame-logo.png';
+  adminConfig.siteLogo = resolvedLogo;
+  adminConfig.contacts = {
+    ...(adminConfig.contacts || DEFAULT_CONTACTS),
+    siteLogo: resolvedLogo,
+    telegramBotToken: '',
+  };
+  saveAdminConfig();
+  return resolvedLogo;
+}
+
 export function updateContactSettings(newContacts = {}) {
   const current = adminConfig.contacts || DEFAULT_CONTACTS;
   const username = newContacts.telegramUsername !== undefined
@@ -1690,9 +1721,14 @@ export function updateContactSettings(newContacts = {}) {
 
   const rawUrl = newContacts.telegramUrl !== undefined ? newContacts.telegramUrl : current.telegramUrl;
   const url = normalizeTelegramUrl(rawUrl, username);
+  const nextSiteLogo = newContacts.siteLogo !== undefined
+    ? (String(newContacts.siteLogo || '').trim() || '/assets/brand/yurigame-logo.png')
+    : (adminConfig.siteLogo || current.siteLogo || '/assets/brand/yurigame-logo.png');
 
+  adminConfig.siteLogo = nextSiteLogo;
   adminConfig.contacts = {
     ...current,
+    siteLogo: nextSiteLogo,
     telegramUrl: url,
     telegramUsername: username,
     facebookUrl: newContacts.facebookUrl !== undefined ? newContacts.facebookUrl : current.facebookUrl,

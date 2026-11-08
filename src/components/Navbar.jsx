@@ -11,14 +11,14 @@ import {
 } from 'lucide-react';
 import { fetchSoraCatalogue, fetchSoraGameWithPackages } from '../data/soraStore';
 import { TRANSLATIONS } from '../data/regionStore';
-import YuriGameLogo from './YuriGameLogo';
+import YuriGameLogo, { getSiteLogo } from './YuriGameLogo';
 import CountryFlag from './CountryFlag';
 
 const NAV_GAMES = [
-  { providerCode: 'robuxsend', name: 'Roblox', publisher: 'Official Username', image: 'https://storage.harikitopup.com/branding/vouchers/roblox.svg', badge: 'Instant' },
+  { providerCode: 'robuxsend', name: 'Roblox', publisher: 'Official Username', image: '/assets/games/current_roblox.jpg', badge: 'Instant' },
   { providerCode: 'ml', name: 'Mobile Legends KH', publisher: 'Moonton 5s Sync', image: '/assets/games/mlbb_tile_4k.jpg', badge: 'Hot' },
-  { providerCode: 'ff', name: 'Free Fire', publisher: 'Garena UID Direct', image: 'https://storage.harikitopup.com/branding/vouchers/freefire.svg', badge: 'Fast' },
-  { providerCode: 'roslegacy', name: 'RoS Legacy', publisher: 'Dedicated Admin', image: '/assets/brand/yurigame-logo.webp', badge: 'Safe' },
+  { providerCode: 'ff', name: 'Free Fire', publisher: 'Garena UID Direct', image: '/assets/games/current_free-fire.jpg', badge: 'Fast' },
+  { providerCode: 'roslegacy', name: 'RoS Legacy', publisher: 'Dedicated Admin', image: '/assets/games/current_ros-legacy.jpg', badge: 'Safe' },
 ];
 
 export default function Navbar({
@@ -29,6 +29,7 @@ export default function Navbar({
   onGoHome,
   onSelectGame,
   onSelectCategory,
+  adminGames = [],
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,14 +40,37 @@ export default function Navbar({
   const t = TRANSLATIONS[currentRegion?.lang || 'en'] || TRANSLATIONS.en;
 
   useEffect(() => {
+    const applyGames = (list) => {
+      if (!Array.isArray(list) || list.length === 0) return;
+      setCatalogGames(
+        list.map((g) => ({
+          ...g,
+          providerCode: g.providerCode || g.id || g.code,
+          badge: g.badge || (g.id === 'robuxsend' ? 'Instant' : g.id === 'ml' ? 'Hot' : 'Live'),
+        }))
+      );
+    };
+
+    if (Array.isArray(adminGames) && adminGames.length > 0) {
+      applyGames(adminGames);
+    }
+
     fetchSoraCatalogue()
       .then((cat) => {
         if (Array.isArray(cat?.games) && cat.games.length > 0) {
-          setCatalogGames(cat.games);
+          applyGames(cat.games);
         }
       })
       .catch(() => {});
-  }, []);
+
+    const handleConfigUpdated = (e) => {
+      if (Array.isArray(e?.detail?.games) && e.detail.games.length > 0) {
+        applyGames(e.detail.games);
+      }
+    };
+    window.addEventListener('yurigame_site_config_updated', handleConfigUpdated);
+    return () => window.removeEventListener('yurigame_site_config_updated', handleConfigUpdated);
+  }, [adminGames]);
 
   const searchResults = searchQuery.trim()
     ? catalogGames.filter((game) => {
@@ -208,29 +232,33 @@ export default function Navbar({
                   <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 font-['Rajdhani']">
                     Authorized Games
                   </div>
-                  <div className="space-y-1 mt-1">
-                    {NAV_GAMES.map((game) => (
+                  <div className="space-y-1 mt-1 max-h-80 overflow-y-auto no-scrollbar">
+                    {catalogGames.map((game) => (
                       <button
-                        key={game.providerCode}
+                        key={game.providerCode || game.id}
                         type="button"
                         onClick={() => openProviderGame(game)}
                         className="group flex w-full items-center gap-2.5 rounded-xl border border-transparent p-2 text-left transition-all hover:border-[#E3062F]/40 hover:bg-[#1A1C25] cursor-pointer"
                       >
                         <img
-                          src={game.image}
+                          src={game.image || getSiteLogo()}
                           alt={game.name}
-                          className="h-8 w-8 rounded-lg object-cover border border-[#262835] bg-slate-900"
+                          className="h-8 w-8 rounded-lg object-contain border border-[#262835] bg-slate-900/80 p-0.5"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = getSiteLogo();
+                          }}
                         />
                         <div className="flex-1 min-w-0">
                           <div className="text-[13px] font-bold text-white group-hover:text-[#E3062F] font-['Rajdhani'] truncate">
                             {game.name}
                           </div>
                           <div className="text-[10px] text-slate-400 truncate">
-                            {game.publisher}
+                            {game.publisher || 'Official Direct Top-Up'}
                           </div>
                         </div>
                         <span className="rounded bg-[#E3062F]/15 border border-[#E3062F]/30 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#FF4D6D]">
-                          {game.badge}
+                          {game.badge || 'Live'}
                         </span>
                       </button>
                     ))}

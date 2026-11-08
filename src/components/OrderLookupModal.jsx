@@ -16,9 +16,13 @@ import { formatPrice } from '../data/regionStore';
 import { searchSoraOrders } from '../data/soraStore';
 import { syncOrdersStatusWithRemote } from '../data/orderStore';
 import { pauseLenis, resumeLenis } from '../hooks/useLenisSmoothScroll';
+import { getSiteLogo } from './YuriGameLogo';
 
 export function getOrderGameIcon(o) {
-  if (!o) return '/assets/brand/yurigame-logo.webp';
+  if (!o) return getSiteLogo();
+  if (o.icon && typeof o.icon === 'string' && !o.icon.includes('yurigame-logo.webp')) {
+    return o.icon;
+  }
   const rawGame = String(o?.gameId || o?.gameLabel || o?.gameName || o?.game || '').toLowerCase();
   const rawItem = String(o?.item || o?.packageName || '').toLowerCase();
 
@@ -43,7 +47,7 @@ export function getOrderGameIcon(o) {
     rawGame.includes('legacy') ||
     rawGame === 'roslegacy'
   ) {
-    return '/assets/brand/yurigame-logo.webp';
+    return getSiteLogo();
   }
   if (
     rawGame.includes('mobile legend') ||
@@ -96,8 +100,8 @@ function normalizeSoraOrder(o) {
     rawStatus === 'COMPLETED' || rawStatus === 'SUCCESS' || rawStatus === 'DELIVERED'
       ? 'DELIVERED'
       : rawStatus === 'CANCELLED' || rawStatus === 'FAILED'
-      ? 'CANCELLED'
-      : 'PROCESSING';
+        ? 'CANCELLED'
+        : 'PROCESSING';
 
   return {
     ref: o.refid || o.ref || 'API-ORDER',
@@ -291,11 +295,10 @@ export default function OrderLookupModal({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveFilter(tab.id)}
-                className={`px-3 py-1 rounded-lg text-[11px] font-bold font-['Rajdhani'] uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
-                  activeFilter === tab.id
+                className={`px-3 py-1 rounded-lg text-[11px] font-bold font-['Rajdhani'] uppercase tracking-wider transition-all cursor-pointer shrink-0 ${activeFilter === tab.id
                     ? 'bg-[#E3062F] text-white shadow-sm'
                     : 'bg-[#181924] text-slate-400 hover:text-white hover:bg-[#202230]'
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
@@ -358,17 +361,16 @@ export default function OrderLookupModal({
                     {/* Status Pill Badge */}
                     <div className="shrink-0">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase font-['Rajdhani'] inline-flex items-center gap-1.5 ${
-                          isSuccess
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase font-['Rajdhani'] inline-flex items-center gap-1.5 ${isSuccess
                             ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-xs'
                             : isFailed
-                            ? 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
-                            : isRefunded
-                            ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                            : isPending
-                            ? 'bg-sky-500/15 text-sky-300 border border-sky-500/40 shadow-xs'
-                            : 'bg-slate-700/30 text-slate-300 border border-slate-600'
-                        }`}
+                              ? 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                              : isRefunded
+                                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                                : isPending
+                                  ? 'bg-sky-500/15 text-sky-300 border border-sky-500/40 shadow-xs'
+                                  : 'bg-slate-700/30 text-slate-300 border border-slate-600'
+                          }`}
                       >
                         {isPending && <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" />}
                         <span>{isPending ? 'Paid' : isSuccess ? 'Delivered' : isFailed ? 'Cancelled' : order.status}</span>
@@ -450,4 +452,3 @@ export default function OrderLookupModal({
     </div>
   );
 }
- 

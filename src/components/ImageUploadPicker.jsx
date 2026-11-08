@@ -14,19 +14,35 @@ import {
 } from 'lucide-react';
 
 /**
- * Automatically cuts out solid/white backgrounds from icons using border-connected flood fill & soft feathering.
- * Preserves inner highlights and exports as clean transparent PNG.
+ * Automatically cuts out solid, white, black, gradient, or colored backgrounds from logos/icons
+ * using border-cluster detection, 8-connected flood fill, halo defringing, and soft edge feathering.
+ * Preserves inner highlights and exports as a clean transparent PNG.
  */
-export const removeImageBackground = (imageSource, tolerance = 50, feather = 20) => {
+export const removeImageBackground = (imageSource, tolerance = 48, feather = 20, options = {}) => {
   return new Promise((resolve, reject) => {
     if (!imageSource) return resolve(null);
+
+    const targetColor = options?.targetColor || 'auto'; // 'auto' | 'white' | 'black' | '#rrggbb'
+    const cutInnerHoles = Boolean(options?.cutInnerHoles);
+    const maxOutputDim = Number(options?.maxDimension) || 800;
 
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onerror = () => reject(new Error('Failed to load image for background removal'));
     img.onload = () => {
-      const width = img.naturalWidth || img.width;
-      const height = img.naturalHeight || img.height;
+      let width = img.naturalWidth || img.width;
+      let height = img.naturalHeight || img.height;
+      if (!width || !height) return resolve(imageSource);
+
+      if (width > maxOutputDim || height > maxOutputDim) {
+        if (width > height) {
+          height = Math.max(1, Math.round((height * maxOutputDim) / width));
+          width = maxOutputDim;
+        } else {
+          width = Math.max(1, Math.round((width * maxOutputDim) / height));
+          height = maxOutputDim;
+        }
+      }
 
       const canvas = document.createElement('canvas');
       canvas.width = width;
@@ -38,142 +54,290 @@ export const removeImageBackground = (imageSource, tolerance = 50, feather = 20)
       const imgData = ctx.getImageData(0, 0, width, height);
       const data = imgData.data;
 
-      // 1. Sample corners and border midpoints to determine dominant background color
-      const samplePoints = [
-        [0, 0],
-        [width - 1, 0],
-        [0, height - 1],
-        [width - 1, height - 1],
-        [Math.floor(width / 2), 0],
-        [Math.floor(width / 2), height - 1],
-        [0, Math.floor(height / 2)],
-        [width - 1, Math.floor(height / 2)],
-        [2, 2],
-        [width - 3, 2],
-        [2, height - 3],
-        [width - 3, height - 3],
-      ];
+      // Helper to parse hex color
+      const parseHexColor = (hex) => {
+        const clean = String(hex || '').replace(/^#/, '').trim();
+        if (clean.length === 3) {
+          return [
+            parseInt(clean[0] + clean[0], 16),
+            parseInt(clean[1] + clean[1], 16),
+            parseInt(clean[2] + clean[2], 16),
+          ];
+        }
+        if (clean.length === 6) {
+          return [
+            parseInt(clean.slice(0, 2), 16),
+            parseInt(clean.slice(2, 4), 16),
+            parseInt(clean.slice(4, 6), 16),
+          ];
+        }
+        return null;
+      };
 
-      let sumR = 0, sumG = 0, sumB = 0, validSamples = 0;
-      let alreadyTransparentCorners = 0;
+      // 1. Sample all 4 outer borders (and 1px inset) to accurately detect background color(s)
+      // Works for white, black, or any solid/gradient/checkerboard background color.
+      const borderCoords = [];
+      const step = Math.max(1, Math.floor(Math.min(width, height) / 120));
+      for (let x = 0; x < width; x += step) {
+        borderCoords.push([x, 0], [x, height - 1]);
+        if (height > 4) borderCoords.push([x, 1], [x, height - 2]);
+      }
+      for (let y = 0; y < height; y += step) {
+        borderCoords.push([0, y], [width - 1, y]);
+        if (width > 4) borderCoords.push([1, y], [width - 2, y]);
+      }
 
-      for (const [sx, sy] of samplePoints) {
-        if (sx < 0 || sx >= width || sy < 0 || sy >= height) continue;
-        const idx = (sy * width + sx) * 4;
+      let transparentBorderCount = 0;
+      const clusters = new Map();
+      let opaqueBorderCount = 0;
+
+      for (const [bx, by] of borderCoords) {
+        if (bx < 0 || bx >= width || by < 0 || by >= height) continue;
+        const idx = (by * width + bx) * 4;
         const a = data[idx + 3];
         if (a < 30) {
-          alreadyTransparentCorners++;
+          transparentBorderCount++;
+          continue;
+        }
+        opaqueBorderCount++;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        // Quantize into 16-level buckets to cluster dominant border colors
+        const key = `${r >> 4}_${g >> 4}_${b >> 4}`;
+        const existing = clusters.get(key);
+        if (existing) {
+          existing.count++;
+          existing.sumR += r;
+          existing.sumG += g;
+          existing.sumB += b;
         } else {
-          sumR += data[idx];
-          sumG += data[idx + 1];
-          sumB += data[idx + 2];
-          validSamples++;
+          clusters.set(key, { count: 1, sumR: r, sumG: g, sumB: b });
         }
       }
 
-      // If corners are already transparent, image is already cleanly cut out!
-      if (alreadyTransparentCorners >= 8 || validSamples === 0) {
-        return resolve(canvas.toDataURL('image/png'));
+      const bgPalette = [];
+
+      if (targetColor === 'white') {
+        bgPalette.push([255, 255, 255], [246, 246, 246]);
+      } else if (targetColor === 'black') {
+        bgPalette.push([0, 0, 0], [15, 15, 18]);
+      } else if (targetColor && targetColor !== 'auto' && targetColor.startsWith('#')) {
+        const parsed = parseHexColor(targetColor);
+        if (parsed) bgPalette.push(parsed);
       }
 
-      const bgR = Math.round(sumR / validSamples);
-      const bgG = Math.round(sumG / validSamples);
-      const bgB = Math.round(sumB / validSamples);
+      // Add dominant border color clusters
+      if (opaqueBorderCount > 0) {
+        const sortedClusters = [...clusters.values()].sort((a, b) => b.count - a.count);
+        const topCluster = sortedClusters[0];
+        if (topCluster) {
+          bgPalette.push([
+            Math.round(topCluster.sumR / topCluster.count),
+            Math.round(topCluster.sumG / topCluster.count),
+            Math.round(topCluster.sumB / topCluster.count),
+          ]);
+        }
+        // Include secondary/tertiary border clusters (handles gradients & checkerboard backgrounds)
+        for (let i = 1; i < Math.min(4, sortedClusters.length); i++) {
+          const c = sortedClusters[i];
+          if (c.count >= opaqueBorderCount * 0.12) {
+            bgPalette.push([
+              Math.round(c.sumR / c.count),
+              Math.round(c.sumG / c.count),
+              Math.round(c.sumB / c.count),
+            ]);
+          }
+        }
+      }
 
-      // Color distance helper (Euclidean distance in RGB space)
-      const colorDistance = (idx) => {
-        const dr = data[idx] - bgR;
-        const dg = data[idx + 1] - bgG;
-        const db = data[idx + 2] - bgB;
-        return Math.sqrt(dr * dr + dg * dg + db * db);
+      // If border is already mostly transparent and no explicit target color was requested, just auto-trim
+      const alreadyTransparent =
+        targetColor === 'auto' &&
+        (transparentBorderCount >= borderCoords.length * 0.78 || bgPalette.length === 0);
+
+      // Helper: distance from pixel at `dataIdx` to closest background palette color
+      const getClosestBgInfo = (dataIdx) => {
+        const r = data[dataIdx];
+        const g = data[dataIdx + 1];
+        const b = data[dataIdx + 2];
+        let minDist = Infinity;
+        let bestBg = bgPalette[0] || [255, 255, 255];
+
+        for (let i = 0; i < bgPalette.length; i++) {
+          const bg = bgPalette[i];
+          const dr = r - bg[0];
+          const dg = g - bg[1];
+          const db = b - bg[2];
+          // Perceptually weighted RGB Euclidean distance
+          const dist = Math.sqrt(dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11) * 1.732;
+          if (dist < minDist) {
+            minDist = dist;
+            bestBg = bg;
+          }
+        }
+        return { dist: minDist, bg: bestBg };
       };
 
-      // 2. Flood Fill from all 4 outer borders inward (Edge-connected mask)
-      const totalPixels = width * height;
-      const visited = new Uint8Array(totalPixels);
-      const queue = new Int32Array(totalPixels);
-      let head = 0;
-      let tail = 0;
+      if (!alreadyTransparent && bgPalette.length > 0) {
+        // 2. 8-Connected Flood Fill from all 4 outer borders inward
+        const totalPixels = width * height;
+        const visited = new Uint8Array(totalPixels);
+        const isBgMask = new Uint8Array(totalPixels);
+        const queue = new Int32Array(totalPixels);
+        let head = 0;
+        let tail = 0;
 
-      const tryPush = (x, y) => {
-        if (x < 0 || x >= width || y < 0 || y >= height) return;
-        const pixelIdx = y * width + x;
-        if (visited[pixelIdx]) return;
-        const dataIdx = pixelIdx * 4;
-        const dist = colorDistance(dataIdx);
-        if (dist <= tolerance + feather) {
-          visited[pixelIdx] = 1;
-          queue[tail++] = pixelIdx;
+        const maxReachDist = tolerance + feather;
+
+        const trySeed = (x, y) => {
+          if (x < 0 || x >= width || y < 0 || y >= height) return;
+          const pixelIdx = y * width + x;
+          if (visited[pixelIdx]) return;
+          const dataIdx = pixelIdx * 4;
+          const a = data[dataIdx + 3];
+          if (a < 30) {
+            visited[pixelIdx] = 1;
+            isBgMask[pixelIdx] = 1;
+            queue[tail++] = pixelIdx;
+            return;
+          }
+          const { dist } = getClosestBgInfo(dataIdx);
+          if (dist <= maxReachDist) {
+            visited[pixelIdx] = 1;
+            queue[tail++] = pixelIdx;
+          }
+        };
+
+        for (let x = 0; x < width; x++) {
+          trySeed(x, 0);
+          trySeed(x, height - 1);
         }
-      };
+        for (let y = 0; y < height; y++) {
+          trySeed(0, y);
+          trySeed(width - 1, y);
+        }
 
-      // Seed all 4 outer borders
-      for (let x = 0; x < width; x++) {
-        tryPush(x, 0);
-        tryPush(x, height - 1);
+        // 8-directional offsets (cardinal + diagonal)
+        const dirsX = [1, -1, 0, 0, 1, -1, 1, -1];
+        const dirsY = [0, 0, 1, -1, 1, 1, -1, -1];
+
+        while (head < tail) {
+          const curr = queue[head++];
+          const cx = curr % width;
+          const cy = Math.floor(curr / width);
+          const cDataIdx = curr * 4;
+          const cAlpha = data[cDataIdx + 3];
+
+          let currDist = 0;
+          let currBg = bgPalette[0];
+          if (cAlpha >= 30) {
+            const info = getClosestBgInfo(cDataIdx);
+            currDist = info.dist;
+            currBg = info.bg;
+          }
+
+          if (cAlpha < 30 || currDist <= tolerance) {
+            data[cDataIdx + 3] = 0;
+            isBgMask[curr] = 1;
+          } else if (currDist <= maxReachDist) {
+            const factor = (currDist - tolerance) / Math.max(1, feather);
+            data[cDataIdx + 3] = Math.round(data[cDataIdx + 3] * factor);
+            if (factor > 0.05) {
+              data[cDataIdx] = Math.min(255, Math.max(0, Math.round((data[cDataIdx] - currBg[0] * (1 - factor)) / factor)));
+              data[cDataIdx + 1] = Math.min(255, Math.max(0, Math.round((data[cDataIdx + 1] - currBg[1] * (1 - factor)) / factor)));
+              data[cDataIdx + 2] = Math.min(255, Math.max(0, Math.round((data[cDataIdx + 2] - currBg[2] * (1 - factor)) / factor)));
+            }
+          }
+
+          // Expand to neighbors if current pixel is part of the background or soft boundary
+          if (currDist <= tolerance + feather * 0.65) {
+            for (let d = 0; d < 8; d++) {
+              const nx = cx + dirsX[d];
+              const ny = cy + dirsY[d];
+              if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+              const nIdx = ny * width + nx;
+              if (visited[nIdx]) continue;
+
+              const nDataIdx = nIdx * 4;
+              if (data[nDataIdx + 3] < 30) {
+                visited[nIdx] = 1;
+                queue[tail++] = nIdx;
+                continue;
+              }
+
+              const { dist: nDist } = getClosestBgInfo(nDataIdx);
+              // Also check local color continuity for smooth gradients
+              const stepDr = data[nDataIdx] - data[cDataIdx];
+              const stepDg = data[nDataIdx + 1] - data[cDataIdx + 1];
+              const stepDb = data[nDataIdx + 2] - data[cDataIdx + 2];
+              const stepDist = Math.sqrt(stepDr * stepDr + stepDg * stepDg + stepDb * stepDb);
+
+              if (nDist <= maxReachDist || (stepDist <= 14 && nDist <= maxReachDist * 1.25)) {
+                visited[nIdx] = 1;
+                queue[tail++] = nIdx;
+              }
+            }
+          }
+        }
+
+        // Optional: Cut interior enclosed background holes (e.g. inside letters O, A, P, R)
+        if (cutInnerHoles || targetColor !== 'auto') {
+          const innerTol = cutInnerHoles ? tolerance * 0.85 : tolerance * 0.6;
+          for (let i = 0; i < totalPixels; i++) {
+            if (visited[i]) continue;
+            const dIdx = i * 4;
+            if (data[dIdx + 3] < 30) continue;
+            const { dist, bg } = getClosestBgInfo(dIdx);
+            if (dist <= innerTol) {
+              data[dIdx + 3] = 0;
+              isBgMask[i] = 1;
+            } else if (dist <= innerTol + feather * 0.75) {
+              const factor = (dist - innerTol) / Math.max(1, feather * 0.75);
+              data[dIdx + 3] = Math.round(data[dIdx + 3] * factor);
+              if (factor > 0.05) {
+                data[dIdx] = Math.min(255, Math.max(0, Math.round((data[dIdx] - bg[0] * (1 - factor)) / factor)));
+                data[dIdx + 1] = Math.min(255, Math.max(0, Math.round((data[dIdx + 1] - bg[1] * (1 - factor)) / factor)));
+                data[dIdx + 2] = Math.min(255, Math.max(0, Math.round((data[dIdx + 2] - bg[2] * (1 - factor)) / factor)));
+              }
+            }
+          }
+        }
+
+        // 3. Anti-alias & defringe 1px boundary pixels next to transparent background
+        for (let y = 1; y < height - 1; y++) {
+          for (let x = 1; x < width - 1; x++) {
+            const idx = y * width + x;
+            if (isBgMask[idx]) continue;
+            const dIdx = idx * 4;
+            const a = data[dIdx + 3];
+            if (a === 0) continue;
+
+            const touchesBg =
+              isBgMask[idx - 1] ||
+              isBgMask[idx + 1] ||
+              isBgMask[idx - width] ||
+              isBgMask[idx + width];
+
+            if (touchesBg) {
+              const { dist, bg } = getClosestBgInfo(dIdx);
+              if (dist <= tolerance + feather * 1.35) {
+                const factor = Math.max(0.1, Math.min(1, (dist - tolerance * 0.6) / Math.max(1, feather * 1.35)));
+                data[dIdx + 3] = Math.min(a, Math.round(255 * factor));
+                if (factor > 0.08) {
+                  data[dIdx] = Math.min(255, Math.max(0, Math.round((data[dIdx] - bg[0] * (1 - factor)) / factor)));
+                  data[dIdx + 1] = Math.min(255, Math.max(0, Math.round((data[dIdx + 1] - bg[1] * (1 - factor)) / factor)));
+                  data[dIdx + 2] = Math.min(255, Math.max(0, Math.round((data[dIdx + 2] - bg[2] * (1 - factor)) / factor)));
+                }
+              }
+            }
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
       }
-      for (let y = 0; y < height; y++) {
-        tryPush(0, y);
-        tryPush(width - 1, y);
-      }
 
-      // BFS flood fill traversal
-      while (head < tail) {
-        const curr = queue[head++];
-        const cx = curr % width;
-        const cy = Math.floor(curr / width);
-        const cDataIdx = curr * 4;
-        const dist = colorDistance(cDataIdx);
-
-        if (dist <= tolerance) {
-          // Pure background pixel -> 100% transparent
-          data[cDataIdx + 3] = 0;
-        } else if (dist <= tolerance + feather) {
-          // Feathered boundary pixel -> smooth transition to prevent jagged edges
-          const factor = (dist - tolerance) / feather;
-          data[cDataIdx + 3] = Math.round(255 * factor);
-          // Defringe halo
-          if (factor > 0.05) {
-            data[cDataIdx] = Math.min(255, Math.max(0, Math.round((data[cDataIdx] - bgR * (1 - factor)) / factor)));
-            data[cDataIdx + 1] = Math.min(255, Math.max(0, Math.round((data[cDataIdx + 1] - bgG * (1 - factor)) / factor)));
-            data[cDataIdx + 2] = Math.min(255, Math.max(0, Math.round((data[cDataIdx + 2] - bgB * (1 - factor)) / factor)));
-          }
-        }
-
-        // Check 4-connected neighbors
-        if (cx + 1 < width && !visited[curr + 1]) {
-          const nDataIdx = (curr + 1) * 4;
-          if (colorDistance(nDataIdx) <= tolerance + feather) {
-            visited[curr + 1] = 1;
-            queue[tail++] = curr + 1;
-          }
-        }
-        if (cx - 1 >= 0 && !visited[curr - 1]) {
-          const nDataIdx = (curr - 1) * 4;
-          if (colorDistance(nDataIdx) <= tolerance + feather) {
-            visited[curr - 1] = 1;
-            queue[tail++] = curr - 1;
-          }
-        }
-        if (cy + 1 < height && !visited[curr + width]) {
-          const nDataIdx = (curr + width) * 4;
-          if (colorDistance(nDataIdx) <= tolerance + feather) {
-            visited[curr + width] = 1;
-            queue[tail++] = curr + width;
-          }
-        }
-        if (cy - 1 >= 0 && !visited[curr - width]) {
-          const nDataIdx = (curr - width) * 4;
-          if (colorDistance(nDataIdx) <= tolerance + feather) {
-            visited[curr - width] = 1;
-            queue[tail++] = curr - width;
-          }
-        }
-      }
-
-      ctx.putImageData(imgData, 0, 0);
-
-      // Auto-Trim: Crop tight bounding box around the icon to avoid empty margins and make it look clean
+      // 4. Auto-Trim: Crop tight bounding box around the cut-out logo so it scales cleanly
       let minX = width;
       let minY = height;
       let maxX = 0;
@@ -193,8 +357,8 @@ export const removeImageBackground = (imageSource, tolerance = 50, feather = 20)
         }
       }
 
-      if (hasVisiblePixels && (maxX - minX > 20) && (maxY - minY > 20)) {
-        const pad = Math.max(6, Math.round(Math.max(maxX - minX, maxY - minY) * 0.05));
+      if (hasVisiblePixels && (maxX - minX > 16) && (maxY - minY > 16)) {
+        const pad = Math.max(4, Math.round(Math.max(maxX - minX, maxY - minY) * 0.04));
         const cropX = Math.max(0, minX - pad);
         const cropY = Math.max(0, minY - pad);
         const cropW = Math.min(width - cropX, (maxX - minX) + pad * 2);
@@ -218,6 +382,40 @@ export const removeImageBackground = (imageSource, tolerance = 50, feather = 20)
     };
     img.src = imageSource;
   });
+};
+
+/**
+ * Convenience helper to compress an uploaded logo file as PNG and automatically cut its background
+ * (white, black, or any color).
+ */
+export const processLogoFileWithAutoCut = async (
+  file,
+  {
+    autoCut = true,
+    maxDimension = 600,
+    tolerance = 48,
+    feather = 20,
+    targetColor = 'auto',
+    cutInnerHoles = false,
+  } = {}
+) => {
+  const rawPng = await compressImageFile(file, maxDimension, 0.9, 'png');
+  if (!rawPng) return { url: null, originalUrl: null, wasCut: false };
+  if (!autoCut) return { url: rawPng, originalUrl: rawPng, wasCut: false };
+  try {
+    const cutPng = await removeImageBackground(rawPng, tolerance, feather, {
+      targetColor,
+      cutInnerHoles,
+      maxDimension,
+    });
+    return {
+      url: cutPng || rawPng,
+      originalUrl: rawPng,
+      wasCut: Boolean(cutPng),
+    };
+  } catch {
+    return { url: rawPng, originalUrl: rawPng, wasCut: false };
+  }
 };
 
 /**
@@ -302,9 +500,14 @@ export default function ImageUploadPicker({
   const [originalValue, setOriginalValue] = useState('');
   const [wasAutoCut, setWasAutoCut] = useState(false);
 
-  // Automatically enable background cutting by default for square icons (weekly pass, diamonds, robux)
-  const isSquare = aspectRatio === 'square';
+  // Automatically enable background cutting by default for square icons/logos
+  const isSquare = aspectRatio === 'square' || aspectRatio === 'logo';
   const [autoCutBg, setAutoCutBg] = useState(isSquare);
+  const [bgTargetColor, setBgTargetColor] = useState('auto'); // 'auto' | 'white' | 'black' | 'custom'
+  const [customHexColor, setCustomHexColor] = useState('#ffffff');
+  const [cutInnerHoles, setCutInnerHoles] = useState(false);
+
+  const resolvedTargetColor = bgTargetColor === 'custom' ? customHexColor : bgTargetColor;
 
   const previewHeight = isSquare ? 'h-24 w-24' : 'h-32 w-full max-w-xs';
 
@@ -314,7 +517,7 @@ export default function ImageUploadPicker({
     setIsProcessing(true);
 
     try {
-      const isPngTarget = isSquare || file.type === 'image/png';
+      const isPngTarget = isSquare || autoCutBg || file.type === 'image/png';
       const optimizedDataUrl = await compressImageFile(file, maxDimension, 0.85, isPngTarget ? 'png' : 'auto');
 
       if (optimizedDataUrl) {
@@ -322,7 +525,11 @@ export default function ImageUploadPicker({
 
         if (autoCutBg) {
           try {
-            const transparentUrl = await removeImageBackground(optimizedDataUrl, 42, 18);
+            const transparentUrl = await removeImageBackground(optimizedDataUrl, 48, 20, {
+              targetColor: resolvedTargetColor,
+              cutInnerHoles,
+              maxDimension,
+            });
             if (onChange) onChange(transparentUrl);
             setWasAutoCut(true);
           } catch {
@@ -341,9 +548,10 @@ export default function ImageUploadPicker({
     }
   };
 
-  const handleManualCutBg = async (e) => {
+  const handleManualCutBg = async (e, overrideTarget) => {
     e?.stopPropagation();
-    if (!value) return;
+    const sourceToCut = originalValue || value;
+    if (!sourceToCut) return;
     setIsCuttingBg(true);
     setErrorMessage('');
 
@@ -351,7 +559,12 @@ export default function ImageUploadPicker({
       if (!originalValue) {
         setOriginalValue(value);
       }
-      const transparentUrl = await removeImageBackground(value, 42, 18);
+      const colorMode = overrideTarget || resolvedTargetColor;
+      const transparentUrl = await removeImageBackground(sourceToCut, 48, 20, {
+        targetColor: colorMode,
+        cutInnerHoles,
+        maxDimension,
+      });
       if (transparentUrl && onChange) {
         onChange(transparentUrl);
         setWasAutoCut(true);
@@ -446,13 +659,12 @@ export default function ImageUploadPicker({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={handleTriggerPicker}
-        className={`relative rounded-2xl border-2 border-dashed transition-all cursor-pointer p-4 flex flex-col sm:flex-row items-center gap-4 ${
-          isDragging
+        className={`relative rounded-2xl border-2 border-dashed transition-all cursor-pointer p-4 flex flex-col sm:flex-row items-center gap-4 ${isDragging
             ? 'border-[#E3062F] bg-[#E3062F]/10 scale-[1.01]'
             : value
-            ? 'border-emerald-500/40 bg-slate-900/90 hover:border-emerald-500/70'
-            : 'border-slate-700 bg-slate-900/60 hover:border-[#E3062F]/60 hover:bg-slate-900'
-        }`}
+              ? 'border-emerald-500/40 bg-slate-900/90 hover:border-emerald-500/70'
+              : 'border-slate-700 bg-slate-900/60 hover:border-[#E3062F]/60 hover:bg-slate-900'
+          }`}
       >
         {/* Preview Thumbnail If Image Loaded */}
         {value ? (
@@ -558,28 +770,86 @@ export default function ImageUploadPicker({
               {placeholder}
             </span>
             <span className="text-[10px] text-slate-500 mt-1">
-              Supports PNG, JPG, WebP with Auto-Cut Background
+              Supports PNG, JPG, WebP with Auto-Cut Background (White, Black, or Any Color)
             </span>
           </div>
         )}
       </div>
 
-      {/* Auto-Cut Background Toggle */}
-      <div className="flex items-center gap-2 pt-0.5 text-[11px]">
-        <input
-          type="checkbox"
-          id={`autocut-${label}`}
-          checked={autoCutBg}
-          onChange={(e) => setAutoCutBg(e.target.checked)}
-          className="accent-purple-500 rounded cursor-pointer"
-        />
-        <label
-          htmlFor={`autocut-${label}`}
-          className="cursor-pointer select-none text-slate-400 hover:text-white flex items-center gap-1 font-medium"
-        >
-          <Wand2 size={12} className="text-purple-400" />
-          <span>Auto-cut white background on upload (Transparent PNG)</span>
-        </label>
+      {/* Auto-Cut Background Toggle & Color Mode Selector */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-[11px]">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id={`autocut-${label}`}
+            checked={autoCutBg}
+            onChange={(e) => setAutoCutBg(e.target.checked)}
+            className="accent-purple-500 rounded cursor-pointer"
+          />
+          <label
+            htmlFor={`autocut-${label}`}
+            className="cursor-pointer select-none text-slate-300 hover:text-white flex items-center gap-1 font-medium"
+          >
+            <Wand2 size={12} className="text-purple-400" />
+            <span>Auto-cut background (White, Black, or Any Color → Transparent PNG)</span>
+          </label>
+        </div>
+
+        {autoCutBg && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { id: 'auto', label: 'Auto Color' },
+              { id: 'white', label: 'White BG' },
+              { id: 'black', label: 'Black BG' },
+              { id: 'custom', label: 'Pick Color' },
+            ].map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={(e) => {
+                  setBgTargetColor(mode.id);
+                  if (value && mode.id !== 'custom') {
+                    handleManualCutBg(e, mode.id);
+                  }
+                }}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-bold border cursor-pointer transition-colors ${bgTargetColor === mode.id
+                    ? 'bg-purple-600/30 border-purple-500 text-purple-200'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                  }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+
+            {bgTargetColor === 'custom' && (
+              <input
+                type="color"
+                value={customHexColor}
+                onChange={(e) => {
+                  const hex = e.target.value;
+                  setCustomHexColor(hex);
+                  if (value) {
+                    handleManualCutBg(null, hex);
+                  }
+                }}
+                className="h-5 w-7 rounded border border-slate-700 bg-transparent cursor-pointer p-0"
+                title="Pick background color to remove"
+              />
+            )}
+
+            <label className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-white cursor-pointer ml-1">
+              <input
+                type="checkbox"
+                checked={cutInnerHoles}
+                onChange={(e) => {
+                  setCutInnerHoles(e.target.checked);
+                }}
+                className="accent-purple-500 rounded cursor-pointer"
+              />
+              <span>Inner BG</span>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Error Message */}

@@ -43,6 +43,7 @@ export default function GameCatalog({
   selectedCategory: externalCategory,
   setSelectedCategory: setExternalCategory,
   comingSoonGames = [],
+  adminGames = [],
 }) {
   const [internalCategory, setInternalCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,6 +59,45 @@ export default function GameCatalog({
   const [openingGameCode, setOpeningGameCode] = useState('');
   const selectedCategory = externalCategory ?? internalCategory;
   const setSelectedCategory = setExternalCategory || setInternalCategory;
+
+  // Immediately merge any admin game logo/name/stock overrides into providerGames
+  useEffect(() => {
+    const mergeAdminOverrides = (gamesList) => {
+      if (!Array.isArray(gamesList) || gamesList.length === 0) return;
+      setProviderGames((current) => {
+        if (!Array.isArray(current) || current.length === 0) return current;
+        return current.map((g) => {
+          const code = String(g.providerCode || g.code || g.id || '').replace(/^sora_/, '').toLowerCase();
+          const match = gamesList.find((ag) => {
+            const agCode = String(ag.providerCode || ag.id || ag.code || '').toLowerCase();
+            return agCode === code || String(ag.slug || '').toLowerCase() === String(g.slug || '').toLowerCase();
+          });
+          if (!match) return g;
+          return {
+            ...g,
+            name: match.name || g.name,
+            image: match.image || g.image,
+            banner: match.banner || match.image || g.banner,
+            stockOpen: match.stockOpen !== false,
+            maintenance: match.maintenance === true,
+          };
+        });
+      });
+    };
+
+    if (Array.isArray(adminGames) && adminGames.length > 0) {
+      mergeAdminOverrides(adminGames);
+    }
+
+    const handleSiteConfigUpdated = (event) => {
+      if (Array.isArray(event?.detail?.games)) {
+        mergeAdminOverrides(event.detail.games);
+      }
+      setReloadToken((t) => t + 1);
+    };
+    window.addEventListener('yurigame_site_config_updated', handleSiteConfigUpdated);
+    return () => window.removeEventListener('yurigame_site_config_updated', handleSiteConfigUpdated);
+  }, [adminGames]);
 
   useEffect(() => {
     let active = true;

@@ -41,9 +41,13 @@ import {
   ShoppingCart,
   Activity
 } from 'lucide-react';
-import YuriGameLogo from './YuriGameLogo';
+import YuriGameLogo, { DEFAULT_SITE_LOGO, getSiteLogo, setSiteLogo } from './YuriGameLogo';
 import AdminAnalyticsPanel from './AdminAnalyticsPanel';
-import ImageUploadPicker, { compressImageFile } from './ImageUploadPicker';
+import ImageUploadPicker, {
+  compressImageFile,
+  removeImageBackground,
+  processLogoFileWithAutoCut,
+} from './ImageUploadPicker';
 import { syncGamesWithAdminConfig } from '../data/games';
 import { formatPrice } from '../data/regionStore';
 
@@ -148,6 +152,7 @@ export default function AdminDashboard({ onBackToStore }) {
 
   // Contacts & Telegram Form
   const [contactsData, setContactsData] = useState({
+    siteLogo: getSiteLogo(),
     telegramUrl: '',
     telegramUsername: '',
     facebookUrl: '',
@@ -161,6 +166,19 @@ export default function AdminDashboard({ onBackToStore }) {
     telegramGroupId: '-1004493408552'
   });
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+
+  // Website Brand Logo & Auto-Cut Background Controls
+  const [siteLogoState, setSiteLogoState] = useState(() => getSiteLogo());
+  const [originalSiteLogo, setOriginalSiteLogo] = useState(null);
+  const [siteLogoUrlInput, setSiteLogoUrlInput] = useState('');
+  const [isProcessingSiteLogo, setIsProcessingSiteLogo] = useState(false);
+  const [autoCutLogoBg, setAutoCutLogoBg] = useState(true);
+  const [logoBgColorMode, setLogoBgColorMode] = useState('auto'); // 'auto' | 'white' | 'black' | 'custom'
+  const [logoCustomBgHex, setLogoCustomBgHex] = useState('#ffffff');
+  const [logoCutInner, setLogoCutInner] = useState(false);
+  const [logoTolerance, setLogoTolerance] = useState(48);
+
+  const resolveLogoTargetColor = () => (logoBgColorMode === 'custom' ? logoCustomBgHex : logoBgColorMode);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -262,7 +280,7 @@ export default function AdminDashboard({ onBackToStore }) {
     if (token) {
       try {
         window.history.replaceState({}, '', '/admin');
-      } catch {}
+      } catch { }
       verifyOneClickToken(token);
     } else {
       verifyExistingSession();
@@ -313,7 +331,7 @@ export default function AdminDashboard({ onBackToStore }) {
         body: JSON.stringify({ token })
       });
       let data = null;
-      try { data = await res.json(); } catch {}
+      try { data = await res.json(); } catch { }
 
       if (res.ok && data?.success && data?.authenticated) {
         setIsAuthenticated(true);
@@ -397,7 +415,7 @@ export default function AdminDashboard({ onBackToStore }) {
         body: JSON.stringify({ challengeId, otp: otpCode })
       });
       let data = null;
-      try { data = await res.json(); } catch {}
+      try { data = await res.json(); } catch { }
 
       if (res.ok && data?.success && data?.authenticated) {
         setIsAuthenticated(true);
@@ -450,13 +468,33 @@ export default function AdminDashboard({ onBackToStore }) {
   const updateClientCaches = (configData) => {
     if (!configData || typeof window === 'undefined') return;
     try {
+      const resolvedSiteLogo =
+        configData.siteLogo ||
+        configData.contacts?.siteLogo ||
+        getSiteLogo();
+
+      if (resolvedSiteLogo) {
+        setSiteLogo(resolvedSiteLogo);
+        setSiteLogoState(resolvedSiteLogo);
+      }
+
+      if (Array.isArray(configData.games) && configData.games.length > 0) {
+        syncGamesWithAdminConfig(configData.games);
+      }
+
       // 1. Site config cache
-      window.localStorage.setItem('yurigame_site_config_cache_v2', JSON.stringify({
+      const siteConfigPayload = {
         success: true,
+        siteLogo: resolvedSiteLogo,
         games: configData.games || [],
         banners: (configData.banners || []).filter((b) => b.active !== false),
-        contacts: configData.contacts || {},
-      }));
+        contacts: {
+          ...(configData.contacts || {}),
+          siteLogo: resolvedSiteLogo,
+        },
+        comingSoonGames: configData.comingSoonGames || [],
+      };
+      window.localStorage.setItem('yurigame_site_config_cache_v2', JSON.stringify(siteConfigPayload));
 
       // 2. Hero slides cache (homepage carousel renders updated slides on refresh)
       if (Array.isArray(configData.banners)) {
@@ -470,8 +508,8 @@ export default function AdminDashboard({ onBackToStore }) {
             actionLabel: b.actionLabel || 'Shop now',
             providerCode:
               b.gameSlug === 'roblox' ? 'robuxsend' :
-              b.gameSlug === 'mobile-legends' ? 'ml' :
-              b.gameSlug === 'free-fire' ? 'ff' : 'roslegacy',
+                b.gameSlug === 'mobile-legends' ? 'ml' :
+                  b.gameSlug === 'free-fire' ? 'ff' : 'roslegacy',
             position: 'center',
           }));
           window.localStorage.setItem('yurigame_hero_slides_v2', JSON.stringify(mappedSlides));
@@ -503,6 +541,7 @@ export default function AdminDashboard({ onBackToStore }) {
             fields: g.fields || [],
             packages: g.packages || [],
             stockOpen: g.stockOpen !== false,
+            maintenance: g.maintenance === true,
             rating: 'Live',
             sales: 'API',
           };
@@ -514,6 +553,10 @@ export default function AdminDashboard({ onBackToStore }) {
           isFallback: false,
         }));
       }
+
+      window.dispatchEvent(new CustomEvent('yurigame_site_config_updated', {
+        detail: siteConfigPayload,
+      }));
     } catch (e) {
       console.warn('Cache update warning:', e);
     }
@@ -617,7 +660,7 @@ export default function AdminDashboard({ onBackToStore }) {
     fetch('/api/admin/auth/logout', {
       method: 'POST',
       headers: getAuthHeaders(),
-    }).catch(() => {});
+    }).catch(() => { });
     sessionStorage.removeItem('yurigame_admin_token');
     setIsAuthenticated(false);
     setLoginStep('REQUEST');
@@ -641,7 +684,7 @@ export default function AdminDashboard({ onBackToStore }) {
         if (!res.ok || !data.success || !data.authenticated) {
           handleLogout('Admin session expired after 30 minutes. Please log in again.');
         }
-      } catch {}
+      } catch { }
     }, 45000);
     return () => clearInterval(interval);
   }, [isAuthenticated]);
@@ -819,6 +862,139 @@ export default function AdminDashboard({ onBackToStore }) {
       }
     } catch {
       showToast('Error updating game info');
+    }
+  };
+
+  // =====================================
+  // ACTIONS: Website Brand Logo & Auto-Cut Background
+  // =====================================
+  const handleSaveSiteLogo = async (newLogoStr, customToastMsg = '') => {
+    const resolved = String(newLogoStr || '').trim() || DEFAULT_SITE_LOGO;
+    // Optimistically update everywhere on the page & browser favicon immediately
+    setSiteLogoState(resolved);
+    setSiteLogo(resolved);
+    setContactsData((prev) => ({ ...prev, siteLogo: resolved }));
+
+    try {
+      const res = await fetch('/api/admin/site-logo', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ siteLogo: resolved }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        const savedLogo = data.siteLogo || resolved;
+        setSiteLogoState(savedLogo);
+        setSiteLogo(savedLogo);
+        setConfig((prev) => {
+          if (!prev) return prev;
+          const nextCfg = {
+            ...prev,
+            siteLogo: savedLogo,
+            contacts: { ...(prev.contacts || {}), siteLogo: savedLogo },
+          };
+          updateClientCaches(nextCfg);
+          return nextCfg;
+        });
+        showToast(customToastMsg || 'Website logo updated everywhere on the homepage & storefront!');
+      } else {
+        showToast(data.error || 'Could not save website logo to server.');
+      }
+    } catch {
+      showToast('Saved locally — server connection error while syncing logo.');
+    }
+  };
+
+  const handleUploadSiteLogoFile = async (file) => {
+    if (!file) return;
+    setIsProcessingSiteLogo(true);
+    try {
+      showToast(
+        autoCutLogoBg
+          ? 'Uploading logo & auto-cutting background (white/black/color)...'
+          : 'Uploading website logo...'
+      );
+      const rawCompressed = await compressImageFile(file, 800, 0.92, { forcePng: true });
+      if (rawCompressed) {
+        setOriginalSiteLogo(rawCompressed);
+      }
+      const processed = await processLogoFileWithAutoCut(file, {
+        maxWidth: 800,
+        tolerance: logoTolerance,
+        feather: 20,
+        targetColor: resolveLogoTargetColor(),
+        cutInnerHoles: logoCutInner,
+        autoCut: autoCutLogoBg,
+      });
+      if (processed) {
+        await handleSaveSiteLogo(
+          processed,
+          autoCutLogoBg
+            ? 'Website logo uploaded & background auto-cut — live across the entire website!'
+            : 'Website logo uploaded — live across the entire website!'
+        );
+      }
+    } catch {
+      showToast('Failed to process website logo image.');
+    } finally {
+      setIsProcessingSiteLogo(false);
+    }
+  };
+
+  const handleManualCutSiteLogo = async () => {
+    const sourceLogo = originalSiteLogo || siteLogoState || getSiteLogo();
+    if (!sourceLogo) return;
+    setIsProcessingSiteLogo(true);
+    try {
+      showToast('Cutting background from website logo...');
+      if (!originalSiteLogo) {
+        setOriginalSiteLogo(sourceLogo);
+      }
+      const cutOut = await removeImageBackground(sourceLogo, logoTolerance, 20, {
+        targetColor: resolveLogoTargetColor(),
+        cutInnerHoles: logoCutInner,
+        trim: true,
+      });
+      if (cutOut) {
+        await handleSaveSiteLogo(
+          cutOut,
+          'Background removed (transparent PNG) & applied everywhere on the website!'
+        );
+      }
+    } catch {
+      showToast('Could not auto-cut background from this image.');
+    } finally {
+      setIsProcessingSiteLogo(false);
+    }
+  };
+
+  const handleUndoCutSiteLogo = async () => {
+    if (!originalSiteLogo) return;
+    await handleSaveSiteLogo(originalSiteLogo, 'Restored original un-cut website logo!');
+    setOriginalSiteLogo(null);
+  };
+
+  const handleResetSiteLogo = async () => {
+    setOriginalSiteLogo(null);
+    setSiteLogoUrlInput('');
+    await handleSaveSiteLogo(DEFAULT_SITE_LOGO, 'Reset to default YuriGame Store logo!');
+  };
+
+  const handleCutExistingGameLogo = async (game) => {
+    if (!game?.image) return;
+    try {
+      showToast(`Cutting background for ${game.name} logo...`);
+      const cutOut = await removeImageBackground(game.image, logoTolerance, 20, {
+        targetColor: resolveLogoTargetColor(),
+        cutInnerHoles: logoCutInner,
+        trim: true,
+      });
+      if (cutOut) {
+        await handleUpdateGameInfo(game.id, { image: cutOut });
+        showToast(`Background cut & transparent PNG saved for ${game.name}!`);
+      }
+    } catch {
+      showToast(`Could not cut background for ${game.name}.`);
     }
   };
 
@@ -1501,6 +1677,16 @@ export default function AdminDashboard({ onBackToStore }) {
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           <button
             type="button"
+            onClick={() => setActiveTab('stock')}
+            className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-[#E3062F]/15 hover:bg-[#E3062F]/25 text-[#ff4d6d] text-xs font-black border border-[#E3062F]/40 flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+            title="Change Website Logo & Auto-Cut Background"
+          >
+            <Sparkles size={13} />
+            <span className="hidden xs:inline">Website Logo</span>
+          </button>
+
+          <button
+            type="button"
             onClick={fetchFullConfig}
             className="p-1.5 sm:p-2 rounded-xl bg-slate-800/70 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 cursor-pointer transition-colors"
             title="Refresh Store Data"
@@ -1535,11 +1721,10 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('analytics')}
-            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
-              activeTab === 'analytics'
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${activeTab === 'analytics'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
+              }`}
           >
             <BarChart3 size={15} />
             <span>1. Analytics</span>
@@ -1553,11 +1738,10 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('products')}
-            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
-              activeTab === 'products'
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${activeTab === 'products'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
+              }`}
           >
             <Package size={15} />
             <span>2. Products & MLBB Events</span>
@@ -1566,11 +1750,10 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('orders')}
-            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
-              activeTab === 'orders'
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${activeTab === 'orders'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
+              }`}
           >
             <CheckCircle2 size={15} />
             <span>3. Orders & Approvals</span>
@@ -1584,11 +1767,10 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('contacts')}
-            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
-              activeTab === 'contacts'
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${activeTab === 'contacts'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
+              }`}
           >
             <PhoneCall size={15} />
             <span>4. Support & Contacts</span>
@@ -1597,11 +1779,10 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('banners')}
-            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
-              activeTab === 'banners'
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${activeTab === 'banners'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
+              }`}
           >
             <ImageIcon size={15} />
             <span>5. Slide Banners</span>
@@ -1610,24 +1791,22 @@ export default function AdminDashboard({ onBackToStore }) {
           <button
             type="button"
             onClick={() => setActiveTab('stock')}
-            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
-              activeTab === 'stock'
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${activeTab === 'stock'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
+              }`}
           >
             <Sliders size={15} />
-            <span>6. Stock Control</span>
+            <span>6. Logo & Stock Control</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('telegram')}
-            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
-              activeTab === 'telegram'
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${activeTab === 'telegram'
                 ? 'bg-[#E3062F] text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
+              }`}
           >
             <Send size={15} />
             <span>7. Telegram Bot & Alerts</span>
@@ -1678,11 +1857,10 @@ export default function AdminDashboard({ onBackToStore }) {
                         key={period}
                         type="button"
                         onClick={() => setAnalyticsPeriod(period)}
-                        className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition ${
-                          analyticsPeriod === period
+                        className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition ${analyticsPeriod === period
                             ? 'bg-[#E3062F] text-white shadow-md'
                             : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                        }`}
+                          }`}
                       >
                         {periodLabels[period]}
                       </button>
@@ -1980,15 +2158,14 @@ export default function AdminDashboard({ onBackToStore }) {
                               <td className="px-3 py-3 text-slate-400">{order.packageName}</td>
                               <td className="px-3 py-3 font-mono font-black text-white">{formatUsd(order.totalUsd)}</td>
                               <td className="px-3 py-3">
-                                <span className={`rounded-full border px-2 py-1 text-[9px] font-black ${
-                                  order.status === 'COMPLETED'
+                                <span className={`rounded-full border px-2 py-1 text-[9px] font-black ${order.status === 'COMPLETED'
                                     ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
                                     : order.status === 'PENDING'
                                       ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
                                       : order.status === 'REFUNDED'
                                         ? 'border-violet-500/30 bg-violet-500/10 text-violet-300'
                                         : 'border-rose-500/30 bg-rose-500/10 text-rose-300'
-                                }`}>
+                                  }`}>
                                   {order.status}
                                 </span>
                               </td>
@@ -2025,11 +2202,10 @@ export default function AdminDashboard({ onBackToStore }) {
                     key={game.id}
                     type="button"
                     onClick={() => setSelectedGameId(game.id)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 border cursor-pointer transition-all ${
-                      selectedGameId === game.id
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 border cursor-pointer transition-all ${selectedGameId === game.id
                         ? 'bg-[#E3062F] text-white border-[#E3062F] shadow-md'
                         : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500'
-                    }`}
+                      }`}
                   >
                     <span>{game.name}</span>
                     <span className={`w-2 h-2 rounded-full ${game.stockOpen ? 'bg-emerald-400' : 'bg-rose-500'}`} />
@@ -2124,11 +2300,22 @@ export default function AdminDashboard({ onBackToStore }) {
                           const file = e.target.files?.[0];
                           if (file) {
                             try {
-                              showToast(`Uploading logo for ${selectedGame.name}...`);
-                              const optimized = await compressImageFile(file, 800, 0.85);
+                              showToast(
+                                autoCutLogoBg
+                                  ? `Uploading & auto-cutting background for ${selectedGame.name}...`
+                                  : `Uploading logo for ${selectedGame.name}...`
+                              );
+                              const optimized = await processLogoFileWithAutoCut(file, {
+                                maxWidth: 800,
+                                tolerance: logoTolerance,
+                                feather: 20,
+                                targetColor: resolveLogoTargetColor(),
+                                cutInnerHoles: logoCutInner,
+                                autoCut: autoCutLogoBg,
+                              });
                               if (optimized) {
                                 await handleUpdateGameInfo(selectedGame.id, { image: optimized });
-                                showToast(`Logo for ${selectedGame.name} updated!`);
+                                showToast(`Logo for ${selectedGame.name} updated (background auto-cut)!`);
                               }
                             } catch (err) {
                               showToast('Failed to process image');
@@ -2149,9 +2336,8 @@ export default function AdminDashboard({ onBackToStore }) {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-xl font-black text-white m-0">{selectedGame.name}</h3>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase flex items-center gap-1.5 ${
-                          selectedGame.stockOpen ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase flex items-center gap-1.5 ${selectedGame.stockOpen ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                          }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${selectedGame.stockOpen ? 'bg-emerald-400' : 'bg-rose-400'}`} />
                           <span>{selectedGame.stockOpen ? 'In Stock' : 'Out of Stock'}</span>
                         </span>
@@ -2168,8 +2354,17 @@ export default function AdminDashboard({ onBackToStore }) {
                           className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold border border-slate-700 cursor-pointer flex items-center gap-1.5 transition-colors"
                         >
                           <UploadCloud size={12} className="text-[#E3062F]" />
-                          <span>Change Logo (PC / Phone)</span>
+                          <span>Change Logo (Auto-Cut BG)</span>
                         </label>
+                        <button
+                          type="button"
+                          onClick={() => handleCutExistingGameLogo(selectedGame)}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-[11px] font-bold border border-emerald-500/30 cursor-pointer flex items-center gap-1.5 transition-colors"
+                          title="Cut white, black, or colored background from current logo"
+                        >
+                          <Sparkles size={12} />
+                          <span>Cut Logo BG</span>
+                        </button>
                         <input
                           type="file"
                           id={`tab2-banner-file-${selectedGame.id}`}
@@ -2255,9 +2450,8 @@ export default function AdminDashboard({ onBackToStore }) {
                   {(selectedGame.packages || []).map((pkg) => (
                     <div
                       key={pkg.id}
-                      className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
-                        pkg.inStock !== false ? 'bg-slate-900/80 border-slate-800' : 'bg-slate-950/60 border-slate-900 opacity-60'
-                      }`}
+                      className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${pkg.inStock !== false ? 'bg-slate-900/80 border-slate-800' : 'bg-slate-950/60 border-slate-900 opacity-60'
+                        }`}
                     >
                       <div>
                         <div className="flex items-start justify-between gap-2 mb-2">
@@ -2282,11 +2476,10 @@ export default function AdminDashboard({ onBackToStore }) {
                         </div>
 
                         {Boolean(selectedGame.providerCode || selectedGame.id) && (
-                          <div className={`mb-3 inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-black ${
-                            pkg.providerConnected
+                          <div className={`mb-3 inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-black ${pkg.providerConnected
                               ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-400'
                               : 'border-amber-500/35 bg-amber-500/10 text-amber-300'
-                          }`}>
+                            }`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${pkg.providerConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                             {pkg.providerConnected
                               ? `${selectedProviderName} Live · ${pkg.providerCode}`
@@ -2398,11 +2591,10 @@ export default function AdminDashboard({ onBackToStore }) {
                           <button
                             type="button"
                             onClick={() => handleToggleMlbbEventOpen(event.id, event.isOpen, event.name)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border cursor-pointer transition-all ${
-                              event.isOpen
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border cursor-pointer transition-all ${event.isOpen
                                 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
                                 : 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
-                            }`}
+                              }`}
                           >
                             <span className="flex items-center gap-1.5">
                               <span className={`w-1.5 h-1.5 rounded-full ${event.isOpen ? 'bg-emerald-400' : 'bg-rose-400'}`} />
@@ -2568,11 +2760,10 @@ export default function AdminDashboard({ onBackToStore }) {
                       key={f}
                       type="button"
                       onClick={() => setOrderFilter(f)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
-                        orderFilter === f
+                      className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${orderFilter === f
                           ? 'bg-[#E3062F] text-white'
                           : 'text-slate-400 hover:text-white'
-                      }`}
+                        }`}
                     >
                       {f === 'all' ? 'All Orders' : f === 'PENDING' ? 'Pending / Pre-order' : f}
                     </button>
@@ -2662,13 +2853,12 @@ export default function AdminDashboard({ onBackToStore }) {
                             </td>
 
                             <td className="py-3.5 px-4">
-                              <span className={`px-2.5 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider inline-flex items-center gap-1 ${
-                                isPending
+                              <span className={`px-2.5 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider inline-flex items-center gap-1 ${isPending
                                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                   : order.status === 'COMPLETED' || order.status === 'DELIVERED'
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                              }`}>
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                }`}>
                                 {isPending && <Clock size={12} className="animate-spin" />}
                                 <span>{isPending ? 'Pending' : order.status}</span>
                               </span>
@@ -2773,11 +2963,83 @@ export default function AdminDashboard({ onBackToStore }) {
         {/* ========================================================= */}
         {activeTab === 'contacts' && (
           <div className="max-w-2xl mx-auto bg-[#0e1017] p-6 sm:p-8 rounded-2xl border border-slate-800 animate-in fade-in duration-200">
-            <div className="mb-6 pb-4 border-b border-slate-800">
-              <h2 className="text-xl font-black text-white m-0">Support & Contact Links</h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Update the official Telegram, Facebook, and hotline links displayed in the store header, footer, and support buttons.
-              </p>
+            <div className="mb-6 pb-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black text-white m-0">Website Brand Logo & Support Links</h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Update the official website logo (with auto-cut background) and Telegram, Facebook, and hotline links.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('stock')}
+                className="px-3 py-1.5 rounded-xl bg-[#E3062F]/15 hover:bg-[#E3062F]/25 text-[#ff4d6d] text-xs font-black border border-[#E3062F]/40 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Sparkles size={13} />
+                <span>Full Logo Studio</span>
+              </button>
+            </div>
+
+            {/* Quick Website Logo Control inside Support & Contacts */}
+            <div className="mb-6 p-4 rounded-2xl border border-[#E3062F]/30 bg-slate-950/60 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div
+                  className="w-16 h-16 rounded-xl border border-slate-700 flex items-center justify-center p-1.5 shrink-0 overflow-hidden"
+                  style={{
+                    backgroundImage:
+                      'linear-gradient(45deg, #1e293b 25%, transparent 25%), linear-gradient(-45deg, #1e293b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1e293b 75%), linear-gradient(-45deg, transparent 75%, #1e293b 75%)',
+                    backgroundSize: '12px 12px',
+                    backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0',
+                    backgroundColor: '#0f172a',
+                  }}
+                >
+                  <img
+                    src={siteLogoState || DEFAULT_SITE_LOGO}
+                    alt="Website Brand Logo"
+                    className="w-full h-full object-contain drop-shadow-md"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5">
+                    <span>Website Master Logo</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px]">
+                      Auto-Cut BG Active
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5 m-0">
+                    Updates Navbar, Hero Banner, Footer, Order Lookup, Receipts & Favicon simultaneously.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="file"
+                  id="contacts-site-logo-file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) await handleUploadSiteLogoFile(file);
+                    e.target.value = '';
+                  }}
+                />
+                <label
+                  htmlFor="contacts-site-logo-file"
+                  className="px-3.5 py-2 rounded-xl bg-[#E3062F] hover:bg-rose-700 text-white text-xs font-black cursor-pointer flex items-center gap-1.5 shadow-md"
+                >
+                  <UploadCloud size={14} />
+                  <span>{isProcessingSiteLogo ? 'Cutting BG...' : 'Upload Logo (Auto-Cut BG)'}</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleManualCutSiteLogo}
+                  disabled={isProcessingSiteLogo}
+                  className="px-3 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold cursor-pointer flex items-center gap-1"
+                >
+                  <Sparkles size={13} />
+                  <span>Cut BG</span>
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSaveContacts} className="space-y-4">
@@ -2978,15 +3240,263 @@ export default function AdminDashboard({ onBackToStore }) {
         )}
 
         {/* ========================================================= */}
-        {/* TAB 5: GAME STOCK CONTROL (Option 5)                      */}
+        {/* TAB 6: WEBSITE LOGO & GAME STOCK CONTROL                  */}
         {/* ========================================================= */}
         {activeTab === 'stock' && (
           <div className="space-y-6 animate-in fade-in duration-200">
+            {/* WEBSITE BRAND LOGO & AUTO-CUT BACKGROUND STUDIO */}
+            <div className="bg-[#0e1017] p-6 rounded-2xl border border-[#E3062F]/40 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#E3062F] via-amber-400 to-emerald-400" />
+
+              <div className="flex flex-wrap items-start justify-between gap-4 mb-5 pb-4 border-b border-slate-800">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={20} className="text-[#E3062F]" />
+                    <h2 className="text-xl font-black text-white m-0">
+                      Website Master Logo & Auto Background Cutter
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black uppercase tracking-wider">
+                      Syncs Everywhere Live
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 m-0">
+                    Upload any logo image — it automatically cuts out white, black, or any colored background into a clean transparent PNG and updates the Navbar, Hero Banner, Footer, Order Lookup, Receipts, and Browser Favicon immediately.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {originalSiteLogo && (
+                    <button
+                      type="button"
+                      onClick={handleUndoCutSiteLogo}
+                      className="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                    >
+                      <RefreshCw size={13} />
+                      <span>Undo Cut</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleResetSiteLogo}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                  >
+                    <RefreshCw size={13} />
+                    <span>Reset Default Logo</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
+                {/* Left: Live Transparent Checkerboard Preview + Mini Navbar Preview */}
+                <div className="flex flex-col gap-3">
+                  <div
+                    className="h-44 w-full rounded-2xl border border-slate-700 flex flex-col items-center justify-center p-4 relative overflow-hidden shadow-inner"
+                    style={{
+                      backgroundImage:
+                        'linear-gradient(45deg, #1e293b 25%, transparent 25%), linear-gradient(-45deg, #1e293b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1e293b 75%), linear-gradient(-45deg, transparent 75%, #1e293b 75%)',
+                      backgroundSize: '16px 16px',
+                      backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
+                      backgroundColor: '#0f172a',
+                    }}
+                  >
+                    <img
+                      src={siteLogoState || DEFAULT_SITE_LOGO}
+                      alt="Website Brand Logo Preview"
+                      className="max-h-32 max-w-full object-contain drop-shadow-[0_6px_18px_rgba(0,0,0,0.65)] transition-transform duration-200 hover:scale-105"
+                    />
+                    <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/75 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                      Transparent PNG Preview
+                    </span>
+                  </div>
+
+                  {/* Live Storefront Header Simulation */}
+                  <div className="rounded-xl border border-slate-800 bg-[#07090e] px-3.5 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <YuriGameLogo size={36} className="rounded-lg" />
+                      <div>
+                        <div className="text-xs font-black text-white leading-tight">
+                          YURI<span className="text-[#E3062F]">GAME</span>
+                        </div>
+                        <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                          Live Homepage Header
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Live
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right: Upload Actions & Smart Background Auto-Cut Engine Settings */}
+                <div className="space-y-4">
+                  {/* Primary Upload & Cut Buttons */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      type="file"
+                      id="master-site-logo-upload"
+                      accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) await handleUploadSiteLogoFile(file);
+                        e.target.value = '';
+                      }}
+                    />
+                    <label
+                      htmlFor="master-site-logo-upload"
+                      className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#E3062F] to-rose-600 hover:from-rose-600 hover:to-[#E3062F] text-white font-black text-xs uppercase tracking-wider cursor-pointer flex items-center gap-2 shadow-lg transition-transform active:scale-[0.99]"
+                    >
+                      <UploadCloud size={17} />
+                      <span>
+                        {isProcessingSiteLogo
+                          ? 'Processing & Cutting Background...'
+                          : autoCutLogoBg
+                            ? 'Upload New Logo (Auto-Cut Background)'
+                            : 'Upload New Website Logo'}
+                      </span>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={handleManualCutSiteLogo}
+                      disabled={isProcessingSiteLogo}
+                      className="px-4 py-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-black text-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition-colors"
+                      title="Cut white, black, or colored background from the current logo right now"
+                    >
+                      <Sparkles size={15} />
+                      <span>Cut Current Logo Background Now</span>
+                    </button>
+                  </div>
+
+                  {/* Smart Auto-Cut Background Controls (Applies to Website Logo & Game Logos) */}
+                  <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <label className="flex items-center gap-2 text-xs font-black text-white cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={autoCutLogoBg}
+                          onChange={(e) => setAutoCutLogoBg(e.target.checked)}
+                          className="accent-emerald-500 w-4 h-4 rounded cursor-pointer"
+                        />
+                        <Sparkles size={14} className="text-emerald-400" />
+                        <span>Auto-Cut Logo Background on Upload (Website Logo & Game Logos)</span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-300 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={logoCutInner}
+                          onChange={(e) => setLogoCutInner(e.target.checked)}
+                          className="accent-emerald-500 w-3.5 h-3.5 rounded cursor-pointer"
+                        />
+                        <span>Also Cut Inner Background Holes (inside letters O, A, B)</span>
+                      </label>
+                    </div>
+
+                    {/* Background Color Target Selector */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-slate-400 mr-1">
+                          Background Color to Cut:
+                        </span>
+                        {[
+                          { id: 'auto', label: 'Auto Detect (White / Black / Any Color)' },
+                          { id: 'white', label: 'White BG' },
+                          { id: 'black', label: 'Black BG' },
+                          { id: 'custom', label: 'Pick Specific Color' },
+                        ].map((mode) => (
+                          <button
+                            key={mode.id}
+                            type="button"
+                            onClick={() => setLogoBgColorMode(mode.id)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer transition-colors ${logoBgColorMode === mode.id
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                                : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
+                              }`}
+                          >
+                            {mode.label}
+                          </button>
+                        ))}
+                        {logoBgColorMode === 'custom' && (
+                          <input
+                            type="color"
+                            value={logoCustomBgHex}
+                            onChange={(e) => setLogoCustomBgHex(e.target.value)}
+                            className="w-7 h-7 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                            title="Select background color to cut out"
+                          />
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-400 font-semibold">
+                          Cut Strength ({logoTolerance}):
+                        </span>
+                        <input
+                          type="range"
+                          min="15"
+                          max="95"
+                          value={logoTolerance}
+                          onChange={(e) => setLogoTolerance(Number(e.target.value))}
+                          className="w-28 accent-emerald-500 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Direct Logo Image URL Input with Auto-Cut */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="text"
+                      value={siteLogoUrlInput}
+                      onChange={(e) => setSiteLogoUrlInput(e.target.value)}
+                      placeholder="Or paste direct logo image URL (https://... or /assets/...) and click Apply"
+                      className="flex-1 min-w-[220px] h-10 px-3.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-[#E3062F]"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const rawUrl = siteLogoUrlInput.trim();
+                        if (!rawUrl) {
+                          showToast('Paste a logo image URL first.');
+                          return;
+                        }
+                        setIsProcessingSiteLogo(true);
+                        try {
+                          setOriginalSiteLogo(rawUrl);
+                          if (autoCutLogoBg) {
+                            const cutUrl = await removeImageBackground(rawUrl, logoTolerance, 20, {
+                              targetColor: resolveLogoTargetColor(),
+                              cutInnerHoles: logoCutInner,
+                              trim: true,
+                            });
+                            await handleSaveSiteLogo(cutUrl || rawUrl, 'Logo URL applied & background auto-cut!');
+                          } else {
+                            await handleSaveSiteLogo(rawUrl, 'Logo URL applied across the website!');
+                          }
+                          setSiteLogoUrlInput('');
+                        } catch {
+                          await handleSaveSiteLogo(rawUrl, 'Logo URL applied across the website!');
+                        } finally {
+                          setIsProcessingSiteLogo(false);
+                        }
+                      }}
+                      className="h-10 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-black border border-slate-700 cursor-pointer"
+                    >
+                      Apply URL
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-[#0e1017] p-6 rounded-2xl border border-slate-800">
               <div className="mb-6 pb-4 border-b border-slate-800">
                 <h2 className="text-xl font-black text-white m-0">Game Stock Status & Logo Manager</h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Click to open or close stock for any game. When closed, customers see "Out of Stock" on the store and cannot place orders until you reopen it.
+                  Click to open or close stock for any game, or upload game logos (with automatic background removal).
                 </p>
               </div>
 
@@ -3022,7 +3532,14 @@ export default function AdminDashboard({ onBackToStore }) {
                             const file = e.target.files?.[0];
                             if (file) {
                               try {
-                                const opt = await compressImageFile(file, 800, 0.85);
+                                const opt = await processLogoFileWithAutoCut(file, {
+                                  maxWidth: 800,
+                                  tolerance: logoTolerance,
+                                  feather: 20,
+                                  targetColor: resolveLogoTargetColor(),
+                                  cutInnerHoles: logoCutInner,
+                                  autoCut: autoCutLogoBg,
+                                });
                                 if (opt) setComingSoonImage(opt);
                               } catch { showToast('Failed to process image'); }
                             }
@@ -3030,7 +3547,7 @@ export default function AdminDashboard({ onBackToStore }) {
                           }}
                         />
                         <label htmlFor="cs-logo-file" className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold border border-slate-700 cursor-pointer flex items-center gap-1.5">
-                          <UploadCloud size={13} className="text-violet-400" /> Upload Logo
+                          <UploadCloud size={13} className="text-violet-400" /> Upload Logo (Auto-Cut)
                         </label>
                       </div>
                       <div className="flex flex-col gap-2">
@@ -3102,9 +3619,8 @@ export default function AdminDashboard({ onBackToStore }) {
                           alt={game.name}
                           className="w-full h-full object-cover"
                         />
-                        <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                          game.stockOpen ? 'bg-emerald-500 text-white' : 'bg-rose-600 text-white'
-                        }`}>
+                        <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${game.stockOpen ? 'bg-emerald-500 text-white' : 'bg-rose-600 text-white'
+                          }`}>
                           {game.stockOpen ? 'OPEN' : 'CLOSED'}
                         </span>
                       </div>
@@ -3119,11 +3635,10 @@ export default function AdminDashboard({ onBackToStore }) {
                       <button
                         type="button"
                         onClick={() => handleToggleGameStock(game.id, game.stockOpen)}
-                        className={`w-full py-2.5 px-3 rounded-xl font-black text-xs cursor-pointer border-0 transition-transform active:scale-[0.98] flex items-center justify-center gap-1.5 ${
-                          game.stockOpen
+                        className={`w-full py-2.5 px-3 rounded-xl font-black text-xs cursor-pointer border-0 transition-transform active:scale-[0.98] flex items-center justify-center gap-1.5 ${game.stockOpen
                             ? 'bg-rose-600/20 text-rose-300 hover:bg-rose-600/30 border border-rose-500/40'
                             : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg'
-                        }`}
+                          }`}
                       >
                         <Power size={14} />
                         <span>{game.stockOpen ? 'Click to Close Stock' : 'Click to Open Stock'}</span>
@@ -3133,11 +3648,10 @@ export default function AdminDashboard({ onBackToStore }) {
                       <button
                         type="button"
                         onClick={() => handleToggleGameMaintenance(game.id, game.maintenance === true)}
-                        className={`w-full py-2.5 px-3 rounded-xl font-black text-xs cursor-pointer border-0 transition-transform active:scale-[0.98] flex items-center justify-center gap-1.5 ${
-                          game.maintenance === true
+                        className={`w-full py-2.5 px-3 rounded-xl font-black text-xs cursor-pointer border-0 transition-transform active:scale-[0.98] flex items-center justify-center gap-1.5 ${game.maintenance === true
                             ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-lg'
                             : 'bg-amber-600/15 text-amber-300 hover:bg-amber-600/25 border border-amber-500/40'
-                        }`}
+                          }`}
                       >
                         <AlertCircle size={14} />
                         <span>{game.maintenance === true ? 'Maintenance ON — click to allow top-up' : 'Mark "Cannot Top-Up" (Maintenance)'}</span>
@@ -3153,11 +3667,22 @@ export default function AdminDashboard({ onBackToStore }) {
                             const file = e.target.files?.[0];
                             if (file) {
                               try {
-                                showToast(`Optimizing & uploading logo for ${game.name}...`);
-                                const optimized = await compressImageFile(file, 800, 0.85);
+                                showToast(
+                                  autoCutLogoBg
+                                    ? `Uploading & auto-cutting background for ${game.name}...`
+                                    : `Optimizing & uploading logo for ${game.name}...`
+                                );
+                                const optimized = await processLogoFileWithAutoCut(file, {
+                                  maxWidth: 800,
+                                  tolerance: logoTolerance,
+                                  feather: 20,
+                                  targetColor: resolveLogoTargetColor(),
+                                  cutInnerHoles: logoCutInner,
+                                  autoCut: autoCutLogoBg,
+                                });
                                 if (optimized) {
                                   await handleUpdateGameInfo(game.id, { image: optimized });
-                                  showToast(`Logo for ${game.name} updated from device!`);
+                                  showToast(`Logo for ${game.name} updated (background auto-cut)!`);
                                 }
                               } catch (err) {
                                 showToast('Failed to process image');
@@ -3172,9 +3697,19 @@ export default function AdminDashboard({ onBackToStore }) {
                           className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold border border-slate-700 cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
                         >
                           <UploadCloud size={14} className="text-[#E3062F]" />
-                          <span>Upload Logo (PC / Phone)</span>
+                          <span>Upload Logo (Auto-Cut BG)</span>
                         </label>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCutExistingGameLogo(game)}
+                        className="w-full py-2 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs font-bold border border-emerald-500/30 cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+                        title="Cut white, black, or colored background from this game's current logo"
+                      >
+                        <Sparkles size={13} />
+                        <span>Cut Existing Logo Background</span>
+                      </button>
 
                       {/* Native Device File Input for Game Cover Banner */}
                       <div className="relative">

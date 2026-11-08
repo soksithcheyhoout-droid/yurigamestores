@@ -1,5 +1,6 @@
 // Isolated Professional Receipt & Invoice Printer for Mobile & Desktop
 // Generates a standalone, beautiful 1-page official invoice without background website elements.
+import { getSiteLogo } from '../components/YuriGameLogo';
 
 export function printReceiptInvoice(order, currentRegion = { currency: 'USD', rate: 1 }) {
   if (!order) return;
@@ -29,7 +30,10 @@ export function printReceiptInvoice(order, currentRegion = { currency: 'USD', ra
   const statusBg = isDelivered ? '#ecfdf5' : isCancelled ? '#fef2f2' : '#fffbeb';
   const statusBorder = isDelivered ? '#a7f3d0' : isCancelled ? '#fecaca' : '#fde68a';
 
-  const logoUrl = `${window.location.origin}/assets/brand/yurigame-logo.webp`;
+  const currentLogo = getSiteLogo();
+  const logoUrl = currentLogo.startsWith('data:') || currentLogo.startsWith('http')
+    ? currentLogo
+    : `${window.location.origin}${currentLogo.startsWith('/') ? '' : '/'}${currentLogo}`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">

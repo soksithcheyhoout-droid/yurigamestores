@@ -84,6 +84,7 @@ import {
   updatePackageInMlbbEvent,
   deletePackageFromMlbbEvent,
   updateContactSettings,
+  updateSiteLogo,
   addSlideBanner,
   updateSlideBanner,
   deleteSlideBanner,
@@ -3239,11 +3240,18 @@ function saveBase64ToFile(base64Str, prefix = 'img') {
 function sanitizeUploadPayload(body = {}, prefix = 'img') {
   if (!body || typeof body !== 'object') return body;
   const clone = { ...body };
+  // Keep compact data URLs (e.g., compressed & background-cut PNG logos) directly in adminConfig
+  // so they persist durably in MySQL across redeploys and do not trigger Vite dev server reloads.
+  const MAX_INLINE_DATA_URL_LENGTH = 2_500_000;
   if (clone.image && typeof clone.image === 'string' && clone.image.startsWith('data:image/')) {
-    clone.image = saveBase64ToFile(clone.image, `${prefix}_icon`);
+    if (clone.image.length > MAX_INLINE_DATA_URL_LENGTH) {
+      clone.image = saveBase64ToFile(clone.image, `${prefix}_icon`);
+    }
   }
   if (clone.banner && typeof clone.banner === 'string' && clone.banner.startsWith('data:image/')) {
-    clone.banner = saveBase64ToFile(clone.banner, `${prefix}_banner`);
+    if (clone.banner.length > MAX_INLINE_DATA_URL_LENGTH) {
+      clone.banner = saveBase64ToFile(clone.banner, `${prefix}_banner`);
+    }
   }
   return clone;
 }
@@ -3440,10 +3448,16 @@ app.delete('/api/admin/mlbb-events/:eventId/packages/:pkgId', requireAdminAuth, 
   return res.json({ success: ok });
 });
 
-// 7. Contact Settings (Option 3)
+// 7. Contact Settings & Website Brand Logo (Option 3 & Logo Control)
 app.post('/api/admin/contacts', requireAdminAuth, (req, res) => {
   const updated = updateContactSettings(req.body || {});
-  return res.json({ success: true, contacts: updated });
+  return res.json({ success: true, contacts: updated, siteLogo: updated.siteLogo });
+});
+
+app.post('/api/admin/site-logo', requireAdminAuth, (req, res) => {
+  const rawLogo = req.body?.siteLogo !== undefined ? req.body.siteLogo : req.body?.logo;
+  const savedLogo = updateSiteLogo(rawLogo);
+  return res.json({ success: true, siteLogo: savedLogo });
 });
 
 // Test Telegram Bot Connection & Ping Registered Admins

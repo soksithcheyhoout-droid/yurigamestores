@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ShieldCheck, Zap } from 'lucide-react';
 import { fetchSoraGameWithPackages } from '../data/soraStore';
-import YuriGameLogo from './YuriGameLogo';
+import YuriGameLogo, { getSiteLogo } from './YuriGameLogo';
 
 const AUTO_PLAY_MS = 6500;
 const HERO_CACHE_KEY = 'yurigame_hero_slides_v2';
@@ -60,12 +60,23 @@ function wrapIndex(index) {
 
 export default function Hero({ onSelectGame }) {
   const [slides, setSlides] = useState(() => getCachedSlides() || PROMO_SLIDES);
+  const [brandLogo, setBrandLogo] = useState(() => getSiteLogo());
   const [activeIndex, setActiveIndex] = useState(0);
   const [direction, setDirection] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   const [isOpeningSlide, setIsOpeningSlide] = useState(false);
   const touchStartX = useRef(null);
   const didSwipe = useRef(false);
+
+  useEffect(() => {
+    const syncBrandLogo = () => setBrandLogo(getSiteLogo());
+    window.addEventListener('yurigame_site_logo_changed', syncBrandLogo);
+    window.addEventListener('yurigame_site_config_updated', syncBrandLogo);
+    return () => {
+      window.removeEventListener('yurigame_site_logo_changed', syncBrandLogo);
+      window.removeEventListener('yurigame_site_config_updated', syncBrandLogo);
+    };
+  }, []);
 
   useEffect(() => {
     fetch('/api/site-config', { cache: 'no-store' })
@@ -241,7 +252,7 @@ export default function Hero({ onSelectGame }) {
                       <span className="yurigame-brand-slide-cta">View rewards</span>
                     </div>
                     <div className="yurigame-brand-slide-logo">
-                      <img src="/assets/brand/yurigame-logo.webp" alt="" draggable="false" />
+                      <img src={brandLogo} alt="" draggable="false" />
                     </div>
                   </div>
                 ) : (

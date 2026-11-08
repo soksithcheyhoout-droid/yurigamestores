@@ -241,7 +241,7 @@ export async function lookupFreeFire3Tier(playerId) {
         };
       }
     }
-  } catch {}
+  } catch { }
 
   // Tier 2 (Fallback if Tier 1 fails)
   try {
@@ -273,7 +273,7 @@ export async function lookupFreeFire3Tier(playerId) {
         };
       }
     }
-  } catch {}
+  } catch { }
 
   // Tier 3 (Fallback if Tier 2 fails)
   try {
@@ -305,7 +305,7 @@ export async function lookupFreeFire3Tier(playerId) {
         };
       }
     }
-  } catch {}
+  } catch { }
 
   return {
     found: false,
@@ -531,7 +531,7 @@ async function lookupFreeFire(values, gameCode = 'ff') {
         },
       };
     }
-  } catch {}
+  } catch { }
 
   // 2. Check known accounts dictionary fallback
   if (KNOWN_FREEFIRE_ACCOUNTS[cleanUserId]) {
@@ -569,7 +569,7 @@ async function lookupFreeFire(values, gameCode = 'ff') {
       if (codaRes.region) region = codaRes.region;
       if (codaRes.source) source = codaRes.source;
     }
-  } catch {}
+  } catch { }
 
   // Definitive rejection ONLY when Garena's official partner explicitly says wrong player ID
   if (existence === 'fake') {
@@ -586,7 +586,7 @@ async function lookupFreeFire(values, gameCode = 'ff') {
         if (garenaRes.region) region = garenaRes.region;
         existence = 'real';
       }
-    } catch {}
+    } catch { }
   }
 
   // Step 3: Try Public Community APIs
@@ -599,7 +599,7 @@ async function lookupFreeFire(values, gameCode = 'ff') {
         if (publicRes.region) region = publicRes.region;
         existence = 'real';
       }
-    } catch {}
+    } catch { }
   }
 
   // Step 4: Try Smile.one Role Gateway
@@ -611,7 +611,7 @@ async function lookupFreeFire(values, gameCode = 'ff') {
         source = smileRes.source || source;
         existence = 'real';
       }
-    } catch {}
+    } catch { }
   }
 
   // Step 5: Try Free Fire Community API (if key exists)
@@ -624,7 +624,7 @@ async function lookupFreeFire(values, gameCode = 'ff') {
         if (commRes.region) region = commRes.region;
         existence = 'real';
       }
-    } catch {}
+    } catch { }
   }
 
   // If real nickname was resolved, return verified profile with real IGN!

@@ -10,6 +10,7 @@ import OrderLookupModal from './components/OrderLookupModal';
 import OrderReceiptModal from './components/OrderReceiptModal';
 import RegionLangModal from './components/RegionLangModal';
 import CasinoSpinWheelModal from './components/CasinoSpinWheelModal';
+import { setSiteLogo } from './components/YuriGameLogo';
 import { CASINO_CONFIG } from './data/casinoConfig';
 import { findAuthorizedGame, syncGamesWithAdminConfig } from './data/games';
 import {
@@ -62,28 +63,57 @@ export default function App() {
         const raw = window.localStorage.getItem('yurigame_site_config_cache_v2');
         if (raw) return JSON.parse(raw);
       }
-    } catch {}
+    } catch { }
     return null;
   });
   const [casinoSpinOrder, setCasinoSpinOrder] = useState(null);
 
-  useEffect(() => {
-    fetch('/api/site-config')
+  const applyLoadedSiteConfig = (data) => {
+    if (!data) return;
+    setSiteConfig(data);
+    const resolvedLogo = data.siteLogo || data.contacts?.siteLogo;
+    if (resolvedLogo) {
+      setSiteLogo(resolvedLogo);
+    }
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('yurigame_site_config_cache_v2', JSON.stringify(data));
+      }
+    } catch { }
+    if (Array.isArray(data.games) && data.games.length > 0) {
+      syncGamesWithAdminConfig(data.games);
+    }
+  };
+
+  const refreshSiteConfig = () => {
+    fetch('/api/site-config', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (data && data.success) {
-          setSiteConfig(data);
-          try {
-            if (typeof window !== 'undefined') {
-              window.localStorage.setItem('yurigame_site_config_cache_v2', JSON.stringify(data));
-            }
-          } catch {}
-          if (Array.isArray(data.games)) {
-            syncGamesWithAdminConfig(data.games);
-          }
+          applyLoadedSiteConfig(data);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
+  };
+
+  useEffect(() => {
+    if (siteConfig?.siteLogo || siteConfig?.contacts?.siteLogo) {
+      setSiteLogo(siteConfig.siteLogo || siteConfig.contacts?.siteLogo);
+    }
+    if (Array.isArray(siteConfig?.games) && siteConfig.games.length > 0) {
+      syncGamesWithAdminConfig(siteConfig.games);
+    }
+    refreshSiteConfig();
+
+    const handleSiteConfigUpdated = (event) => {
+      if (event?.detail) {
+        applyLoadedSiteConfig(event.detail);
+      } else {
+        refreshSiteConfig();
+      }
+    };
+    window.addEventListener('yurigame_site_config_updated', handleSiteConfigUpdated);
+    return () => window.removeEventListener('yurigame_site_config_updated', handleSiteConfigUpdated);
   }, []);
   const [isAdminView, setIsAdminView] = useState(() => {
     try {
@@ -211,7 +241,7 @@ export default function App() {
     setIsAdminView(true);
     try {
       window.history.pushState({ page: 'admin' }, '', '/admin');
-    } catch {}
+    } catch { }
     scrollToTarget(0, { immediate: true });
   };
 
@@ -276,9 +306,10 @@ export default function App() {
       <AdminDashboard
         onBackToStore={() => {
           setIsAdminView(false);
+          refreshSiteConfig();
           try {
             window.history.pushState({}, '', '/');
-          } catch {}
+          } catch { }
           scrollToTarget(0, { immediate: true });
         }}
       />
@@ -295,6 +326,7 @@ export default function App() {
         onGoHome={handleBackToHome}
         onSelectGame={handleSelectGame}
         onSelectCategory={setSelectedCategory}
+        adminGames={siteConfig?.games || []}
       />
 
       {selectedGame ? (
@@ -331,6 +363,7 @@ export default function App() {
             selectedCategory={selectedCategory}
             setSelectedCategory={setSelectedCategory}
             comingSoonGames={siteConfig?.comingSoonGames || []}
+            adminGames={siteConfig?.games || []}
           />
         </main>
       )}

@@ -1582,7 +1582,7 @@ const LOCAL_GAME_IMAGES = {
   ml: '/assets/games/ml_kh.png',
   ff: '/assets/games/ff_kh.png',
   roslegacy: '/assets/games/ros_legacy_kh.webp',
-  rosangkor: '/assets/games/ros_angkor.png',
+  rosangkor: '/assets/games/ros_angkor_v2.png',
 };
 
 const LOCAL_GAME_BANNERS = {
@@ -1590,7 +1590,7 @@ const LOCAL_GAME_BANNERS = {
   ml: '/assets/banners/banner_mlbb.jpg',
   ff: '/assets/banners/banner_freefire.jpg',
   roslegacy: '/assets/games/ros_legacy_kh.webp',
-  rosangkor: '/assets/games/ros_angkor.png',
+  rosangkor: '/assets/games/ros_angkor_v2.png',
 };
 
 function publicSoraGame(game) {

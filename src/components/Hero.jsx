@@ -22,7 +22,7 @@ function getFallbackBannerForSlide(slideOrSlug) {
   const s = raw.toLowerCase();
   if (s.includes('roblox') || s.includes('robux')) return '/assets/games/roblox_hero_4k.jpg';
   if (s.includes('free-fire') || s.includes('free fire') || s.includes('ff')) return '/assets/banners/banner_freefire.jpg';
-  if (s.includes('angkor') || s.includes('rosangkor')) return '/assets/games/ros_angkor.png';
+  if (s.includes('angkor') || s.includes('rosangkor')) return '/assets/games/ros_angkor_v2.png';
   if (s.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
   return '/assets/banners/banner_mlbb.jpg';
 }
@@ -30,6 +30,7 @@ function getFallbackBannerForSlide(slideOrSlug) {
 function isUsableBannerUrl(val) {
   if (!isValidLogoUrl(val)) return false;
   const s = String(val).trim();
+  if (s === '/assets/games/ros_angkor.png') return false;
   // Legacy ephemeral container uploads (/assets/uploads/...) are wiped on Railway redeploy
   if (s.startsWith('/assets/uploads/') || LEGACY_PLACEHOLDER_BANNERS.has(s)) return false;
   return true;
@@ -360,11 +361,8 @@ export default function Hero({ onSelectGame }) {
                       loading="eager"
                       draggable="false"
                       onError={(event) => {
-                        const fb = activeSlide.fallbackImage && activeSlide.fallbackImage !== activeSlide.image
-                          ? activeSlide.fallbackImage
-                          : getFallbackBannerForSlide(activeSlide);
                         event.currentTarget.onerror = null;
-                        event.currentTarget.src = fb || '/assets/banners/banner_mlbb.jpg';
+                        event.currentTarget.src = '/assets/banners/banner_mlbb.jpg';
                       }}
                     />
                     <div className="topbar-promo-image-frame">
@@ -377,11 +375,13 @@ export default function Hero({ onSelectGame }) {
                         fetchPriority="high"
                         draggable="false"
                         onError={(event) => {
-                          const fb = activeSlide.fallbackImage && activeSlide.fallbackImage !== activeSlide.image
-                            ? activeSlide.fallbackImage
-                            : getFallbackBannerForSlide(activeSlide);
-                          event.currentTarget.onerror = null;
-                          event.currentTarget.src = fb || '/assets/banners/banner_mlbb.jpg';
+                          const currentSrc = event.currentTarget.src;
+                          const fb = getFallbackBannerForSlide(activeSlide);
+                          event.currentTarget.onerror = (e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = '/assets/banners/banner_mlbb.jpg';
+                          };
+                          event.currentTarget.src = (fb && !currentSrc.includes(fb)) ? fb : '/assets/banners/banner_mlbb.jpg';
                         }}
                       />
                     </div>

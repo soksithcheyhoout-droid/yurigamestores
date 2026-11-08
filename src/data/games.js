@@ -153,8 +153,8 @@ export const GAMES = [
     currency: "Diamonds",
     hot: true,
     featured: true,
-    banner: "/assets/games/ros_angkor.png",
-    image: "/assets/games/ros_angkor.png",
+    banner: "/assets/games/ros_angkor_v2.png",
+    image: "/assets/games/ros_angkor_v2.png",
     badge: "Instant Auto Top-Up",
     orderingEnabled: true,
     verificationMode: "live",
@@ -240,8 +240,14 @@ export function syncGamesWithAdminConfig(configuredGames) {
     );
     if (target) {
       if (cfg.name) target.name = cfg.name;
-      if (isValidGameAssetUrl(cfg.image, target.id)) target.image = cfg.image.trim();
-      if (isValidGameAssetUrl(cfg.banner, target.id)) target.banner = cfg.banner.trim();
+      if (isValidGameAssetUrl(cfg.image, target.id)) {
+        const cleanImg = cfg.image.trim();
+        target.image = cleanImg === '/assets/games/ros_angkor.png' ? '/assets/games/ros_angkor_v2.png' : cleanImg;
+      }
+      if (isValidGameAssetUrl(cfg.banner, target.id)) {
+        const cleanBan = cfg.banner.trim();
+        target.banner = cleanBan === '/assets/games/ros_angkor.png' ? '/assets/games/ros_angkor_v2.png' : cleanBan;
+      }
       if (typeof cfg.stockOpen === 'boolean') target.stockOpen = cfg.stockOpen;
       if (Array.isArray(cfg.packages) && cfg.packages.length > 0) {
         target.packages = cfg.packages;

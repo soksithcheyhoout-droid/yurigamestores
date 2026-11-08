@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import YuriGameLogo, { DEFAULT_SITE_LOGO, getSiteLogo, setSiteLogo, isValidLogoUrl } from './YuriGameLogo';
 import AdminAnalyticsPanel from './AdminAnalyticsPanel';
+import ImageCropModal from './ImageCropModal';
 import ImageUploadPicker, {
   compressImageFile,
   removeImageBackground,
@@ -68,7 +69,7 @@ function getFallbackGameTile(gameOrCode) {
   const nameLower = String(typeof gameOrCode === 'object' ? gameOrCode?.name || '' : '').toLowerCase();
   if (code === 'robuxsend' || code.includes('roblox')) return '/assets/games/roblox_kh.png';
   if (code === 'ff' || code.includes('free-fire')) return '/assets/games/ff_kh.png';
-  if (code === 'rosangkor' || code.includes('angkor') || nameLower.includes('angkor')) return '/assets/games/ros_angkor.png';
+  if (code === 'rosangkor' || code.includes('angkor') || nameLower.includes('angkor')) return '/assets/games/ros_angkor_v2.png';
   if (code === 'roslegacy' || code.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
   if (code === 'ml' || code.includes('mobile-legends')) return '/assets/games/ml_kh.png';
   return DEFAULT_SITE_LOGO;
@@ -86,6 +87,9 @@ function getSafeAdminGameImage(game) {
   ) {
     return fallback;
   }
+  if (raw === '/assets/games/ros_angkor.png') {
+    return '/assets/games/ros_angkor_v2.png';
+  }
   const code = String(game?.providerCode || game?.id || game?.slug || game?.code || '').toLowerCase();
   if (code && code !== 'ml' && !code.includes('mobile-legends')) {
     const lower = raw.toLowerCase();
@@ -100,7 +104,7 @@ function getFallbackBanner(slugOrCode) {
   const s = String(slugOrCode || '').toLowerCase();
   if (s.includes('roblox') || s === 'robuxsend') return '/assets/games/roblox_hero_4k.jpg';
   if (s.includes('free-fire') || s === 'ff') return '/assets/banners/banner_freefire.jpg';
-  if (s.includes('angkor') || s === 'rosangkor') return '/assets/games/ros_angkor.png';
+  if (s.includes('angkor') || s === 'rosangkor') return '/assets/games/ros_angkor_v2.png';
   if (s.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
   return '/assets/banners/banner_mlbb.jpg';
 }
@@ -252,6 +256,38 @@ export default function AdminDashboard({ onBackToStore }) {
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3000);
+  };
+
+  // Interactive Crop & Size Image Modal state
+  const [cropModalConfig, setCropModalConfig] = useState({
+    isOpen: false,
+    imageSrc: '',
+    title: 'Crop & Size Image for Full Card',
+    gameName: 'Game Preview',
+    aspectRatio: 1,
+    enableAutoCut: true,
+    onSave: null,
+  });
+
+  const openCropModal = ({ imageSrc, title, gameName, aspectRatio = 1, enableAutoCut = true, onSave }) => {
+    setCropModalConfig({
+      isOpen: true,
+      imageSrc,
+      title: title || 'Crop & Size Image for Full Card',
+      gameName: gameName || 'Game Preview',
+      aspectRatio,
+      enableAutoCut,
+      onSave: async (croppedDataUrl) => {
+        setCropModalConfig((prev) => ({ ...prev, isOpen: false }));
+        if (onSave) {
+          await onSave(croppedDataUrl);
+        }
+      },
+    });
+  };
+
+  const closeCropModal = () => {
+    setCropModalConfig((prev) => ({ ...prev, isOpen: false }));
   };
 
   // Professional in-app confirm dialog (replaces ugly native window.confirm).
@@ -1001,38 +1037,30 @@ export default function AdminDashboard({ onBackToStore }) {
 
   const handleUploadSiteLogoFile = async (file) => {
     if (!file) return;
-    setIsProcessingSiteLogo(true);
-    try {
-      showToast(
-        autoCutLogoBg
-          ? 'Uploading logo & auto-cutting background (white/black/color)...'
-          : 'Uploading website logo...'
-      );
-      const rawCompressed = await compressImageFile(file, 800, 0.92, { forcePng: true });
-      if (rawCompressed) {
-        setOriginalSiteLogo(rawCompressed);
-      }
-      const processed = await processLogoFileWithAutoCut(file, {
-        maxWidth: 800,
-        tolerance: logoTolerance,
-        feather: 20,
-        targetColor: resolveLogoTargetColor(),
-        cutInnerHoles: logoCutInner,
-        autoCut: autoCutLogoBg,
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const rawSrc = ev.target?.result;
+      if (!rawSrc) return;
+      openCropModal({
+        imageSrc: rawSrc,
+        title: 'Crop & Size Website Master Logo',
+        gameName: 'YuriGameStore',
+        aspectRatio: 1,
+        enableAutoCut: true,
+        onSave: async (croppedUrl) => {
+          setIsProcessingSiteLogo(true);
+          try {
+            await handleSaveSiteLogo(
+              croppedUrl,
+              'Website logo updated & perfectly fitted — live across the entire website!'
+            );
+          } finally {
+            setIsProcessingSiteLogo(false);
+          }
+        },
       });
-      if (processed) {
-        await handleSaveSiteLogo(
-          processed,
-          autoCutLogoBg
-            ? 'Website logo uploaded & background auto-cut — live across the entire website!'
-            : 'Website logo uploaded — live across the entire website!'
-        );
-      }
-    } catch {
-      showToast('Failed to process website logo image.');
-    } finally {
-      setIsProcessingSiteLogo(false);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleManualCutSiteLogo = async () => {
@@ -1040,28 +1068,24 @@ export default function AdminDashboard({ onBackToStore }) {
     const sourceLogo = isValidLogoUrl(rawCandidate) && !String(rawCandidate).startsWith('/assets/uploads/')
       ? rawCandidate
       : DEFAULT_SITE_LOGO;
-    setIsProcessingSiteLogo(true);
-    try {
-      showToast('Cutting background from website logo...');
-      if (!originalSiteLogo) {
-        setOriginalSiteLogo(sourceLogo);
-      }
-      const cutOut = await removeImageBackground(sourceLogo, logoTolerance, 20, {
-        targetColor: resolveLogoTargetColor(),
-        cutInnerHoles: logoCutInner,
-        trim: true,
-      });
-      if (cutOut) {
-        await handleSaveSiteLogo(
-          cutOut,
-          'Background removed (transparent PNG) & applied everywhere on the website!'
-        );
-      }
-    } catch {
-      showToast('Could not auto-cut background from this image.');
-    } finally {
-      setIsProcessingSiteLogo(false);
-    }
+    openCropModal({
+      imageSrc: sourceLogo,
+      title: 'Crop, Cut Background & Size Website Logo',
+      gameName: 'YuriGameStore',
+      aspectRatio: 1,
+      enableAutoCut: true,
+      onSave: async (croppedUrl) => {
+        setIsProcessingSiteLogo(true);
+        try {
+          await handleSaveSiteLogo(
+            croppedUrl,
+            'Website logo background removed & saved live across the store!'
+          );
+        } finally {
+          setIsProcessingSiteLogo(false);
+        }
+      },
+    });
   };
 
   const handleUndoCutSiteLogo = async () => {
@@ -1081,20 +1105,17 @@ export default function AdminDashboard({ onBackToStore }) {
       ? game.image
       : getFallbackGameTile(game);
     if (!sourceImg) return;
-    try {
-      showToast(`Cutting background for ${game.name} logo...`);
-      const cutOut = await removeImageBackground(sourceImg, logoTolerance, 20, {
-        targetColor: resolveLogoTargetColor(),
-        cutInnerHoles: logoCutInner,
-        trim: true,
-      });
-      if (cutOut) {
-        await handleUpdateGameInfo(game.id, { image: cutOut });
-        showToast(`Background cut & transparent PNG saved for ${game.name}!`);
-      }
-    } catch {
-      showToast(`Could not cut background for ${game.name}.`);
-    }
+    openCropModal({
+      imageSrc: sourceImg,
+      title: `Crop, Cut BG & Size ${game.name} Logo (Full Card)`,
+      gameName: game.name,
+      aspectRatio: 1,
+      enableAutoCut: true,
+      onSave: async (croppedUrl) => {
+        await handleUpdateGameInfo(game.id, { image: croppedUrl });
+        showToast(`Logo for ${game.name} updated & fitted to full card!`);
+      },
+    });
   };
 
   // =====================================
@@ -2399,31 +2420,26 @@ export default function AdminDashboard({ onBackToStore }) {
                         type="file"
                         id={`tab2-logo-file-${selectedGame.id}`}
                         accept="image/png,image/jpeg,image/webp,image/gif"
-                        onChange={async (e) => {
+                        onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            try {
-                              showToast(
-                                autoCutLogoBg
-                                  ? `Uploading & auto-cutting background for ${selectedGame.name}...`
-                                  : `Uploading logo for ${selectedGame.name}...`
-                              );
-                              const optimized = await processLogoFileWithAutoCut(file, {
-                                maxWidth: 800,
-                                tolerance: logoTolerance,
-                                feather: 20,
-                                targetColor: resolveLogoTargetColor(),
-                                cutInnerHoles: logoCutInner,
-                                autoCut: autoCutLogoBg,
-                                forGameCard: true,
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const rawSrc = ev.target?.result;
+                              if (!rawSrc) return;
+                              openCropModal({
+                                imageSrc: rawSrc,
+                                title: `Crop & Size ${selectedGame.name} Logo (Full Card)`,
+                                gameName: selectedGame.name,
+                                aspectRatio: 1,
+                                enableAutoCut: true,
+                                onSave: async (croppedUrl) => {
+                                  await handleUpdateGameInfo(selectedGame.id, { image: croppedUrl });
+                                  showToast(`Logo for ${selectedGame.name} updated & fitted to full card!`);
+                                },
                               });
-                              if (optimized) {
-                                await handleUpdateGameInfo(selectedGame.id, { image: optimized });
-                                showToast(`Logo for ${selectedGame.name} updated (background auto-cut)!`);
-                              }
-                            } catch (err) {
-                              showToast('Failed to process image');
-                            }
+                            };
+                            reader.readAsDataURL(file);
                           }
                           e.target.value = '';
                         }}
@@ -2473,19 +2489,26 @@ export default function AdminDashboard({ onBackToStore }) {
                           type="file"
                           id={`tab2-banner-file-${selectedGame.id}`}
                           accept="image/png,image/jpeg,image/webp,image/gif"
-                          onChange={async (e) => {
+                          onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              try {
-                                showToast(`Uploading banner for ${selectedGame.name}...`);
-                                const optimized = await compressImageFile(file, 1600, 0.85);
-                                if (optimized) {
-                                  await handleUpdateGameInfo(selectedGame.id, { banner: optimized });
-                                  showToast(`Cover banner for ${selectedGame.name} updated!`);
-                                }
-                              } catch (err) {
-                                showToast('Failed to process image');
-                              }
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const rawSrc = ev.target?.result;
+                                if (!rawSrc) return;
+                                openCropModal({
+                                  imageSrc: rawSrc,
+                                  title: `Crop & Size ${selectedGame.name} Cover Banner`,
+                                  gameName: selectedGame.name,
+                                  aspectRatio: 16 / 9,
+                                  enableAutoCut: false,
+                                  onSave: async (croppedUrl) => {
+                                    await handleUpdateGameInfo(selectedGame.id, { banner: croppedUrl });
+                                    showToast(`Cover banner for ${selectedGame.name} updated!`);
+                                  },
+                                });
+                              };
+                              reader.readAsDataURL(file);
                             }
                             e.target.value = '';
                           }}
@@ -3636,21 +3659,26 @@ export default function AdminDashboard({ onBackToStore }) {
                           id="cs-logo-file"
                           accept="image/png,image/jpeg,image/webp,image/gif"
                           className="hidden"
-                          onChange={async (e) => {
+                          onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              try {
-                                const opt = await processLogoFileWithAutoCut(file, {
-                                  maxWidth: 800,
-                                  tolerance: logoTolerance,
-                                  feather: 20,
-                                  targetColor: resolveLogoTargetColor(),
-                                  cutInnerHoles: logoCutInner,
-                                  autoCut: autoCutLogoBg,
-                                  forGameCard: true,
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const rawSrc = ev.target?.result;
+                                if (!rawSrc) return;
+                                openCropModal({
+                                  imageSrc: rawSrc,
+                                  title: `Crop & Size Coming Soon Logo (Full Card)`,
+                                  gameName: comingSoonName || 'Coming Soon Game',
+                                  aspectRatio: 1,
+                                  enableAutoCut: true,
+                                  onSave: async (croppedUrl) => {
+                                    setComingSoonImage(croppedUrl);
+                                    showToast('Coming soon logo sized & ready!');
+                                  },
                                 });
-                                if (opt) setComingSoonImage(opt);
-                              } catch { showToast('Failed to process image'); }
+                              };
+                              reader.readAsDataURL(file);
                             }
                             e.target.value = '';
                           }}
@@ -3776,31 +3804,26 @@ export default function AdminDashboard({ onBackToStore }) {
                           type="file"
                           id={`game-logo-file-${game.id}`}
                           accept="image/png,image/jpeg,image/webp,image/gif"
-                          onChange={async (e) => {
+                          onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              try {
-                                showToast(
-                                  autoCutLogoBg
-                                    ? `Uploading & auto-cutting background for ${game.name}...`
-                                    : `Optimizing & uploading logo for ${game.name}...`
-                                );
-                                const optimized = await processLogoFileWithAutoCut(file, {
-                                  maxWidth: 800,
-                                  tolerance: logoTolerance,
-                                  feather: 20,
-                                  targetColor: resolveLogoTargetColor(),
-                                  cutInnerHoles: logoCutInner,
-                                  autoCut: autoCutLogoBg,
-                                  forGameCard: true,
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const rawSrc = ev.target?.result;
+                                if (!rawSrc) return;
+                                openCropModal({
+                                  imageSrc: rawSrc,
+                                  title: `Crop & Size ${game.name} Logo (Full Card)`,
+                                  gameName: game.name,
+                                  aspectRatio: 1,
+                                  enableAutoCut: true,
+                                  onSave: async (croppedUrl) => {
+                                    await handleUpdateGameInfo(game.id, { image: croppedUrl });
+                                    showToast(`Logo for ${game.name} updated & fitted to full card!`);
+                                  },
                                 });
-                                if (optimized) {
-                                  await handleUpdateGameInfo(game.id, { image: optimized });
-                                  showToast(`Logo for ${game.name} updated (background auto-cut)!`);
-                                }
-                              } catch (err) {
-                                showToast('Failed to process image');
-                              }
+                              };
+                              reader.readAsDataURL(file);
                             }
                             e.target.value = '';
                           }}
@@ -3831,19 +3854,26 @@ export default function AdminDashboard({ onBackToStore }) {
                           type="file"
                           id={`game-banner-file-${game.id}`}
                           accept="image/png,image/jpeg,image/webp,image/gif"
-                          onChange={async (e) => {
+                          onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              try {
-                                showToast(`Optimizing & uploading cover banner for ${game.name}...`);
-                                const optimized = await compressImageFile(file, 1600, 0.85);
-                                if (optimized) {
-                                  await handleUpdateGameInfo(game.id, { banner: optimized });
-                                  showToast(`Cover banner for ${game.name} updated from device!`);
-                                }
-                              } catch (err) {
-                                showToast('Failed to process image');
-                              }
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const rawSrc = ev.target?.result;
+                                if (!rawSrc) return;
+                                openCropModal({
+                                  imageSrc: rawSrc,
+                                  title: `Crop & Size ${game.name} Cover Banner`,
+                                  gameName: game.name,
+                                  aspectRatio: 16 / 9,
+                                  enableAutoCut: false,
+                                  onSave: async (croppedUrl) => {
+                                    await handleUpdateGameInfo(game.id, { banner: croppedUrl });
+                                    showToast(`Cover banner for ${game.name} updated!`);
+                                  },
+                                });
+                              };
+                              reader.readAsDataURL(file);
                             }
                             e.target.value = '';
                           }}
@@ -4548,6 +4578,18 @@ export default function AdminDashboard({ onBackToStore }) {
           </div>
         </div>
       )}
+
+      {/* Interactive Drag & Zoom Image Crop & Size Modal */}
+      <ImageCropModal
+        isOpen={cropModalConfig.isOpen}
+        imageSrc={cropModalConfig.imageSrc}
+        title={cropModalConfig.title}
+        gameName={cropModalConfig.gameName}
+        aspectRatio={cropModalConfig.aspectRatio}
+        enableAutoCut={cropModalConfig.enableAutoCut}
+        onSave={cropModalConfig.onSave}
+        onCancel={closeCropModal}
+      />
     </div>
   );
 }

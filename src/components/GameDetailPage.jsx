@@ -185,8 +185,14 @@ export default function GameDetailPage({
   const [providerDown, setProviderDown] = useState(Boolean(game?.maintenance));
   const [providerDownReason, setProviderDownReason] = useState(game?.maintenanceReason || '');
   const [dynamicPackages, setDynamicPackages] = useState(() => (initialMatchedGame?.packages?.length ? initialMatchedGame.packages : (game.packages || [])));
-  const [customGameImage, setCustomGameImage] = useState(() => initialMatchedGame?.image || propGame?.image || game?.image || '');
-  const [customGameBanner, setCustomGameBanner] = useState(() => initialMatchedGame?.banner || propGame?.banner || game?.banner || '');
+  const [customGameImage, setCustomGameImage] = useState(() => {
+    const raw = initialMatchedGame?.image || propGame?.image || game?.image || '';
+    return raw === '/assets/games/ros_angkor.png' ? '/assets/games/ros_angkor_v2.png' : raw;
+  });
+  const [customGameBanner, setCustomGameBanner] = useState(() => {
+    const raw = initialMatchedGame?.banner || propGame?.banner || game?.banner || '';
+    return raw === '/assets/games/ros_angkor.png' ? '/assets/games/ros_angkor_v2.png' : raw;
+  });
   const [mlbbEvents, setMlbbEvents] = useState(() => {
     const bootCfg = getBootSiteConfig();
     return (game?.id === 'ml' || game?.providerCode === 'ml') && Array.isArray(bootCfg?.mlbbEvents)
@@ -228,8 +234,12 @@ export default function GameDetailPage({
           const matchedGame = findConfiguredGameMatch(propGame || game, data.games);
           if (matchedGame) {
             setIsStockOpen(matchedGame.stockOpen !== false);
-            if (matchedGame.image) setCustomGameImage(matchedGame.image);
-            if (matchedGame.banner) setCustomGameBanner(matchedGame.banner);
+            if (matchedGame.image) {
+              setCustomGameImage(matchedGame.image === '/assets/games/ros_angkor.png' ? '/assets/games/ros_angkor_v2.png' : matchedGame.image);
+            }
+            if (matchedGame.banner) {
+              setCustomGameBanner(matchedGame.banner === '/assets/games/ros_angkor.png' ? '/assets/games/ros_angkor_v2.png' : matchedGame.banner);
+            }
             if (Array.isArray(matchedGame.packages) && matchedGame.packages.length > 0) {
               setDynamicPackages(matchedGame.packages);
             }
@@ -830,7 +840,7 @@ export default function GameDetailPage({
                 e.currentTarget.src =
                   game.providerCode === 'robuxsend' ? '/assets/games/roblox_kh.png' :
                   game.providerCode === 'ff' ? '/assets/games/ff_kh.png' :
-                  game.providerCode === 'rosangkor' ? '/assets/games/ros_angkor.png' :
+                  game.providerCode === 'rosangkor' ? '/assets/games/ros_angkor_v2.png' :
                   game.providerCode === 'roslegacy' ? '/assets/games/ros_legacy_kh.webp' :
                   '/assets/games/ml_kh.png';
               }}

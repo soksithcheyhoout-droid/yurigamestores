@@ -265,8 +265,8 @@ const DEFAULT_GAMES = [
     maintenance: false,
     // Live player verification via RosAngkor GET /players/{gid} (shows the player's name).
     verificationMode: 'live',
-    banner: '/assets/games/ros_angkor.png',
-    image: '/assets/games/ros_angkor.png',
+    banner: '/assets/games/ros_angkor_v2.png',
+    image: '/assets/games/ros_angkor_v2.png',
     badge: 'Instant Auto Top-Up',
     description: 'RoS Angkor diamonds — instant auto top-up. Enter your Player ID (6–12 digits).',
     fields: [
@@ -595,7 +595,7 @@ export function getDefaultBannerForSlug(gameSlug = '', title = '') {
   const s = `${String(gameSlug || '')} ${String(title || '')}`.toLowerCase();
   if (s.includes('roblox') || s.includes('robux')) return '/assets/games/roblox_hero_4k.jpg';
   if (s.includes('free-fire') || s.includes('free fire') || s === 'ff ') return '/assets/banners/banner_freefire.jpg';
-  if (s.includes('angkor') || s.includes('rosangkor')) return '/assets/games/ros_angkor.png';
+  if (s.includes('angkor') || s.includes('rosangkor')) return '/assets/games/ros_angkor_v2.png';
   if (s.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
   return '/assets/banners/banner_mlbb.jpg';
 }
@@ -604,7 +604,7 @@ export function getDefaultGameImageForId(gameIdOrSlug = '') {
   const s = String(gameIdOrSlug || '').toLowerCase();
   if (s === 'robuxsend' || s.includes('roblox')) return '/assets/games/roblox_kh.png';
   if (s === 'ff' || s.includes('free-fire')) return '/assets/games/ff_kh.png';
-  if (s === 'rosangkor' || s.includes('angkor')) return '/assets/games/ros_angkor.png';
+  if (s === 'rosangkor' || s.includes('angkor')) return '/assets/games/ros_angkor_v2.png';
   if (s === 'roslegacy' || s.includes('ros')) return '/assets/games/ros_legacy_kh.webp';
   if (s === 'ml' || s.includes('mobile-legends')) return '/assets/games/ml_kh.png';
   return '/assets/brand/yurigame-logo.png';
@@ -624,6 +624,9 @@ export function resolveValidAssetUrl(rawUrl, fallbackUrl = '/assets/brand/yuriga
     candidate.startsWith('/assets/uploads/')
   ) {
     return fallbackUrl;
+  }
+  if (candidate === '/assets/games/ros_angkor.png') {
+    return '/assets/games/ros_angkor_v2.png';
   }
   if (candidate.startsWith('data:image/')) {
     if (!candidate.includes(';base64,') || candidate.length < 64) {
@@ -656,7 +659,10 @@ const LEGACY_PLACEHOLDER_GAME_IMAGES = new Set([
 export function resolveValidGameImage(gameObj, fallbackUrl) {
   const idOrSlug = `${gameObj?.id || ''} ${gameObj?.slug || ''} ${gameObj?.providerCode || ''} ${gameObj?.name || ''}`.toLowerCase();
   const fb = fallbackUrl || getDefaultGameImageForId(idOrSlug);
-  const resolved = resolveValidAssetUrl(gameObj?.image, fb);
+  let resolved = resolveValidAssetUrl(gameObj?.image, fb);
+  if (resolved === '/assets/games/ros_angkor.png') {
+    resolved = '/assets/games/ros_angkor_v2.png';
+  }
   if (LEGACY_PLACEHOLDER_GAME_IMAGES.has(resolved)) {
     return fb;
   }

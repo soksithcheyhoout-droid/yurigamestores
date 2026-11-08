@@ -52,7 +52,7 @@ function getSafeGameImage(game, candidateUrl) {
   const fallback =
     code === 'robuxsend' || code.includes('roblox') ? '/assets/games/roblox_kh.png' :
     code === 'ff' || code.includes('free-fire') ? '/assets/games/ff_kh.png' :
-    code === 'rosangkor' || code.includes('angkor') || nameLower.includes('angkor') ? '/assets/games/ros_angkor.png' :
+    code === 'rosangkor' || code.includes('angkor') || nameLower.includes('angkor') ? '/assets/games/ros_angkor_v2.png' :
     code === 'roslegacy' || code.includes('ros') ? '/assets/games/ros_legacy_kh.webp' :
     '/assets/games/ml_kh.png';
   const raw = typeof candidateUrl === 'object' && candidateUrl !== null
@@ -69,6 +69,9 @@ function getSafeGameImage(game, candidateUrl) {
     (raw.startsWith('data:image/') && (!raw.includes(';base64,') || raw.length < 180))
   ) {
     return fallback;
+  }
+  if (raw === '/assets/games/ros_angkor.png') {
+    return '/assets/games/ros_angkor_v2.png';
   }
   if (code !== 'ml' && !code.includes('mobile-legends') && !nameLower.includes('mobile legends')) {
     const lower = raw.toLowerCase();
@@ -198,7 +201,7 @@ export default function GameCatalog({
       name: g.name,
       publisher: 'Coming Soon',
       category: 'popular',
-      image: g.image || '/assets/games/ros_angkor.png',
+      image: g.image || '/assets/games/ros_angkor_v2.png',
       banner: g.image || '',
       currency: '',
       stockOpen: false,

@@ -113,14 +113,14 @@ export function mapSoraGame(game) {
     code === 'robuxsend' ? '/assets/games/roblox_kh.png' :
     code === 'ml' ? '/assets/games/ml_kh.png' :
     code === 'ff' ? '/assets/games/ff_kh.png' :
-    code === 'rosangkor' ? '/assets/games/ros_angkor.png' :
+    code === 'rosangkor' ? '/assets/games/ros_angkor_v2.png' :
     '/assets/games/ros_legacy_kh.webp';
 
   const defaultBanner =
     code === 'robuxsend' ? '/assets/games/roblox_hero_4k.jpg' :
     code === 'ml' ? '/assets/games/mlbb_hero_4k.jpg' :
     code === 'ff' ? '/assets/games/freefire_hero_4k.jpg' :
-    code === 'rosangkor' ? '/assets/games/ros_angkor.png' :
+    code === 'rosangkor' ? '/assets/games/ros_angkor_v2.png' :
     '/assets/games/ros_legacy_kh.webp';
 
   const rawImage = typeof game?.image === 'object' && game?.image !== null
@@ -234,8 +234,8 @@ export const FALLBACK_FOUR_GAMES = [
   {
     code: 'rosangkor',
     name: 'RoS Angkor',
-    image: '/assets/games/ros_angkor.png',
-    banner: '/assets/games/ros_angkor.png',
+    image: '/assets/games/ros_angkor_v2.png',
+    banner: '/assets/games/ros_angkor_v2.png',
     description: 'RoS Angkor diamonds — instant auto top-up. Enter your Player ID.',
     needServer: false,
     verificationMode: 'live',
@@ -322,13 +322,13 @@ export function getCachedCatalogue() {
           code === 'robuxsend' ? '/assets/games/roblox_kh.png' :
           code === 'ml' ? '/assets/games/ml_kh.png' :
           code === 'ff' ? '/assets/games/ff_kh.png' :
-          code === 'rosangkor' ? '/assets/games/ros_angkor.png' :
+          code === 'rosangkor' ? '/assets/games/ros_angkor_v2.png' :
           '/assets/games/ros_legacy_kh.webp';
         const defBanner =
           code === 'robuxsend' ? '/assets/games/roblox_hero_4k.jpg' :
           code === 'ml' ? '/assets/games/mlbb_hero_4k.jpg' :
           code === 'ff' ? '/assets/games/freefire_hero_4k.jpg' :
-          code === 'rosangkor' ? '/assets/games/ros_angkor.png' :
+          code === 'rosangkor' ? '/assets/games/ros_angkor_v2.png' :
           '/assets/games/ros_legacy_kh.webp';
         return {
           ...g,

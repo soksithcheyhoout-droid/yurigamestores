@@ -9,8 +9,8 @@
       "publisher": "Roblox Corp",
       "currency": "Robux",
       "stockOpen": true,
-      "banner": "/assets/games/current_roblox.jpg",
-      "image": "/assets/games/current_roblox.jpg",
+      "banner": "/assets/games/roblox_hero_4k.jpg",
+      "image": "/assets/games/roblox_kh.png",
       "badge": "Official Username",
       "description": "Instant Robux delivery to your Roblox account by username. Safe and verified.",
       "fields": [
@@ -143,8 +143,8 @@
       "publisher": "Moonton",
       "currency": "Diamonds",
       "stockOpen": true,
-      "banner": "/assets/games/current_mobile-legends.jpg",
-      "image": "/assets/games/current_mobile-legends.jpg",
+      "banner": "/assets/games/mlbb_hero_4k.jpg",
+      "image": "/assets/games/ml_kh.png",
       "badge": "5s Moonton Sync",
       "description": "Mobile Legends KH official direct diamond top-up. Enter your User ID and Zone ID.",
       "fields": [
@@ -284,8 +284,8 @@
       "publisher": "Garena",
       "currency": "Diamonds",
       "stockOpen": true,
-      "banner": "/assets/games/current_free-fire.jpg",
-      "image": "/assets/games/current_free-fire.jpg",
+      "banner": "/assets/banners/banner_freefire.jpg",
+      "image": "/assets/games/ff_kh.png",
       "badge": "Official Garena UID",
       "description": "Free Fire diamonds top-up. Enter your Player ID for instant automated delivery.",
       "fields": [
@@ -418,8 +418,8 @@
       "publisher": "RoS Legacy",
       "currency": "Diamonds",
       "stockOpen": true,
-      "banner": "/assets/games/current_ros-legacy.jpg",
-      "image": "/assets/games/current_ros-legacy.jpg",
+      "banner": "/assets/games/ros_legacy_kh.webp",
+      "image": "/assets/games/ros_legacy_kh.webp",
       "badge": "Official Top-Up",
       "description": "RoS Legacy top-up. Enter your Username or Gmail and Password so admin can deliver your diamonds.",
       "fields": [
@@ -614,7 +614,7 @@
       "title": "Roblox Robux Instant Delivery",
       "subtitle": "Official Username Verification & Fast Manual Robux Credit",
       "actionLabel": "Open Roblox Packages",
-      "image": "/assets/games/current_roblox.jpg",
+      "image": "/assets/games/roblox_hero_4k.jpg",
       "gameSlug": "roblox",
       "active": true
     },
@@ -632,7 +632,7 @@
       "title": "RoS Legacy Official Direct Diamonds",
       "subtitle": "Safe Username or Gmail Top-Up with Guaranteed Admin Delivery",
       "actionLabel": "Open RoS Legacy Packages",
-      "image": "/assets/games/current_ros-legacy.jpg",
+      "image": "/assets/games/ros_legacy_kh.webp",
       "gameSlug": "ros-legacy",
       "active": true
     }

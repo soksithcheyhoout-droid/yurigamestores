@@ -233,7 +233,7 @@ export default function Navbar({
       </div>
 
       {/* Main Navbar Row */}
-      <div className="seagm-container flex h-[76px] items-center gap-3 lg:h-[88px] lg:gap-6">
+      <div className="seagm-container flex h-[68px] sm:h-[76px] lg:h-[84px] items-center justify-between gap-2 sm:gap-3 lg:gap-4 w-full">
         {/* Brand Logo */}
         <a
           href="/"
@@ -248,7 +248,7 @@ export default function Navbar({
         </a>
 
         {/* Desktop PC Nav with Interactive Hover Animations */}
-        <nav className="hidden shrink-0 items-center gap-1 xl:flex">
+        <nav className="hidden shrink-0 items-center gap-0.5 lg:gap-1 lg:flex">
           {/* Games Dropdown */}
           <div
             className="relative"
@@ -258,7 +258,7 @@ export default function Navbar({
             <button
               type="button"
               onClick={() => scrollToSection('catalog', 'all')}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13px] font-bold font-['Rajdhani'] uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 xl:px-3.5 py-2 rounded-xl text-[12px] xl:text-[13px] font-bold font-['Rajdhani'] uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                 gamesMenuHovered
                   ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(227,6,47,0.25)] border border-[#E3062F]/40'
                   : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
@@ -317,7 +317,7 @@ export default function Navbar({
           <button
             type="button"
             onClick={() => scrollToSection('catalog', 'popular')}
-            className="px-3.5 py-2 rounded-xl text-[13px] font-bold font-['Rajdhani'] uppercase tracking-wider text-slate-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200 cursor-pointer"
+            className="px-2.5 xl:px-3.5 py-2 rounded-xl text-[12px] xl:text-[13px] font-bold font-['Rajdhani'] uppercase tracking-wider text-slate-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200 cursor-pointer"
           >
             Direct Top-Up
           </button>
@@ -325,14 +325,14 @@ export default function Navbar({
           <button
             type="button"
             onClick={() => scrollToSection('faq')}
-            className="px-3.5 py-2 rounded-xl text-[13px] font-bold font-['Rajdhani'] uppercase tracking-wider text-slate-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200 cursor-pointer"
+            className="px-2.5 xl:px-3.5 py-2 rounded-xl text-[12px] xl:text-[13px] font-bold font-['Rajdhani'] uppercase tracking-wider text-slate-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200 cursor-pointer"
           >
             Support & Help
           </button>
         </nav>
 
         {/* Global Search Bar */}
-        <div ref={searchRef} className="relative ml-auto hidden min-w-0 max-w-[420px] flex-1 md:block">
+        <div ref={searchRef} className="relative hidden min-w-0 max-w-[200px] md:block md:max-w-[260px] lg:max-w-[320px] xl:max-w-[380px] flex-1">
           <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
@@ -340,42 +340,45 @@ export default function Navbar({
             onChange={(event) => setSearchQuery(event.target.value)}
             onFocus={() => setSearchFocused(true)}
             placeholder={t.searchPlaceholder || 'Search Roblox, Mobile Legends KH, Free Fire, RoS...'}
-            className="h-10 w-full rounded-xl border border-[#262836] bg-[#12131A] pl-10 pr-4 text-[13px] font-medium text-white placeholder-slate-500 outline-none transition focus:border-[#E3062F] focus:bg-[#161821] focus:ring-2 focus:ring-[#E3062F]/20 font-['Kantumruy_Pro']"
+            className="h-9 sm:h-10 w-full rounded-xl border border-[#262836] bg-[#12131A] pl-10 pr-4 text-[12px] sm:text-[13px] font-medium text-white placeholder-slate-500 outline-none transition focus:border-[#E3062F] focus:bg-[#161821] focus:ring-2 focus:ring-[#E3062F]/20 font-['Kantumruy_Pro']"
           />
           {searchFocused && renderSearchResults()}
         </div>
 
         {/* Right CTA Actions: Orders & Mobile Menu Toggle */}
-        <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={onOpenLookup}
-            className="group relative flex h-10 items-center gap-2 rounded-xl border border-[#262836] bg-[#12131A] px-3.5 text-slate-200 transition-all duration-200 hover:border-[#E3062F] hover:bg-[#E3062F]/10 hover:text-white hover:shadow-[0_0_20px_rgba(227,6,47,0.3)] active:scale-95 cursor-pointer font-['Rajdhani']"
+            className="group relative flex h-9 sm:h-10 items-center gap-1.5 sm:gap-2 rounded-xl border border-[#262836] bg-[#12131A] px-2.5 sm:px-3.5 text-slate-200 transition-all duration-200 hover:border-[#E3062F] hover:bg-[#E3062F]/10 hover:text-white hover:shadow-[0_0_20px_rgba(227,6,47,0.3)] active:scale-95 cursor-pointer font-['Rajdhani'] shrink-0"
             aria-label="Track an order"
           >
-            <Clock3 size={16} className="text-[#E3062F] transition-transform duration-200 group-hover:rotate-45" />
-            <span className="text-[13px] font-bold uppercase tracking-wider">
+            <Clock3 size={15} className="text-[#E3062F] shrink-0 transition-transform duration-200 group-hover:rotate-45" />
+            <span className="text-[12px] sm:text-[13px] font-bold uppercase tracking-wider whitespace-nowrap hidden sm:inline">
               Track Orders
+            </span>
+            <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap sm:hidden">
+              Track
             </span>
           </button>
 
           <button
             type="button"
             onClick={() => setMobileMenuOpen((open) => !open)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#262836] bg-[#12131A] text-slate-200 transition hover:bg-white/10 xl:hidden"
+            className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl border border-[#262836] bg-[#12131A] text-slate-200 transition hover:bg-white/10 lg:hidden cursor-pointer"
             aria-label="Toggle navigation menu"
             aria-expanded={mobileMenuOpen}
           >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
       </div>
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="border-t border-[#1C1E28] bg-[#0E0F15] px-4 pb-6 pt-4 shadow-[0_20px_50px_rgba(0,0,0,0.85)] xl:hidden animate-in fade-in slide-in-from-top-2 duration-150">
-          <div className="seagm-container !px-0">
-            <div className="relative mb-4 md:hidden">
+        <div className="border-t border-[#1C1E28] bg-[#0E0F15]/98 backdrop-blur-xl px-4 pb-6 pt-4 shadow-[0_20px_50px_rgba(0,0,0,0.85)] lg:hidden animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="seagm-container !px-0 space-y-4">
+            <div className="relative md:hidden">
               <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="search"
@@ -388,19 +391,58 @@ export default function Navbar({
               {renderSearchResults()}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* Quick Game Top-Ups on Mobile */}
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2 font-['Rajdhani'] flex items-center justify-between">
+                <span>Featured Games</span>
+                <span className="text-[#FF4D6D] text-[10px]">Instant Delivery</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {catalogGames.slice(0, 4).map((game) => (
+                  <button
+                    key={game.providerCode || game.id}
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      openProviderGame(game);
+                    }}
+                    className="flex items-center gap-2 p-2 rounded-xl border border-[#252735] bg-[#14151D] hover:border-[#E3062F]/40 hover:bg-[#1A1C27] transition text-left cursor-pointer"
+                  >
+                    <img
+                      src={getSafeNavGameImage(game)}
+                      alt={game.name}
+                      className="h-7 w-7 rounded-lg object-cover bg-slate-900 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12px] font-bold text-white truncate font-['Rajdhani']">
+                        {game.name}
+                      </div>
+                      <div className="text-[9px] text-[#FF4D6D] font-bold">
+                        {game.badge || 'Fast'}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#1C1E28]">
               <button
                 type="button"
-                onClick={() => scrollToSection('catalog', 'all')}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  scrollToSection('catalog', 'all');
+                }}
                 className="rounded-xl border border-[#252735] bg-[#14151D] p-3 text-left hover:border-[#E3062F] hover:bg-[#1A1C27] transition cursor-pointer"
               >
                 <span className="block text-[13px] font-bold text-white font-['Rajdhani']">
                   Direct Top-Up
                 </span>
                 <span className="mt-0.5 block text-[11px] text-slate-400">
-                  All 4 Games
+                  Instant KHQR
                 </span>
               </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -414,6 +456,38 @@ export default function Navbar({
                 </span>
                 <span className="mt-0.5 block text-[11px] text-slate-400">
                   Search by ID / Ref
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  scrollToSection('catalog', 'all');
+                }}
+                className="rounded-xl border border-[#252735] bg-[#14151D] p-3 text-left hover:border-[#E3062F] hover:bg-[#1A1C27] transition cursor-pointer"
+              >
+                <span className="block text-[13px] font-bold text-white font-['Rajdhani']">
+                  All Games
+                </span>
+                <span className="mt-0.5 block text-[11px] text-slate-400">
+                  Browse Catalog
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  scrollToSection('faq');
+                }}
+                className="rounded-xl border border-[#252735] bg-[#14151D] p-3 text-left hover:border-[#E3062F] hover:bg-[#1A1C27] transition cursor-pointer"
+              >
+                <span className="block text-[13px] font-bold text-white font-['Rajdhani']">
+                  Support & Help
+                </span>
+                <span className="mt-0.5 block text-[11px] text-slate-400">
+                  Telegram & 24/7 FAQ
                 </span>
               </button>
             </div>

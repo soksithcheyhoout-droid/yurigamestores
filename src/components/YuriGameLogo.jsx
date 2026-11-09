@@ -119,28 +119,28 @@ export function setSiteLogo(newLogo) {
 
 const SIZE_STYLES = {
   xs: {
-    mark: 'h-10 w-auto min-w-[40px] max-w-[96px] sm:h-11 sm:min-w-[44px] sm:max-w-[110px]',
-    word: 'text-[14px] sm:text-[15.5px]',
+    mark: 'h-8 w-auto min-w-[32px] max-w-[80px] sm:h-9 sm:min-w-[36px] sm:max-w-[96px]',
+    word: 'text-[13px] sm:text-[14px]',
     store: 'text-[6px]',
-    gap: 'gap-2',
+    gap: 'gap-1.5 sm:gap-2',
   },
   sm: {
-    mark: 'h-12 w-auto min-w-[48px] max-w-[125px] sm:h-14 sm:min-w-[56px] sm:max-w-[145px]',
-    word: 'text-[17px] sm:text-[19px]',
+    mark: 'h-9 w-auto min-w-[36px] max-w-[90px] sm:h-10 sm:min-w-[40px] sm:max-w-[110px]',
+    word: 'text-[15px] sm:text-[17px]',
     store: 'text-[6.5px]',
-    gap: 'gap-2.5',
+    gap: 'gap-2 sm:gap-2.5',
   },
   md: {
-    mark: 'h-14 w-auto min-w-[56px] max-w-[150px] sm:h-16 sm:min-w-[64px] sm:max-w-[175px] lg:h-[70px] lg:min-w-[70px] lg:max-w-[195px]',
-    word: 'text-[19px] sm:text-[22px] lg:text-[24px]',
+    mark: 'h-9 w-auto min-w-[36px] max-w-[90px] sm:h-11 sm:min-w-[44px] sm:max-w-[120px] lg:h-12 lg:min-w-[48px] lg:max-w-[135px]',
+    word: 'text-[15px] sm:text-[18px] lg:text-[21px]',
     store: 'text-[7px]',
-    gap: 'gap-2.5 sm:gap-3',
+    gap: 'gap-1.5 sm:gap-2.5 lg:gap-3',
   },
   lg: {
-    mark: 'h-20 w-auto min-w-[80px] max-w-[220px] sm:h-24 sm:min-w-[96px] sm:max-w-[260px]',
-    word: 'text-[26px] sm:text-[30px]',
+    mark: 'h-16 w-auto min-w-[64px] max-w-[180px] sm:h-20 sm:min-w-[80px] sm:max-w-[220px]',
+    word: 'text-[22px] sm:text-[26px]',
     store: 'text-[8px]',
-    gap: 'gap-3.5',
+    gap: 'gap-3',
   },
 };
 
@@ -216,7 +216,7 @@ export default function YuriGameLogo({
       aria-label="YuriGame Store"
     >
       <span
-        className={`${isCustom ? 'h-10 w-auto max-w-[120px] sm:h-12 sm:max-w-[140px]' : styles.mark} relative shrink-0 overflow-visible flex items-center justify-center bg-transparent`}
+        className={`${isCustom ? 'h-9 w-auto max-w-[90px] sm:h-11 sm:max-w-[120px] lg:h-12 lg:max-w-[135px]' : styles.mark} relative shrink-0 overflow-visible flex items-center justify-center bg-transparent`}
         aria-hidden="true"
       >
         <img

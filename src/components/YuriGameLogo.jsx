@@ -207,8 +207,8 @@ export default function YuriGameLogo({
   const activeLogo = isValidLogoUrl(candidateLogo) ? candidateLogo : DEFAULT_SITE_LOGO;
 
   const isCustom = isCustomSiteLogo(activeLogo);
-  // When user uses a custom logo image, show just the logo image by default (no duplicate/truncated text)
-  const shouldShowText = typeof showText === 'boolean' ? showText : !isCustom;
+  // Always show the website brand name text "YuriGameStore" unless explicitly set to showText={false}
+  const shouldShowText = typeof showText === 'boolean' ? showText : true;
 
   return (
     <span
@@ -216,7 +216,7 @@ export default function YuriGameLogo({
       aria-label="YuriGame Store"
     >
       <span
-        className={`${isCustom ? 'h-11 w-auto max-w-[220px] sm:h-13 sm:max-w-[260px]' : styles.mark} relative shrink-0 overflow-visible flex items-center justify-center bg-transparent`}
+        className={`${isCustom ? 'h-10 w-auto max-w-[120px] sm:h-12 sm:max-w-[140px]' : styles.mark} relative shrink-0 overflow-visible flex items-center justify-center bg-transparent`}
         aria-hidden="true"
       >
         <img
@@ -237,7 +237,7 @@ export default function YuriGameLogo({
 
       {shouldShowText && (
         <span className="flex min-w-0 flex-col leading-none">
-          <span className={`${styles.word} whitespace-nowrap font-black uppercase tracking-[-0.055em]`}>
+          <span className={`${styles.word} whitespace-nowrap font-black uppercase tracking-[-0.045em] flex items-center`}>
             <span className={inverse ? 'text-white' : 'text-[#111217]'}>Yuri</span>
             <span className="text-[#e3062f]">Game</span>
             <span className={inverse ? 'text-white' : 'text-[#111217]'}>Store</span>

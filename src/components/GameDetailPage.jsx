@@ -1064,8 +1064,8 @@ export default function GameDetailPage({
           </div>
         )}
 
-        {/* STAGE 1: FORM CONFIGURATION & CHECKOUT */}
-        {stage === 'form' && (
+        {/* STAGE 1: FORM CONFIGURATION & CHECKOUT (stays mounted behind the payment popup) */}
+        {(stage === 'form' || stage === 'payment') && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start pb-16 lg:pb-0">
 
             {/* Left Column: Steps (8 Columns) */}
@@ -1808,10 +1808,25 @@ export default function GameDetailPage({
           </div>
         )}
 
-        {/* STAGE 2: BAKONG KHQR PAYMENT SCANNER */}
+        {/* STAGE 2: BAKONG KHQR PAYMENT — popup modal over the order form */}
         {stage === 'payment' && (
-          <div className="max-w-xl mx-auto bg-[#15161b] border border-slate-800 rounded-2xl p-5 sm:p-7 shadow-2xl">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+          <div
+            className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/75 p-3 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4"
+            onClick={() => setStage('form')}
+          >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative my-auto w-full max-w-md rounded-2xl border border-slate-800 bg-[#15161b] p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] animate-in zoom-in-95 duration-200 sm:p-6"
+          >
+            <button
+              type="button"
+              onClick={() => setStage('form')}
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-0 bg-slate-800/80 text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+            <div className="mb-4 flex items-center justify-between border-b border-slate-800 pb-4 pr-10">
               <button
                 type="button"
                 onClick={() => setStage('form')}
@@ -1880,6 +1895,7 @@ export default function GameDetailPage({
               onPaymentConfirmed={handlePaymentConfirmed}
               onBack={() => setStage('form')}
             />
+          </div>
           </div>
         )}
 

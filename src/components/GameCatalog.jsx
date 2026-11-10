@@ -355,16 +355,17 @@ export default function GameCatalog({
                   type="button"
                   onClick={() => openGame(game)}
                   disabled={Boolean(openingGameCode)}
-                  className="group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-b from-[#181926]/95 to-[#0b0c12]/98 border border-slate-800/90 hover:border-[#E3062F]/70 transition-all duration-300 shadow-md hover:shadow-[0_10px_28px_rgba(227,6,47,0.3)] hover:-translate-y-0.5 text-left cursor-pointer disabled:cursor-wait disabled:opacity-70"
+                  className="group relative flex flex-col rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-b from-[#1b1d2b] to-[#111219] p-1.5 sm:p-2.5 border border-white/10 ring-1 ring-inset ring-white/[0.04] hover:border-[#ff2d7e]/70 hover:ring-[#ff2d7e]/25 transition-all duration-300 shadow-lg hover:shadow-[0_14px_34px_rgba(255,45,126,0.3)] hover:-translate-y-1 text-left cursor-pointer disabled:cursor-wait disabled:opacity-70"
                 >
-                  <div className="relative aspect-square w-full overflow-hidden bg-[#101118]">
+                  {/* Framed cover image */}
+                  <div className="relative aspect-square w-full overflow-hidden rounded-xl sm:rounded-2xl bg-[#101118] ring-1 ring-white/10 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
                     {hasRealImages || game.comingSoon ? (
                       <img
                         src={getSafeGameImage(game, game.image)}
                         alt={game.name}
                         loading="eager"
                         decoding="async"
-                        className="relative z-1 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         onError={(event) => {
                           event.currentTarget.onerror = null;
                           event.currentTarget.src = getSafeGameImage(game, '');
@@ -373,7 +374,6 @@ export default function GameCatalog({
                     ) : (
                       <span className="block h-full w-full animate-pulse bg-gradient-to-br from-slate-800/80 to-slate-900" aria-hidden="true" />
                     )}
-                    <span className="pointer-events-none absolute inset-x-0 bottom-0 h-8 sm:h-12 bg-gradient-to-t from-[#0e0f16] via-[#0e0f16]/60 to-transparent z-2" />
                     <span
                       className={`absolute left-1.5 top-1.5 z-3 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black uppercase tracking-wider backdrop-blur-sm ${game.comingSoon
                           ? 'border-violet-500/50 bg-black/85 text-violet-300'
@@ -397,46 +397,45 @@ export default function GameCatalog({
                       {game.comingSoon ? 'Coming Soon' : game.maintenance ? 'Maintenance' : game.stockOpen !== false ? 'In Stock' : 'Out of Stock'}
                     </span>
                     {isOpening && (
-                      <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/80 text-[8px] sm:text-[10px] font-bold text-white backdrop-blur-xs">
+                      <span className="absolute inset-0 z-10 flex items-center justify-center rounded-xl sm:rounded-2xl bg-black/80 text-[8px] sm:text-[10px] font-bold text-white backdrop-blur-xs">
                         <Loader2 size={13} className="mr-1 animate-spin text-[#ff3156]" /> Loading
                       </span>
                     )}
                   </div>
 
-                  <div className="p-2 sm:p-2.5 flex flex-col flex-1 justify-between w-full">
-                    <div>
-                      <span className="block truncate text-center text-[10.5px] sm:text-[13.5px] font-black text-white group-hover:text-[#ff4d6d] transition-colors leading-tight">
-                        {game.name}
+                  {/* Title */}
+                  <div className="px-1 pt-2 sm:pt-2.5">
+                    <span className="block truncate text-center text-[11px] sm:text-[14px] font-extrabold text-white group-hover:text-[#ff4d94] transition-colors leading-tight">
+                      {game.name}
+                    </span>
+                    {game.publisher && game.publisher.toLowerCase() !== game.name.toLowerCase() && (
+                      <span className="mt-0.5 block truncate text-center text-[8.5px] sm:text-[11px] text-slate-400 font-medium">
+                        {game.publisher}
                       </span>
-                      {game.publisher && game.publisher.toLowerCase() !== game.name.toLowerCase() && (
-                        <span className="mt-0.5 block truncate text-center text-[8.5px] sm:text-[11px] text-slate-400 font-medium">
-                          {game.publisher}
-                        </span>
-                      )}
-                    </div>
+                    )}
+                  </div>
 
-                    {/* Action Button: TOP UP or OUT OF STOCK */}
-                    <div className="mt-1.5 sm:mt-2.5 w-full">
-                      <span
-                        className={`w-full inline-flex items-center justify-center gap-1 py-1 sm:py-1.5 px-1 rounded-full text-white text-[9px] sm:text-[11.5px] font-black uppercase tracking-wider transition-all ${game.comingSoon
-                            ? 'bg-violet-600/25 text-violet-300 border border-violet-500/40'
-                            : game.stockOpen !== false
-                            ? 'bg-gradient-to-r from-[#e3062f] via-[#ff1e4a] to-[#ff4969] shadow-[0_3px_10px_rgba(227,6,47,0.35)] group-hover:shadow-[0_6px_20px_rgba(227,6,47,0.55)] group-hover:scale-[1.02]'
-                            : 'bg-slate-800 text-slate-400 border border-slate-700/80'
-                          }`}
-                      >
-                        {game.comingSoon ? (
-                          'COMING SOON'
-                        ) : game.stockOpen !== false ? (
-                          <>
-                            <Zap size={10} className="fill-white" />
-                            TOP UP
-                          </>
-                        ) : (
-                          'OUT OF STOCK'
-                        )}
-                      </span>
-                    </div>
+                  {/* TOP UP pill */}
+                  <div className="mt-auto pt-2 sm:pt-2.5 px-0.5 w-full">
+                    <span
+                      className={`w-full inline-flex items-center justify-center gap-1.5 py-1.5 sm:py-2 px-2 rounded-full text-[9px] sm:text-[12px] font-black uppercase tracking-wide transition-all ${game.comingSoon
+                          ? 'bg-violet-600/25 text-violet-300 border border-violet-500/40'
+                          : game.stockOpen !== false
+                          ? 'text-white bg-gradient-to-b from-[#ff5ba3] to-[#ff1763] shadow-[0_4px_14px_rgba(255,30,107,0.4)] group-hover:shadow-[0_7px_22px_rgba(255,30,107,0.6)] group-hover:scale-[1.03]'
+                          : 'bg-slate-800 text-slate-400 border border-slate-700/80'
+                        }`}
+                    >
+                      {game.comingSoon ? (
+                        'COMING SOON'
+                      ) : game.stockOpen !== false ? (
+                        <>
+                          <Zap size={11} className="fill-white" />
+                          TOP UP
+                        </>
+                      ) : (
+                        'OUT OF STOCK'
+                      )}
+                    </span>
                   </div>
                 </button>
               );

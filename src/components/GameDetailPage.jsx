@@ -27,9 +27,11 @@ import {
   Eye,
   EyeOff,
   Gem,
-  XCircle
+  XCircle,
+  Download
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import QRCode from 'qrcode';
 import BakongKhqrCard from './BakongKhqrCard';
 import { verifyInGameAccount, recordWalletTransaction } from '../data/orderStore';
 import { getStoredUser } from '../data/authStore';
@@ -39,6 +41,39 @@ import { verifySoraPlayer, createSoraTopupOrder } from '../data/soraStore';
 import { getBootSiteConfig } from '../data/bootData';
 
 const MAX_PURCHASE_QUANTITY = 10;
+
+// Big celebratory confetti "surprise" shown when an order succeeds.
+function fireCelebration() {
+  try {
+    const Z = 100000;
+    const colors = ['#E3062F', '#ff4d6d', '#FFD700', '#ffb020', '#22c55e', '#38bdf8', '#ffffff'];
+    // 1) Center pop
+    confetti({ particleCount: 150, spread: 100, startVelocity: 48, origin: { y: 0.5 }, colors, zIndex: Z, disableForReducedMotion: true });
+    // 2) Gold star burst (slightly delayed)
+    setTimeout(() => {
+      confetti({ particleCount: 70, spread: 120, scalar: 1.25, shapes: ['star'], origin: { y: 0.45 }, colors: ['#FFD700', '#FFC107', '#fff7cc'], zIndex: Z, disableForReducedMotion: true });
+    }, 220);
+    // 3) Side cannons streaming for ~1.4s
+    const end = Date.now() + 1400;
+    (function frame() {
+      confetti({ particleCount: 6, angle: 60, spread: 68, startVelocity: 55, origin: { x: 0, y: 0.72 }, colors, zIndex: Z, disableForReducedMotion: true });
+      confetti({ particleCount: 6, angle: 120, spread: 68, startVelocity: 55, origin: { x: 1, y: 0.72 }, colors, zIndex: Z, disableForReducedMotion: true });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    })();
+  } catch { /* confetti is best-effort */ }
+}
+
+// One label/value line in the premium receipt.
+function ReceiptLine({ label, value, mono = false, accent = false, last = false }) {
+  return (
+    <div className={`flex items-center justify-between gap-3 py-2.5 ${last ? '' : 'border-b border-slate-100'}`}>
+      <span className="shrink-0 text-[12.5px] font-medium text-slate-500">{label}</span>
+      <span className={`truncate text-right text-[13px] font-bold ${accent ? 'text-[#E3062F]' : 'text-slate-900'} ${mono ? 'font-mono' : ''}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
 
 function findConfiguredGameMatch(candidateGame, gamesList) {
   if (!candidateGame || !Array.isArray(gamesList)) return null;
@@ -506,15 +541,7 @@ export default function GameDetailPage({
 
     const initialStatus = requiresAdminReview ? 'PROCESSING' : 'DELIVERED';
 
-    try {
-      if (!requiresAdminReview) {
-        confetti({
-          particleCount: 110,
-          spread: 90,
-          origin: { y: 0.5 }
-        });
-      }
-    } catch (e) { }
+    if (!requiresAdminReview) fireCelebration();
 
     const finishedOrder = {
       ref: providerResult?.refid || pendingOrderRef,
@@ -658,15 +685,7 @@ export default function GameDetailPage({
       providerError = err.message || 'Failed to place order with provider.';
     }
 
-    try {
-      if (!providerError && !isManualGame) {
-        confetti({
-          particleCount: 110,
-          spread: 90,
-          origin: { y: 0.5 }
-        });
-      }
-    } catch (e) { }
+    if (!providerError && !isManualGame) fireCelebration();
 
     const user = getStoredUser();
     const isFreeFire = game?.providerCode === 'ff' || game?.id === 'ff';
@@ -725,9 +744,7 @@ export default function GameDetailPage({
 
         if (data.success && data.status && data.status !== 'PROCESSING') {
           if (data.status === 'COMPLETED' || data.status === 'DELIVERED') {
-            try {
-              confetti({ particleCount: 130, spread: 100, origin: { y: 0.5 } });
-            } catch { }
+            fireCelebration();
           }
 
           setCompletedOrder(prev => ({
@@ -768,6 +785,126 @@ export default function GameDetailPage({
     // Do NOT close the tab/URL after payment — just return to the storefront.
     if (onBack) {
       onBack();
+    }
+  };
+
+  // Generate and download a clean, professional PNG receipt (with a verification QR code).
+  const handleDownloadReceipt = async () => {
+    const o = completedOrder;
+    if (!o) return;
+    try {
+      const scale = 2;
+      const W = 660;
+      const padX = 48;
+      const playerId = o.playerDetails?.userId || o.playerDetails?.account || o.playerDetails?.username || '—';
+      const playerName = o.verifiedPlayer || '—';
+      const dateStr = new Date(o.timestamp || Date.now()).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+      const statusText = (o.status === 'DELIVERED' || o.status === 'COMPLETED') ? 'Completed' : o.status === 'PROCESSING' ? 'Processing' : 'Cancelled';
+      const rows = [
+        ['Order Ref', String(o.ref || '—')],
+        ['Game', String(o.gameName || game?.name || '—')],
+        ['Item', String(o.packageName || '—')],
+        ['Quantity', '× ' + (o.quantity || 1)],
+        [isRoS ? 'Account' : isRoblox ? 'Roblox Username' : 'Game ID', String(playerId)],
+        ['Player', String(playerName)],
+        ['Payment Method', String(o.paymentMethod || '—')],
+        ['Date', dateStr],
+      ];
+      const topH = 210;
+      const rowH = 50;
+      const totalH = 92;
+      const qrBlock = 190;
+      const footerH = 64;
+      const H = topH + rows.length * rowH + 10 + totalH + qrBlock + footerH;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = W * scale;
+      canvas.height = H * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(scale, scale);
+      const rr = (x, y, w, h, r) => {
+        ctx.beginPath();
+        if (ctx.roundRect) { ctx.roundRect(x, y, w, h, r); return; }
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      };
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      const band = ctx.createLinearGradient(0, 0, W, 0);
+      band.addColorStop(0, '#E3062F');
+      band.addColorStop(1, '#ff4d6d');
+      ctx.fillStyle = band;
+      ctx.fillRect(0, 0, W, 76);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 24px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('YuriGame Store', padX, 47);
+      ctx.font = '700 12px Arial, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.globalAlpha = 0.92;
+      ctx.fillText('OFFICIAL RECEIPT', W - padX, 46);
+      ctx.globalAlpha = 1;
+
+      const cx = W / 2;
+      const cyc = 128;
+      ctx.beginPath(); ctx.arc(cx, cyc, 30, 0, Math.PI * 2); ctx.fillStyle = '#16a34a'; ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 13, cyc); ctx.lineTo(cx - 4, cyc + 10); ctx.lineTo(cx + 14, cyc - 11); ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#0f172a'; ctx.font = '800 22px Arial, sans-serif';
+      ctx.fillText('Payment Successful', cx, cyc + 60);
+      ctx.fillStyle = '#64748b'; ctx.font = '400 13px Arial, sans-serif';
+      ctx.fillText('Your transaction has been completed successfully', cx, cyc + 82);
+
+      let y = topH;
+      rows.forEach(([label, value]) => {
+        ctx.textAlign = 'left'; ctx.fillStyle = '#94a3b8'; ctx.font = '500 13px Arial, sans-serif';
+        ctx.fillText(label, padX, y);
+        ctx.textAlign = 'right'; ctx.fillStyle = '#0f172a'; ctx.font = '700 14px Arial, sans-serif';
+        let v = value;
+        while (ctx.measureText(v).width > W - padX * 2 - 150 && v.length > 6) v = v.slice(0, -2);
+        if (v !== value) v += '…';
+        ctx.fillText(v, W - padX, y);
+        ctx.strokeStyle = '#eef2f7'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(padX, y + 16); ctx.lineTo(W - padX, y + 16); ctx.stroke();
+        y += rowH;
+      });
+
+      y += 10;
+      ctx.fillStyle = '#fff5f6'; rr(padX, y, W - padX * 2, totalH - 22, 14); ctx.fill();
+      ctx.textAlign = 'left'; ctx.fillStyle = '#64748b'; ctx.font = '700 14px Arial, sans-serif';
+      ctx.fillText('TOTAL PAID', padX + 22, y + 44);
+      ctx.textAlign = 'right'; ctx.fillStyle = '#E3062F'; ctx.font = '800 26px Arial, sans-serif';
+      ctx.fillText(String(formatPrice(o.totalUsd, currentRegion)), W - padX - 22, y + 48);
+      y += totalH;
+
+      try {
+        const qrData = await QRCode.toDataURL(`YURIGAME|REF:${o.ref}|${o.totalUsd}USD|${statusText}`, { margin: 1, width: 320, color: { dark: '#0f172a', light: '#ffffff' } });
+        const img = new Image();
+        await new Promise((res) => { img.onload = res; img.onerror = res; img.src = qrData; });
+        const qs = 124;
+        ctx.drawImage(img, cx - qs / 2, y, qs, qs);
+        ctx.textAlign = 'center'; ctx.fillStyle = '#94a3b8'; ctx.font = '500 11px Arial, sans-serif';
+        ctx.fillText('Scan to verify • Status: ' + statusText, cx, y + qs + 24);
+      } catch { /* QR optional */ }
+
+      ctx.textAlign = 'center'; ctx.fillStyle = '#0f172a'; ctx.font = '700 14px Arial, sans-serif';
+      ctx.fillText('Thank you for your purchase!', cx, H - 24);
+
+      const link = document.createElement('a');
+      link.download = `YuriGame-Receipt-${o.ref || Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.warn('Receipt download failed:', e?.message);
     }
   };
 
@@ -1725,205 +1862,154 @@ export default function GameDetailPage({
         )}
 
         {/* STAGE 4: ORDER COMPLETED / PROCESSING RECEIPT */}
-        {stage === 'completed' && completedOrder && (
-          <div className="max-w-xl mx-auto bg-white border border-[#222432] rounded-2xl p-6 sm:p-8 shadow-md animate-in fade-in zoom-in-95 duration-300">
-            {completedOrder.status === 'PROCESSING' ? (
-              <div className="text-center mb-5">
-                <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 bg-amber-50 text-amber-600 border-2 border-amber-300 relative shadow-sm">
-                  <div className="absolute inset-0 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
-                  <Clock size={30} className="text-amber-600" />
-                </div>
+        {stage === 'completed' && completedOrder && (() => {
+          const o = completedOrder;
+          const isProcessing = o.status === 'PROCESSING';
+          const isFailed = o.status === 'FAILED' || o.status === 'CANCELLED';
+          const isSuccess = !isProcessing && !isFailed;
+          const playerId = o.playerDetails?.account || o.playerDetails?.userId || o.playerDetails?.username || o.verifiedPlayer || '—';
+          const playerName = o.verifiedPlayer || '';
+          const dateStr = new Date(o.timestamp || Date.now()).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+          const statusLabel = isSuccess ? 'Completed' : isProcessing ? 'Processing' : 'Cancelled';
+          const qty = o.quantity || 1;
+          const iconBg = isSuccess ? 'from-emerald-400 to-emerald-600' : isProcessing ? 'from-amber-400 to-amber-600' : 'from-rose-400 to-rose-600';
+          const haloBg = isSuccess ? 'bg-emerald-400/40' : isProcessing ? 'bg-amber-400/40' : 'bg-rose-400/40';
+          const topBar = isSuccess ? 'from-emerald-400 via-emerald-500 to-teal-500' : isProcessing ? 'from-amber-400 via-amber-500 to-orange-500' : 'from-rose-400 via-rose-500 to-red-500';
+          return (
+          <div className="relative mx-auto max-w-md animate-in fade-in zoom-in-95 duration-500">
+            {/* Soft ambient glow */}
+            <div className={`pointer-events-none absolute -inset-4 rounded-[44px] opacity-40 blur-3xl ${isSuccess ? 'bg-emerald-500/25' : isProcessing ? 'bg-amber-500/20' : 'bg-rose-500/20'}`} aria-hidden="true" />
 
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-black uppercase tracking-wider mb-2 shadow-xs">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+            <div className="relative overflow-hidden rounded-[26px] bg-gradient-to-b from-white to-slate-50 shadow-[0_30px_80px_-24px_rgba(0,0,0,0.75)] ring-1 ring-black/5">
+              {/* Top accent bar */}
+              <div className={`h-1.5 w-full bg-gradient-to-r ${topBar}`} />
+
+              <div className="p-6 sm:p-7">
+                {/* Status icon */}
+                <div className="relative mx-auto mb-3 flex h-20 w-20 items-center justify-center">
+                  <span className={`absolute inline-flex h-16 w-16 animate-ping rounded-full ${haloBg}`} style={{ animationIterationCount: 3 }} aria-hidden="true" />
+                  <span className={`relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br ${iconBg} text-white shadow-lg`}>
+                    {isSuccess ? <CheckCircle2 size={38} /> : isProcessing ? <Clock size={34} /> : <AlertCircle size={34} />}
                   </span>
-                  <span>⏳ IN PROCESSING • PLEASE WAIT OR CLOSE THIS TAB</span>
                 </div>
 
-                <h2 className="text-xl sm:text-2xl font-black text-white m-0">
-                  {isManualGame
-                    ? (isRoblox ? 'Roblox Robux Top-Up in Progress' : 'RoS Legacy Top-Up in Progress')
-                    : 'Delivery Batch Requires Review'}
-                </h2>
-                <p className="text-[12.5px] text-slate-400 mt-1.5 max-w-md mx-auto leading-relaxed">
-                  {isManualGame
-                    ? (isRoblox
-                        ? 'Your order has been sent to our verified admin team. Please wait while an admin sends your Robux, or you can safely close this tab anytime.'
-                        : 'Your order has been sent to our verified admin team. Please wait while an admin adds the diamonds, or you can safely close this tab anytime.')
-                    : `${completedOrder.deliveredQuantity || 0} of ${completedOrder.quantity || 1} item(s) were delivered automatically. The remaining ${completedOrder.pendingQuantity || completedOrder.quantity || 1} item(s) are queued for admin review.`}
-                </p>
+                {/* Title + subtitle */}
+                <div className="text-center">
+                  <h2 className="m-0 text-2xl font-black tracking-tight text-slate-900">
+                    {isSuccess ? 'Payment Successful' : isProcessing ? (isManualGame ? (isRoblox ? 'Robux Top-Up in Progress' : 'Top-Up in Progress') : 'Delivery Under Review') : (o.status === 'CANCELLED' ? 'Order Cancelled' : 'Order Notice')}
+                  </h2>
+                  <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-slate-500">
+                    {isSuccess
+                      ? 'Your transaction has been completed successfully.'
+                      : isProcessing
+                        ? (isManualGame
+                            ? (isRoblox
+                                ? 'Your order was sent to our verified admin team. An admin will send your Robux shortly — you can safely close this tab.'
+                                : 'Your order was sent to our verified admin team. An admin will add your diamonds shortly — you can safely close this tab.')
+                            : `${o.deliveredQuantity || 0} of ${qty} item(s) delivered automatically. The rest are queued for admin review.`)
+                        : (o.providerReason || 'Your order was cancelled by our administration team. If this was unexpected, please contact Telegram support.')}
+                  </p>
+                </div>
 
-                {/* Clean, Premium In-Processing Notice Card (No glitch, perfectly stable) */}
-                <div className="mt-4 mb-3 p-4 text-left rounded-xl bg-gradient-to-br from-amber-50/80 via-white to-amber-50/40 border border-amber-200 shadow-xs">
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                      <Zap size={20} className="text-amber-600" />
+                {/* Admin confirmation (success + handled) */}
+                {isSuccess && o.handledBy && (
+                  <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-bold text-emerald-900">
+                    <ShieldCheck size={18} className="shrink-0 text-emerald-600" />
+                    <div className="flex-1">
+                      <div>{isRoblox ? 'Robux sent' : 'Diamonds added'} by <strong>Admin {o.handledBy}</strong></div>
+                      {o.handledAt && <div className="text-[11px] font-normal text-emerald-700">Confirmed at: {o.handledAt}</div>}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-black uppercase tracking-wider text-amber-900">
-                          <ShieldCheck size={14} className="inline mr-1 text-emerald-500" /> 100% Safe to Close This Tab
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          Order Saved
-                        </span>
-                      </div>
-                      <p className="text-[12px] text-[#475569] mt-1 leading-relaxed">
-                        Our admins have your order in Telegram. You do not need to wait here. You can close this tab and track your {isRoblox ? 'Robux' : (game.currency || 'credits')} anytime in <strong>Orders</strong> with your username or Ref:
-                      </p>
+                  </div>
+                )}
 
-                      {/* Copyable Order Ref */}
-                      <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                        <div className="px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-xs font-mono font-bold text-slate-800 flex items-center gap-2 shadow-xs">
-                          <span>Ref: {completedOrder.ref}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyRef(completedOrder.ref)}
-                            className="hover:text-amber-600 transition-colors cursor-pointer border-0 bg-transparent p-0 flex items-center text-slate-500 hover:text-slate-800"
-                            title="Copy Ref"
-                          >
-                            {isRefCopied ? <Check size={14} className="text-emerald-600 font-bold" /> : <Copy size={14} />}
-                          </button>
-                        </div>
-                        {isRefCopied && (
-                          <span className="text-[11px] font-bold text-emerald-600 animate-in fade-in duration-200">
-                            <Check size={13} className="inline mr-1 text-emerald-500" /> Copied to clipboard!
-                          </span>
-                        )}
-                      </div>
+                {/* Premium receipt */}
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  {/* Product + Total highlight */}
+                  <div className="rounded-xl bg-gradient-to-br from-rose-50 to-rose-100/40 px-4 py-3 ring-1 ring-rose-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12.5px] font-medium text-slate-500">Product</span>
+                      <span className="text-[13px] font-bold text-slate-900">{qty} item{qty > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <span className="text-[12.5px] font-medium text-slate-500">Total</span>
+                      <span className="text-xl font-black text-[#E3062F]">{formatPrice(o.totalUsd, currentRegion)}</span>
                     </div>
                   </div>
 
-                  {/* Real-Time Live Status Bar with Close Tab Button */}
-                  <div className="mt-3.5 pt-3 border-t border-amber-200/80 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-amber-800 font-medium text-[11.5px]">
-                      <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  <div className="mt-1 px-1">
+                    <ReceiptLine label="Game" value={o.gameName} />
+                    <ReceiptLine label={isRoS ? 'Account' : isRoblox ? 'Roblox Username' : 'Game ID'} value={playerId} mono />
+                    {playerName && playerName !== playerId && (
+                      <ReceiptLine label="Player" value={playerName} />
+                    )}
+                    <ReceiptLine label={o.packageName || 'Item'} value={formatPrice(o.totalUsd, currentRegion)} accent />
+                    <ReceiptLine label="Payment Method" value={o.paymentMethod} />
+                    <ReceiptLine label="Date" value={dateStr} />
+                    <div className="flex items-center justify-between py-2.5">
+                      <span className="shrink-0 text-[12.5px] font-medium text-slate-500">Order Status</span>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wide ${isSuccess ? 'bg-emerald-100 text-emerald-700' : isProcessing ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${isSuccess ? 'bg-emerald-500' : isProcessing ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                        {statusLabel}
                       </span>
-                      <span>Waiting for Admin fulfillment (Live updates enabled)...</span>
                     </div>
+                  </div>
 
+                  {/* Perforated ref row */}
+                  <div className="mt-1 flex items-center justify-between gap-2 border-t border-dashed border-slate-200 pt-3">
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Reference</span>
                     <button
                       type="button"
-                      onClick={handleCloseTab}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#0F172A] hover:bg-[#1E293B] text-white font-bold text-xs cursor-pointer flex items-center gap-1.5 shadow-sm transition-transform active:scale-95 border-0"
+                      onClick={() => handleCopyRef(o.ref)}
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-slate-100 px-2.5 py-1 font-mono text-[12px] font-bold text-slate-700 transition-colors hover:bg-slate-200"
+                      title="Copy reference"
                     >
-                      <X size={13} />
-                      <span>Return to Store</span>
+                      {o.ref}
+                      {isRefCopied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} className="text-slate-400" />}
                     </button>
                   </div>
                 </div>
-              </div>
-            ) : completedOrder.status === 'FAILED' || completedOrder.status === 'CANCELLED' ? (
-              <div className="text-center mb-5">
-                <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 bg-rose-50 text-rose-600 border-2 border-rose-300 shadow-sm">
-                  <AlertCircle size={32} />
-                </div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-900 border border-rose-300 text-xs font-black uppercase tracking-wider mb-2">
-                  <span className="inline-flex items-center gap-1"><XCircle size={15} className="text-red-500" /> Order Cancelled</span>
-                </div>
-                <h2 className="text-xl sm:text-2xl font-black text-white m-0">
-                  {completedOrder.status === 'CANCELLED' ? 'Order Cancelled by Admin' : 'Order Processing Notice'}
-                </h2>
-                <p className="text-[12.5px] text-slate-400 mt-1.5 max-w-md mx-auto">
-                  {completedOrder.providerReason || 'Your order was cancelled by our administration team. If this was unexpected, please contact Telegram support.'}
-                </p>
-              </div>
-            ) : (
-              <div className="text-center mb-5">
-                <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 bg-emerald-50 text-emerald-600 border-2 border-emerald-400 shadow-md">
-                  <CheckCircle2 size={36} />
-                </div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-black uppercase tracking-wider mb-2">
-                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={15} className="text-emerald-500" /> {isRoblox ? 'Robux Sent Successfully!' : 'Diamonds Added Successfully!'}</span>
-                </div>
-                <h2 className="text-xl sm:text-2xl font-black text-white m-0">
-                  Top-Up Completed & Delivered!
-                </h2>
-                <p className="text-[12.5px] text-slate-400 mt-1.5 max-w-md mx-auto">
-                  {completedOrder.handledBy
-                    ? `Admin ${completedOrder.handledBy} has ${isRoblox ? 'sent Robux to' : 'added diamonds to'} your account. Launch ${isRoblox ? 'Roblox' : 'RoS Legacy'} to enjoy!`
-                    : `Your ${completedOrder.packageName} has been delivered to your in-game account.`}
-                </p>
-              </div>
-            )}
 
-            {/* Admin Confirmation Callout */}
-            {completedOrder.status === 'COMPLETED' && completedOrder.handledBy && (
-              <div className="p-3.5 rounded-xl mb-4 text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-300 flex items-center gap-2.5">
-                <ShieldCheck size={20} className="text-emerald-600 shrink-0" />
-                <div className="flex-1">
-                  <div>{isRoblox ? 'Robux sent' : 'Diamonds added'} by <strong>Admin {completedOrder.handledBy}</strong></div>
-                  {completedOrder.handledAt && <div className="text-[11px] font-normal text-emerald-700">Confirmed at: {completedOrder.handledAt}</div>}
-                </div>
-              </div>
-            )}
+                {/* Processing live hint */}
+                {isProcessing && (
+                  <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[11.5px] font-medium text-amber-800">
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    </span>
+                    <span>Live updates on — an admin is fulfilling your order. Safe to close this tab; track it anytime in <strong>Orders</strong>.</span>
+                  </div>
+                )}
 
-            {/* Receipt Summary Card */}
-            <div className="bg-[#151620] border border-[#222432] rounded-xl p-4 mb-5 text-[13px] flex flex-col gap-2">
-              <div className="flex justify-between pb-2 border-b border-[#222432]">
-                <span className="text-slate-400">Order Reference</span>
-                <span className="font-mono font-bold text-white">{completedOrder.ref}</span>
-              </div>
-              <div className="flex justify-between pb-2 border-b border-[#222432]">
-                <span className="text-slate-400">Game</span>
-                <span className="font-bold text-white">{completedOrder.gameName}</span>
-              </div>
-              <div className="flex justify-between pb-2 border-b border-[#222432]">
-                <span className="text-slate-400">{isRoblox ? 'Item / Robux' : isRoS ? 'Item / Diamonds' : 'Item / Package'}</span>
-                <span className="font-bold text-[#E3062F]">{completedOrder.packageName}</span>
-              </div>
-              <div className="flex justify-between pb-2 border-b border-[#222432]">
-                <span className="text-slate-400">Quantity Ordered</span>
-                <span className="font-mono font-black text-white">× {completedOrder.quantity || 1}</span>
-              </div>
-              {Array.isArray(completedOrder.providerRefs) && completedOrder.providerRefs.length > 0 && (
-                <div className="flex justify-between pb-2 border-b border-[#222432]">
-                  <span className="text-slate-400">Automatic Delivery</span>
-                  <span className={`font-mono font-black ${(completedOrder.pendingQuantity || 0) > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                    {completedOrder.deliveredQuantity || 0} / {completedOrder.quantity || 1} delivered
-                  </span>
+                {/* Actions */}
+                <div className="mt-5 flex flex-col gap-2.5">
+                  {isSuccess && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadReceipt}
+                      className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-b from-[#1e293b] to-[#0f172a] py-3 text-sm font-black uppercase tracking-wider text-white shadow-lg transition-transform hover:shadow-xl active:scale-95"
+                    >
+                      <Download size={16} /> Download Receipt
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleCloseTab}
+                    className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl py-3 text-sm font-black uppercase tracking-wider transition-transform active:scale-95 ${isSuccess ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50' : 'border-0 bg-gradient-to-r from-[#E3062F] to-[#ff4d6d] text-white shadow-lg'}`}
+                  >
+                    {isProcessing ? 'Return to Store' : 'Done • Back to Store'}
+                  </button>
                 </div>
-              )}
-              <div className="flex justify-between pb-2 border-b border-[#222432]">
-                <span className="text-slate-400">{isRoS ? 'RoS Account (Username/Gmail)' : isRoblox ? 'Roblox Username' : 'Player ID'}</span>
-                <span className="font-bold text-white font-mono">
-                  {completedOrder.playerDetails?.account || completedOrder.playerDetails?.userId || completedOrder.playerDetails?.username || completedOrder.verifiedPlayer}
-                </span>
-              </div>
-              {completedOrder.playerDetails?.password && (
-                <div className="flex justify-between pb-2 border-b border-[#222432]">
-                  <span className="text-slate-400">Account Password</span>
-                  <span className="font-bold text-white font-mono">••••••••</span>
-                </div>
-              )}
-              <div className="flex justify-between pb-2 border-b border-[#222432]">
-                <span className="text-slate-400">Payment Method</span>
-                <span className="font-bold text-white">{completedOrder.paymentMethod}</span>
-              </div>
-              <div className="flex justify-between pt-1">
-                <span className="font-bold text-white">Total Amount</span>
-                <span className="font-mono font-black text-[#E3062F] text-base">
-                  {formatPrice(completedOrder.totalUsd, currentRegion)}
-                </span>
-              </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div className="flex">
-              <button
-                type="button"
-                onClick={handleCloseTab}
-                className="w-full seagm-btn-teal py-3 text-sm font-black uppercase tracking-wider cursor-pointer shadow-lg active:scale-95 transition-all"
-              >
-                <span>{completedOrder.status === 'PROCESSING' ? 'Return to Store' : 'Done • Back to Store'}</span>
-              </button>
+                {/* Trust footer */}
+                <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] font-medium text-slate-400">
+                  <ShieldCheck size={13} className="text-emerald-500" />
+                  Secured by YuriGame Store • 100% Protected
+                </div>
+              </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
       </div>
     </div>

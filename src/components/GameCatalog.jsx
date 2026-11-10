@@ -355,7 +355,7 @@ export default function GameCatalog({
                   type="button"
                   onClick={() => openGame(game)}
                   disabled={Boolean(openingGameCode)}
-                  className="group relative flex flex-col rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-b from-[#1b1d2b] to-[#111219] p-1.5 sm:p-2.5 border border-white/10 ring-1 ring-inset ring-white/[0.04] hover:border-[#ff2d7e]/70 hover:ring-[#ff2d7e]/25 transition-all duration-300 shadow-lg hover:shadow-[0_14px_34px_rgba(255,45,126,0.3)] hover:-translate-y-1 text-left cursor-pointer disabled:cursor-wait disabled:opacity-70"
+                  className="group relative flex flex-col rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-b from-[#1b1d2b] to-[#111219] p-1.5 sm:p-2.5 border border-white/10 ring-1 ring-inset ring-white/[0.04] hover:border-[#E3062F]/70 hover:ring-[#E3062F]/25 transition-all duration-300 shadow-lg hover:shadow-[0_14px_34px_rgba(227,6,47,0.3)] hover:-translate-y-1 text-left cursor-pointer disabled:cursor-wait disabled:opacity-70"
                 >
                   {/* Framed cover image */}
                   <div className="relative aspect-square w-full overflow-hidden rounded-xl sm:rounded-2xl bg-[#101118] ring-1 ring-white/10 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
@@ -405,7 +405,7 @@ export default function GameCatalog({
 
                   {/* Title */}
                   <div className="px-1 pt-2 sm:pt-2.5">
-                    <span className="block truncate text-center text-[11px] sm:text-[14px] font-extrabold text-white group-hover:text-[#ff4d94] transition-colors leading-tight">
+                    <span className="block truncate text-center text-[11px] sm:text-[14px] font-extrabold text-white group-hover:text-[#ff4d6d] transition-colors leading-tight">
                       {game.name}
                     </span>
                     {game.publisher && game.publisher.toLowerCase() !== game.name.toLowerCase() && (
@@ -421,7 +421,7 @@ export default function GameCatalog({
                       className={`w-full inline-flex items-center justify-center gap-1.5 py-1.5 sm:py-2 px-2 rounded-full text-[9px] sm:text-[12px] font-black uppercase tracking-wide transition-all ${game.comingSoon
                           ? 'bg-violet-600/25 text-violet-300 border border-violet-500/40'
                           : game.stockOpen !== false
-                          ? 'text-white bg-gradient-to-b from-[#ff5ba3] to-[#ff1763] shadow-[0_4px_14px_rgba(255,30,107,0.4)] group-hover:shadow-[0_7px_22px_rgba(255,30,107,0.6)] group-hover:scale-[1.03]'
+                          ? 'text-white bg-gradient-to-r from-[#e3062f] via-[#ff1e4a] to-[#ff4969] shadow-[0_4px_14px_rgba(227,6,47,0.4)] group-hover:shadow-[0_7px_22px_rgba(227,6,47,0.6)] group-hover:scale-[1.03]'
                           : 'bg-slate-800 text-slate-400 border border-slate-700/80'
                         }`}
                     >

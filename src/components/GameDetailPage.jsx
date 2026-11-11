@@ -1841,31 +1841,6 @@ export default function GameDetailPage({
               </div>
             </div>
 
-            {/* Recipient verification banner in payment stage */}
-            {verifiedProfile && (
-              <div className="mb-4 p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3">
-                {verifiedProfile.avatar ? (
-                  <img src={verifiedProfile.avatar} alt="Avatar" className="w-8 h-8 rounded-full border border-emerald-500 object-cover shrink-0" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0">
-                    {(verifiedProfile.displayName || verifiedProfile.nickname || 'P')[0]?.toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Top-up Destination</div>
-                  <div className="text-xs font-bold text-white truncate">
-                    {verifiedProfile.displayName || verifiedProfile.nickname}
-                    <span className="text-slate-400 font-normal ml-1.5 font-mono text-[11px]">
-                      (ID: {verifiedProfile.playerId || formData.userId || formData.user_id})
-                    </span>
-                  </div>
-                </div>
-                <span className="shrink-0 text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full">
-                  Verified
-                </span>
-              </div>
-            )}
-
             <BakongKhqrCard
               amountUsd={totalPrice}
               amountKhr={rielPrice}

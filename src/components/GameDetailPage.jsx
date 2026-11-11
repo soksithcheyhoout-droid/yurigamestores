@@ -735,7 +735,7 @@ export default function GameDetailPage({
 
   // Live polling for manual orders (RoS Legacy and Roblox) status updates from Telegram Admins
   useEffect(() => {
-    const pollStatusU = String(completedOrder.status || '').toUpperCase();
+    const pollStatusU = String(completedOrder?.status || '').toUpperCase();
     // Poll while PROCESSING, and for manual games (RoS Legacy) also while PENDING/FAILED, so an
     // admin's Approve tap flips the order to Success live.
     const pollable = pollStatusU === 'PROCESSING' || (isManualGame && (pollStatusU === 'PENDING' || pollStatusU === 'FAILED'));

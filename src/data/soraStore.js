@@ -395,9 +395,37 @@ export async function fetchSoraCatalogue(options = {}) {
   };
 }
 
+// Client-side package cache — makes opening a game instant on repeat opens / prefetch.
+const PACKAGE_CACHE_TTL_MS = 90_000;
+const packageCacheClient = new Map(); // code -> { data, expiresAt }
+
+export function getCachedGamePackages(gameCode) {
+  const code = String(gameCode || '').trim();
+  const hit = packageCacheClient.get(code);
+  return hit && hit.expiresAt > Date.now() ? hit.data : null;
+}
+
+// Warm the package cache for one or more games in the background (fire-and-forget).
+export function prefetchSoraPackages(codes = []) {
+  const list = Array.isArray(codes) ? codes : [codes];
+  for (const entry of list) {
+    const code = String(entry || '').trim();
+    if (!code) continue;
+    const hit = packageCacheClient.get(code);
+    if (hit && hit.expiresAt > Date.now()) continue;
+    fetchSoraGameWithPackages(code).catch(() => {});
+  }
+}
+
 export async function fetchSoraGameWithPackages(gameCode, options = {}) {
   const code = String(gameCode || '').trim();
   if (!code) throw new SoraCatalogueError('A game code is required.', 'invalid_game_code');
+
+  // Instant return when we have a fresh client-cached result.
+  if (!options.force) {
+    const hit = packageCacheClient.get(code);
+    if (hit && hit.expiresAt > Date.now()) return hit.data;
+  }
 
   try {
     const payload = await requestJson(`/api/soratopup/packages?game=${encodeURIComponent(code)}`, options);
@@ -407,11 +435,13 @@ export async function fetchSoraGameWithPackages(gameCode, options = {}) {
       .filter(Boolean);
 
     if (game && packages.length > 0) {
-      return {
+      const result = {
         ...game,
         packages,
         providerFetchedAt: payload.fetchedAt || null,
       };
+      packageCacheClient.set(code, { data: result, expiresAt: Date.now() + PACKAGE_CACHE_TTL_MS });
+      return result;
     }
   } catch (error) {
     if (options.signal?.aborted) throw error;
@@ -427,11 +457,14 @@ export async function fetchSoraGameWithPackages(gameCode, options = {}) {
   ];
   const packages = rawPackages.map((item) => mapSoraPackage(item, code)).filter(Boolean);
 
-  return {
+  const fallbackResult = {
     ...game,
     packages,
     providerFetchedAt: new Date().toISOString(),
   };
+  // Cache the fallback briefly so repeat clicks during an outage stay instant.
+  packageCacheClient.set(code, { data: fallbackResult, expiresAt: Date.now() + 15_000 });
+  return fallbackResult;
 }
 
 export async function verifySoraPlayer(gameCode, fieldValues, options = {}) {

@@ -14,8 +14,10 @@ import {
   fetchSoraCatalogue,
   fetchSoraGameWithPackages,
   getCachedCatalogue,
+  getCachedGamePackages,
   isSoraGame,
   mapSoraGame,
+  prefetchSoraPackages,
 } from '../data/soraStore';
 
 const CATEGORIES = [
@@ -191,6 +193,17 @@ export default function GameCatalog({
     };
   }, [reloadToken]);
 
+  // Warm package caches in the background so the first game open is instant.
+  useEffect(() => {
+    const codes = (providerGames || [])
+      .filter((g) => isSoraGame(g) && g.stockOpen !== false && !g.maintenance && !g.comingSoon)
+      .map((g) => g.providerCode)
+      .filter(Boolean);
+    if (!codes.length) return undefined;
+    const timer = setTimeout(() => prefetchSoraPackages(codes), 600);
+    return () => clearTimeout(timer);
+  }, [providerGames]);
+
   const availableGames = useMemo(() => {
     // Admin-managed "Coming Soon" tiles (display only) + any static ones.
     const adminUpcoming = (comingSoonGames || []).map((g) => ({
@@ -257,6 +270,14 @@ export default function GameCatalog({
     }
 
     if (openingGameCode) return;
+
+    // Instant open when the packages are already warm in cache (prefetched / hover / repeat).
+    const warm = getCachedGamePackages(game.providerCode);
+    if (warm) {
+      onSelectGame?.(warm);
+      return;
+    }
+
     setOpeningGameCode(game.providerCode);
     setProviderError('');
     try {
@@ -354,6 +375,7 @@ export default function GameCatalog({
                   key={game.id}
                   type="button"
                   onClick={() => openGame(game)}
+                  onMouseEnter={() => { if (isSoraGame(game) && !game.comingSoon && game.stockOpen !== false && !game.maintenance) prefetchSoraPackages([game.providerCode]); }}
                   disabled={Boolean(openingGameCode)}
                   className="group relative flex flex-col rounded-2xl sm:rounded-[1.35rem] bg-gradient-to-b from-[#1b1d2b] to-[#111219] p-1.5 sm:p-2.5 border border-white/10 ring-1 ring-inset ring-white/[0.04] hover:border-[#E3062F]/70 hover:ring-[#E3062F]/25 transition-all duration-300 shadow-lg hover:shadow-[0_14px_34px_rgba(227,6,47,0.3)] hover:-translate-y-1 text-left cursor-pointer disabled:cursor-wait disabled:opacity-70"
                 >

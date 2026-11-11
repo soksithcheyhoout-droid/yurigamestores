@@ -191,10 +191,10 @@ function getConfig(provider = 'bay2game') {
   };
 }
 
-async function providerRequest(path, { provider = 'bay2game', method = 'GET', body, headers = {} } = {}) {
+async function providerRequest(path, { provider = 'bay2game', method = 'GET', body, headers = {}, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
   const { baseUrl, apiKey, auth } = getConfig(provider);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   // Bay2Game authenticates with api_key (query param + JSON body); SoraTopup uses a Bearer token.
   const url = new URL(`${baseUrl}${path}`);
@@ -518,30 +518,22 @@ export async function getProviderGame(gameCode) {
   };
 }
 
-export async function getLiveSoraPackages(gameCode, { force = false } = {}) {
-  let code = validGameCode(gameCode);
-  if (code === 'roblox') code = 'robuxsend';
+const packageRefreshInFlight = new Set();
 
-  const provider = providerForGame(code);
-
-  const cacheKey = `live:${code}`;
-  const now = Date.now();
-  const cached = packageCache.get(cacheKey);
-  if (!force && cached && cached.expiresAt > now) return cached.value;
-
+// Single live fetch of a game's packages from its provider (short timeout so a slow upstream
+// fails fast to cache/fallback instead of hanging the whole checkout).
+async function fetchLivePackagesFromProvider(code, provider) {
   let game;
   let packages;
   if (provider === 'soratopup') {
-    // Legacy SoraTopup provider (Roblox / robuxsend).
-    const payload = await providerRequest(`/packages?game=${encodeURIComponent(code)}`, { provider: 'soratopup' });
+    const payload = await providerRequest(`/packages?game=${encodeURIComponent(code)}`, { provider: 'soratopup', timeoutMs: 8_000 });
     game = normalizeGame(payload?.gameInfo || { code, name: payload?.game || code });
     packages = (Array.isArray(payload?.packages) ? payload.packages : [])
       .map((item) => normalizePackage(item, code))
       .filter(Boolean);
   } else {
-    // Bay2Game provider (ML / FF / RoS Legacy).
     const providerCode = toProviderGameCode(code);
-    const payload = await providerRequest(`/products?game_code=${encodeURIComponent(providerCode)}`, { provider: 'bay2game' });
+    const payload = await providerRequest(`/products?game_code=${encodeURIComponent(providerCode)}`, { provider: 'bay2game', timeoutMs: 8_000 });
     const g = payload?.game || {};
     game = normalizeGame({
       code, // keep storefront code so STOREFRONT_GAME_OVERRIDES (labels/fields) apply
@@ -555,15 +547,55 @@ export async function getLiveSoraPackages(gameCode, { force = false } = {}) {
       .map((item) => normalizePackage(item, code))
       .filter(Boolean);
   }
-
-  const value = {
+  return {
     game,
     packages,
     count: packages.length,
     fetchedAt: new Date().toISOString(),
   };
-  packageCache.set(cacheKey, { value, expiresAt: now + PACKAGE_TTL_MS });
-  return value;
+}
+
+// Warm the package cache for a game ahead of time (used at startup) so the first real
+// customer request is instant instead of waiting on the slow upstream.
+export async function warmSoraPackages(gameCode) {
+  try {
+    await getLiveSoraPackages(gameCode, { force: true });
+  } catch { /* best-effort */ }
+}
+
+export async function getLiveSoraPackages(gameCode, { force = false } = {}) {
+  let code = validGameCode(gameCode);
+  if (code === 'roblox') code = 'robuxsend';
+
+  const provider = providerForGame(code);
+  const cacheKey = `live:${code}`;
+  const now = Date.now();
+  const cached = packageCache.get(cacheKey);
+
+  // Fresh cache → instant.
+  if (!force && cached && cached.expiresAt > now) return cached.value;
+
+  // Stale cache → serve instantly and refresh in the background (stale-while-revalidate).
+  if (!force && cached?.value) {
+    if (!packageRefreshInFlight.has(cacheKey)) {
+      packageRefreshInFlight.add(cacheKey);
+      fetchLivePackagesFromProvider(code, provider)
+        .then((value) => packageCache.set(cacheKey, { value, expiresAt: Date.now() + PACKAGE_TTL_MS }))
+        .catch(() => {})
+        .finally(() => packageRefreshInFlight.delete(cacheKey));
+    }
+    return cached.value;
+  }
+
+  // No usable cache → fetch live; serve last-good on failure if we have one.
+  try {
+    const value = await fetchLivePackagesFromProvider(code, provider);
+    packageCache.set(cacheKey, { value, expiresAt: now + PACKAGE_TTL_MS });
+    return value;
+  } catch (err) {
+    if (cached?.value) return cached.value;
+    throw err;
+  }
 }
 
 export async function getSoraPackages(gameCode, { force = false } = {}) {

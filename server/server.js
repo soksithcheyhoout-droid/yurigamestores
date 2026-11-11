@@ -435,15 +435,22 @@ export async function getAuthoritativePackagePrice(gameIdOrCode, packageIdOrCode
         const requiresLiveProvider = providerGameCode !== 'rosangkor' && (pkg.providerConnected
           || !['robuxsend', 'roslegacy'].includes(providerGameCode));
         if (requiresLiveProvider) {
-          const resolved = await resolveSoraPackage(providerGameCode, {
-            providerCode: pkg.providerCode || undefined,
-            code: pkg.code,
-            name: pkg.name,
-            diamonds: pkg.diamonds,
-          });
-          if (!resolved) return null;
-          providerCode = resolved.code;
-          providerConnected = true;
+          try {
+            const resolved = await resolveSoraPackage(providerGameCode, {
+              providerCode: pkg.providerCode || undefined,
+              code: pkg.code,
+              name: pkg.name,
+              diamonds: pkg.diamonds,
+            });
+            if (resolved) {
+              providerCode = resolved.code;
+              providerConnected = true;
+            }
+            // If the live provider is slow/unavailable, keep the stored SKU and the
+            // admin-config price so checkout/QR is never blocked; delivery re-validates later.
+          } catch {
+            /* keep stored providerCode and admin price */
+          }
         }
 
         return {
@@ -466,19 +473,24 @@ export async function getAuthoritativePackagePrice(gameIdOrCode, packageIdOrCode
         String(p.providerCode || '').toLowerCase() === cleanPkg
       );
       if (pkg && typeof pkg.price === 'number') {
-        const resolved = await resolveSoraPackage('ml', {
-          providerCode: pkg.providerCode || undefined,
-          code: pkg.code,
-          name: pkg.name,
-          diamonds: pkg.diamonds,
-        });
-        if (!resolved) return null;
+        let eventProviderCode = pkg.providerCode || pkg.code || pkg.id;
+        try {
+          const resolved = await resolveSoraPackage('ml', {
+            providerCode: pkg.providerCode || undefined,
+            code: pkg.code,
+            name: pkg.name,
+            diamonds: pkg.diamonds,
+          });
+          if (resolved) eventProviderCode = resolved.code;
+        } catch {
+          /* keep stored code so checkout is never blocked */
+        }
 
         return {
           price: Number((pkg.price * qty).toFixed(2)),
           name: pkg.name,
           gameName: 'Mobile Legends KH',
-          providerCode: resolved.code,
+          providerCode: eventProviderCode,
           providerConnected: true,
         };
       }
@@ -3969,6 +3981,11 @@ export const httpServer = app.listen(PORT, '0.0.0.0', async () => {
         console.warn('[SoraTopup Sync] Startup sync skipped:', error.message);
       });
   }
+  // Warm the live package cache so the first customer checkout/game-open is instant,
+  // not blocked on the slow upstream provider. Refreshes in the background thereafter.
+  Promise.allSettled(['ml', 'ff', 'roslegacy'].map((c) => getLiveSoraPackages(c, { force: true })))
+    .then(() => console.log('[SoraTopup] Package cache warmed (ml, ff, roslegacy).'))
+    .catch(() => {});
   if (process.env.TELEGRAM_POLLING_DISABLED !== 'true') {
     startTelegramBotPolling();
   }

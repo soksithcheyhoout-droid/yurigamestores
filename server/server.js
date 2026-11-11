@@ -435,21 +435,25 @@ export async function getAuthoritativePackagePrice(gameIdOrCode, packageIdOrCode
         const requiresLiveProvider = providerGameCode !== 'rosangkor' && (pkg.providerConnected
           || !['robuxsend', 'roslegacy'].includes(providerGameCode));
         if (requiresLiveProvider) {
-          try {
-            const resolved = await resolveSoraPackage(providerGameCode, {
-              providerCode: pkg.providerCode || undefined,
-              code: pkg.code,
-              name: pkg.name,
-              diamonds: pkg.diamonds,
-            });
-            if (resolved) {
-              providerCode = resolved.code;
-              providerConnected = true;
+          if (pkg.providerCode) {
+            // Admin config already carries the exact live SKU — trust it and skip the slow
+            // upstream lookup so the QR/checkout is instant. Delivery re-validates the SKU later.
+            providerCode = pkg.providerCode;
+            providerConnected = true;
+          } else {
+            try {
+              const resolved = await resolveSoraPackage(providerGameCode, {
+                code: pkg.code,
+                name: pkg.name,
+                diamonds: pkg.diamonds,
+              });
+              if (resolved) {
+                providerCode = resolved.code;
+                providerConnected = true;
+              }
+            } catch {
+              /* keep stored providerCode and admin price so checkout is never blocked */
             }
-            // If the live provider is slow/unavailable, keep the stored SKU and the
-            // admin-config price so checkout/QR is never blocked; delivery re-validates later.
-          } catch {
-            /* keep stored providerCode and admin price */
           }
         }
 
@@ -3981,9 +3985,9 @@ export const httpServer = app.listen(PORT, '0.0.0.0', async () => {
         console.warn('[SoraTopup Sync] Startup sync skipped:', error.message);
       });
   }
-  // Warm the live package cache so the first customer checkout/game-open is instant,
-  // not blocked on the slow upstream provider. Refreshes in the background thereafter.
-  Promise.allSettled(['ml', 'ff', 'roslegacy'].map((c) => getLiveSoraPackages(c, { force: true })))
+  // Warm the package cache so the first customer checkout/game-open is instant, not blocked on
+  // the slow upstream provider. getSoraPackages also seeds a usable fallback when upstream is slow.
+  Promise.allSettled(['ml', 'ff', 'roslegacy'].map((c) => getSoraPackages(c)))
     .then(() => console.log('[SoraTopup] Package cache warmed (ml, ff, roslegacy).'))
     .catch(() => {});
   if (process.env.TELEGRAM_POLLING_DISABLED !== 'true') {

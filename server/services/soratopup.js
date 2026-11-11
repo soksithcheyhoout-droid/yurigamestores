@@ -526,14 +526,14 @@ async function fetchLivePackagesFromProvider(code, provider) {
   let game;
   let packages;
   if (provider === 'soratopup') {
-    const payload = await providerRequest(`/packages?game=${encodeURIComponent(code)}`, { provider: 'soratopup', timeoutMs: 8_000 });
+    const payload = await providerRequest(`/packages?game=${encodeURIComponent(code)}`, { provider: 'soratopup', timeoutMs: 6_000 });
     game = normalizeGame(payload?.gameInfo || { code, name: payload?.game || code });
     packages = (Array.isArray(payload?.packages) ? payload.packages : [])
       .map((item) => normalizePackage(item, code))
       .filter(Boolean);
   } else {
     const providerCode = toProviderGameCode(code);
-    const payload = await providerRequest(`/products?game_code=${encodeURIComponent(providerCode)}`, { provider: 'bay2game', timeoutMs: 8_000 });
+    const payload = await providerRequest(`/products?game_code=${encodeURIComponent(providerCode)}`, { provider: 'bay2game', timeoutMs: 6_000 });
     const g = payload?.game || {};
     game = normalizeGame({
       code, // keep storefront code so STOREFRONT_GAME_OVERRIDES (labels/fields) apply
@@ -598,7 +598,20 @@ export async function getLiveSoraPackages(gameCode, { force = false } = {}) {
   }
 }
 
+// Public entry: returns storefront packages (live when possible, graceful fallback otherwise), and
+// seeds the package cache with the fallback so repeat calls stay instant when the upstream is slow.
 export async function getSoraPackages(gameCode, { force = false } = {}) {
+  const result = await resolveStorefrontPackages(gameCode, { force });
+  if (result?.isFallback && Array.isArray(result?.packages) && result.packages.length > 0) {
+    try {
+      const code = storefrontGameCode(gameCode);
+      packageCache.set(`live:${code}`, { value: result, expiresAt: Date.now() + 30_000 });
+    } catch { /* ignore cache seed errors */ }
+  }
+  return result;
+}
+
+async function resolveStorefrontPackages(gameCode, { force = false } = {}) {
   const code = storefrontGameCode(gameCode);
 
   try {

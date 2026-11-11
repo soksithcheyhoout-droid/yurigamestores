@@ -51,32 +51,27 @@ const MAX_PURCHASE_QUANTITY = 10;
 function fireCelebration() {
   try {
     const Z = 100000;
-    const colors = ['#E3062F', '#ff4d6d', '#FFD700', '#ffb020', '#22c55e', '#38bdf8', '#ffffff'];
-    // 1) Center pop
-    confetti({ particleCount: 150, spread: 100, startVelocity: 48, origin: { y: 0.5 }, colors, zIndex: Z, disableForReducedMotion: true });
-    // 2) Gold star burst (slightly delayed)
+    const colors = ['#10b981', '#34d399', '#22c55e', '#FFD700', '#ffffff'];
+    // Upward fountain from the bottom-center — confetti rises straight up (no left/right cannons).
+    confetti({ particleCount: 120, angle: 90, spread: 55, startVelocity: 58, gravity: 1, ticks: 220, origin: { x: 0.5, y: 1 }, colors, zIndex: Z, disableForReducedMotion: true });
     setTimeout(() => {
-      confetti({ particleCount: 70, spread: 120, scalar: 1.25, shapes: ['star'], origin: { y: 0.45 }, colors: ['#FFD700', '#FFC107', '#fff7cc'], zIndex: Z, disableForReducedMotion: true });
-    }, 220);
-    // 3) Side cannons streaming for ~1.4s
-    const end = Date.now() + 1400;
-    (function frame() {
-      confetti({ particleCount: 6, angle: 60, spread: 68, startVelocity: 55, origin: { x: 0, y: 0.72 }, colors, zIndex: Z, disableForReducedMotion: true });
-      confetti({ particleCount: 6, angle: 120, spread: 68, startVelocity: 55, origin: { x: 1, y: 0.72 }, colors, zIndex: Z, disableForReducedMotion: true });
-      if (Date.now() < end) requestAnimationFrame(frame);
-    })();
+      confetti({ particleCount: 80, angle: 90, spread: 45, startVelocity: 52, origin: { x: 0.5, y: 1 }, scalar: 1.1, colors, zIndex: Z, disableForReducedMotion: true });
+    }, 200);
+    setTimeout(() => {
+      confetti({ particleCount: 60, angle: 90, spread: 70, startVelocity: 64, shapes: ['star'], origin: { x: 0.5, y: 1 }, colors: ['#FFD700', '#ffffff'], zIndex: Z, disableForReducedMotion: true });
+    }, 400);
   } catch { /* confetti is best-effort */ }
 }
 
-// One icon/label/value line in the premium dark transaction receipt.
+// One icon/label/value line in the transaction receipt.
 function ReceiptRow({ icon: Icon, label, value, mono = false, accent = false, last = false }) {
   return (
-    <div className={`flex items-center justify-between gap-3 py-2.5 ${last ? '' : 'border-b border-white/[0.06]'}`}>
-      <span className="flex shrink-0 items-center gap-2 text-[12.5px] font-medium text-slate-400">
-        {Icon ? <Icon size={15} className="text-[#ff5a74]" /> : null}
+    <div className={`flex items-center justify-between gap-3 py-2 ${last ? '' : 'border-b border-white/[0.06]'}`}>
+      <span className="flex shrink-0 items-center gap-2 text-[12px] font-medium text-slate-400">
+        {Icon ? <Icon size={14} className="text-slate-500" /> : null}
         {label}
       </span>
-      <span className={`truncate text-right text-[13px] font-bold ${accent ? 'text-[#ff3b5c]' : 'text-white'} ${mono ? 'font-mono' : ''}`}>
+      <span className={`truncate text-right text-[12.5px] font-bold ${accent ? 'text-emerald-400' : 'text-white'} ${mono ? 'font-mono' : ''}`}>
         {value}
       </span>
     </div>
@@ -779,22 +774,6 @@ export default function GameDetailPage({
   }, [stage, completedOrder?.ref, completedOrder?.status, isRoblox]);
 
   const [isRefCopied, setIsRefCopied] = useState(false);
-  const [receiptQr, setReceiptQr] = useState('');
-
-  // Generate the on-receipt verification QR whenever an order completes.
-  useEffect(() => {
-    let active = true;
-    if (stage === 'completed' && completedOrder?.ref) {
-      QRCode.toDataURL(`YURIGAME|REF:${completedOrder.ref}|${completedOrder.totalUsd}USD|${completedOrder.status || ''}`, {
-        margin: 1,
-        width: 260,
-        color: { dark: '#0b0b10', light: '#ffffff' },
-      })
-        .then((url) => { if (active) setReceiptQr(url); })
-        .catch(() => { if (active) setReceiptQr(''); });
-    }
-    return () => { active = false; };
-  }, [stage, completedOrder?.ref, completedOrder?.totalUsd, completedOrder?.status]);
 
   const handleCopyRef = (refText) => {
     if (!refText) return;
@@ -829,17 +808,15 @@ export default function GameDetailPage({
         ['Game', String(o.gameName || game?.name || '—')],
         ['Item', String(o.packageName || '—')],
         ['Quantity', '× ' + (o.quantity || 1)],
-        [isRoS ? 'Account' : isRoblox ? 'Roblox Username' : 'Game ID', String(playerId)],
-        ['Player', String(playerName)],
+        [isRoS ? 'Account' : isRoblox ? 'Roblox Username' : 'Player', String(playerName)],
         ['Payment Method', String(o.paymentMethod || '—')],
         ['Date', dateStr],
       ];
       const topH = 248;
       const rowH = 50;
       const totalH = 96;
-      const qrBlock = 214;
-      const footerH = 58;
-      const H = topH + rows.length * rowH + 10 + totalH + qrBlock + footerH;
+      const footerH = 44;
+      const H = topH + rows.length * rowH + 10 + totalH + footerH;
 
       const canvas = document.createElement('canvas');
       canvas.width = W * scale;
@@ -857,17 +834,17 @@ export default function GameDetailPage({
         ctx.closePath();
       };
 
-      // Dark premium background
+      // Dark neutral background
       const bg = ctx.createLinearGradient(0, 0, 0, H);
-      bg.addColorStop(0, '#1b0b0f');
-      bg.addColorStop(0.5, '#120708');
-      bg.addColorStop(1, '#0b0406');
+      bg.addColorStop(0, '#16171f');
+      bg.addColorStop(0.5, '#101117');
+      bg.addColorStop(1, '#0c0d12');
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, W, H);
-      // Top red accent line
+      // Top green accent line
       const band = ctx.createLinearGradient(0, 0, W, 0);
-      band.addColorStop(0, '#ff2d4d');
-      band.addColorStop(1, '#c10022');
+      band.addColorStop(0, '#10b981');
+      band.addColorStop(1, '#059669');
       ctx.fillStyle = band;
       ctx.fillRect(0, 0, W, 6);
       // Brand lockup
@@ -875,7 +852,7 @@ export default function GameDetailPage({
       ctx.font = '800 24px Arial, sans-serif';
       ctx.textAlign = 'left';
       ctx.fillText('YuriGame', padX, 54);
-      ctx.fillStyle = '#ff5a74';
+      ctx.fillStyle = '#10b981';
       ctx.font = '700 11px Arial, sans-serif';
       ctx.fillText('GAME TOP-UP', padX, 72);
       ctx.fillStyle = '#94a3b8';
@@ -885,10 +862,10 @@ export default function GameDetailPage({
 
       const cx = W / 2;
       const cyc = 138;
-      ctx.strokeStyle = 'rgba(255,45,77,0.35)'; ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(16,185,129,0.3)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(cx, cyc, 42, 0, Math.PI * 2); ctx.stroke();
       const orb = ctx.createLinearGradient(cx - 34, cyc - 34, cx + 34, cyc + 34);
-      orb.addColorStop(0, '#ff4063'); orb.addColorStop(1, '#c10022');
+      orb.addColorStop(0, '#34d399'); orb.addColorStop(1, '#059669');
       ctx.beginPath(); ctx.arc(cx, cyc, 34, 0, Math.PI * 2); ctx.fillStyle = orb; ctx.fill();
       ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(cx - 14, cyc); ctx.lineTo(cx - 4, cyc + 11); ctx.lineTo(cx + 15, cyc - 12); ctx.stroke();
@@ -914,25 +891,13 @@ export default function GameDetailPage({
       });
 
       y += 10;
-      rr(padX, y, W - padX * 2, totalH - 22, 14); ctx.fillStyle = 'rgba(255,45,77,0.1)'; ctx.fill();
-      rr(padX, y, W - padX * 2, totalH - 22, 14); ctx.strokeStyle = 'rgba(255,45,77,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+      rr(padX, y, W - padX * 2, totalH - 22, 14); ctx.fillStyle = 'rgba(16,185,129,0.1)'; ctx.fill();
+      rr(padX, y, W - padX * 2, totalH - 22, 14); ctx.strokeStyle = 'rgba(16,185,129,0.3)'; ctx.lineWidth = 1; ctx.stroke();
       ctx.textAlign = 'left'; ctx.fillStyle = '#cbd5e1'; ctx.font = '700 14px Arial, sans-serif';
       ctx.fillText('TOTAL PAID', padX + 22, y + 46);
-      ctx.textAlign = 'right'; ctx.fillStyle = '#ff3b5c'; ctx.font = '800 26px Arial, sans-serif';
+      ctx.textAlign = 'right'; ctx.fillStyle = '#10b981'; ctx.font = '800 26px Arial, sans-serif';
       ctx.fillText(String(formatPrice(o.totalUsd, currentRegion)), W - padX - 22, y + 50);
       y += totalH;
-
-      try {
-        const qrData = await QRCode.toDataURL(`YURIGAME|REF:${o.ref}|${o.totalUsd}USD|${statusText}`, { margin: 1, width: 320, color: { dark: '#0b0b10', light: '#ffffff' } });
-        const img = new Image();
-        await new Promise((res) => { img.onload = res; img.onerror = res; img.src = qrData; });
-        const qs = 124;
-        const tile = qs + 18;
-        rr(cx - tile / 2, y, tile, tile, 12); ctx.fillStyle = '#ffffff'; ctx.fill();
-        ctx.drawImage(img, cx - qs / 2, y + 9, qs, qs);
-        ctx.textAlign = 'center'; ctx.fillStyle = '#94a3b8'; ctx.font = '500 11px Arial, sans-serif';
-        ctx.fillText('Scan to verify • Status: ' + statusText, cx, y + tile + 22);
-      } catch { /* QR optional */ }
 
       ctx.textAlign = 'center'; ctx.fillStyle = '#cbd5e1'; ctx.font = '700 13px Arial, sans-serif';
       ctx.fillText('Secured by YuriGame Store • 100% Protected', cx, H - 22);
@@ -1900,179 +1865,154 @@ export default function GameDetailPage({
           const isProcessing = o.status === 'PROCESSING';
           const isFailed = o.status === 'FAILED' || o.status === 'CANCELLED';
           const isSuccess = !isProcessing && !isFailed;
-          const playerId = o.playerDetails?.account || o.playerDetails?.userId || o.playerDetails?.username || o.verifiedPlayer || '—';
-          const playerName = o.verifiedPlayer || '';
+          const playerName = o.verifiedPlayer || o.playerDetails?.username || o.playerDetails?.account || o.playerDetails?.userId || '—';
           const dateStr = new Date(o.timestamp || Date.now()).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
           const statusLabel = isSuccess ? 'Completed' : isProcessing ? 'Processing' : 'Cancelled';
           const qty = o.quantity || 1;
-          const glow = isProcessing ? 'rgba(245,158,11,0.55)' : isFailed ? 'rgba(244,63,94,0.55)' : 'rgba(255,45,77,0.7)';
+          const orbGlow = isProcessing ? 'rgba(245,158,11,0.45)' : isFailed ? 'rgba(244,63,94,0.45)' : 'rgba(16,185,129,0.5)';
+          const orbClass = isProcessing ? 'from-amber-400 to-amber-600' : isFailed ? 'from-rose-400 to-red-600' : 'from-emerald-400 to-emerald-600';
+          const accentLine = isSuccess ? 'via-emerald-500' : isProcessing ? 'via-amber-500' : 'via-rose-500';
           const StatusIcon = isSuccess ? CheckCircle2 : isProcessing ? Clock : AlertCircle;
           return (
-          <div className="relative mx-auto max-w-[420px] animate-in fade-in zoom-in-95 duration-500">
-            {/* Ambient red glow */}
-            <div className="pointer-events-none absolute -inset-6 rounded-[48px] opacity-70 blur-3xl" style={{ background: `radial-gradient(circle at 50% 18%, ${glow}, transparent 68%)` }} aria-hidden="true" />
-
-            <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-gradient-to-b from-[#1b0b0f] via-[#120708] to-[#0b0406] shadow-[0_30px_90px_-20px_rgba(0,0,0,0.92)]">
+          <div className="relative mx-auto max-w-[380px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-gradient-to-b from-[#16171f] to-[#0c0d12] shadow-[0_24px_70px_-24px_rgba(0,0,0,0.9)]">
               {/* Top accent line */}
-              <div className="h-1 w-full bg-gradient-to-r from-transparent via-[#ff2d4d] to-transparent" />
-              {/* Brand watermark */}
-              <div className="pointer-events-none absolute -right-4 top-14 select-none text-[150px] font-black leading-none text-white/[0.03]">YG</div>
+              <div className={`h-1 w-full bg-gradient-to-r from-transparent ${accentLine} to-transparent`} />
 
-              <div className="relative p-6 sm:p-7">
+              <div className="relative px-5 pb-5 pt-4 sm:px-6">
                 {/* Brand header */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <img
                       src="/assets/brand/yurigame-mark.webp"
                       alt="YuriGame"
-                      className="h-9 w-9 rounded-lg object-contain"
+                      className="h-8 w-8 rounded-lg object-contain"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                     <div className="leading-none">
-                      <div className="text-[15px] font-black tracking-wide text-white">YuriGame</div>
-                      <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.3em] text-[#ff5a74]">Game Top-Up</div>
+                      <div className="text-[13.5px] font-black tracking-wide text-white">YuriGame</div>
+                      <div className="mt-0.5 text-[7.5px] font-bold uppercase tracking-[0.3em] text-emerald-400">Game Top-Up</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400">
-                    <ShieldCheck size={13} className="text-emerald-400" /> Secure &amp; Trusted
+                  <div className="flex items-center gap-1 text-[9.5px] font-semibold text-slate-400">
+                    <ShieldCheck size={12} className="text-emerald-400" /> Secure &amp; Trusted
                   </div>
                 </div>
 
-                {/* Glowing status orb */}
-                <div className="relative mx-auto mt-6 mb-3 flex h-24 w-24 items-center justify-center">
-                  <span className="absolute h-24 w-24 rounded-full blur-xl" style={{ background: glow }} aria-hidden="true" />
-                  <span className="absolute h-[72px] w-[72px] rounded-full border border-white/15" aria-hidden="true" />
-                  <span className="absolute h-[54px] w-[112px] rotate-[62deg] rounded-[50%] border" style={{ borderColor: 'rgba(255,45,77,0.4)' }} aria-hidden="true" />
-                  <span
-                    className={`relative flex h-[62px] w-[62px] items-center justify-center rounded-full text-white ${isProcessing ? 'bg-gradient-to-br from-amber-400 to-orange-600' : isFailed ? 'bg-gradient-to-br from-rose-400 to-red-700' : 'bg-gradient-to-br from-[#ff4063] to-[#c10022]'}`}
-                    style={{ boxShadow: `0 0 34px ${glow}` }}
-                  >
-                    <StatusIcon size={34} strokeWidth={2.5} />
+                {/* Status check — green with a soft glow (no heavy highlight) */}
+                <div className="relative mx-auto mt-3 mb-2 flex h-16 w-16 items-center justify-center">
+                  <span className="absolute h-14 w-14 rounded-full blur-lg" style={{ background: orbGlow }} aria-hidden="true" />
+                  <span className={`relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${orbClass} text-white shadow-lg`}>
+                    <StatusIcon size={30} strokeWidth={2.5} />
                   </span>
                 </div>
 
                 {/* Title + subtitle */}
                 <div className="text-center">
-                  <h2 className="m-0 text-[26px] font-black tracking-tight text-white">
-                    {isSuccess ? (<>Payment <span className="bg-gradient-to-r from-[#ff4063] to-[#ff93a6] bg-clip-text text-transparent">Successful!</span></>)
+                  <h2 className="m-0 text-[22px] font-black tracking-tight text-white">
+                    {isSuccess ? (<>Payment <span className="text-emerald-400">Successful!</span></>)
                       : isProcessing ? (<>Top-Up <span className="text-amber-400">In Progress</span></>)
                       : (<>Order <span className="text-rose-400">Cancelled</span></>)}
                   </h2>
-                  <p className="mx-auto mt-1.5 max-w-sm text-[12.5px] leading-relaxed text-slate-400">
+                  <p className="mx-auto mt-1 max-w-[18rem] text-[11.5px] leading-snug text-slate-400">
                     {isSuccess
                       ? 'Your transaction has been completed successfully.'
                       : isProcessing
                         ? (isManualGame
-                            ? (isRoblox ? 'Your order was sent to our admin team — your Robux is on the way.' : 'Your order was sent to our admin team — your diamonds are on the way.')
-                            : `${o.deliveredQuantity || 0} of ${qty} item(s) delivered automatically. The rest are queued for review.`)
-                        : (o.providerReason || 'This order was cancelled. If unexpected, please contact Telegram support.')}
+                            ? (isRoblox ? 'Sent to our admin team — your Robux is on the way.' : 'Sent to our admin team — your diamonds are on the way.')
+                            : `${o.deliveredQuantity || 0}/${qty} delivered. The rest are queued for review.`)
+                        : (o.providerReason || 'This order was cancelled. Contact Telegram support if unexpected.')}
                   </p>
                 </div>
 
-                {/* Admin confirmation */}
+                {/* Admin confirmation (compact) */}
                 {isSuccess && o.handledBy && (
-                  <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-bold text-emerald-300">
-                    <ShieldCheck size={18} className="shrink-0 text-emerald-400" />
-                    <div className="flex-1">
-                      <div>{isRoblox ? 'Robux sent' : 'Diamonds added'} by <strong>Admin {o.handledBy}</strong></div>
-                      {o.handledAt && <div className="text-[11px] font-normal text-emerald-400/80">Confirmed at: {o.handledAt}</div>}
-                    </div>
+                  <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-[11px] font-bold text-emerald-300">
+                    <ShieldCheck size={15} className="shrink-0 text-emerald-400" />
+                    <span>{isRoblox ? 'Robux sent' : 'Diamonds added'} by Admin {o.handledBy}</span>
                   </div>
                 )}
 
                 {/* Transaction receipt panel */}
-                <div className="mt-5 rounded-2xl border border-[#ff2d4d]/20 bg-black/30 p-3.5 shadow-inner">
-                  <div className="mb-3 flex items-center gap-2 border-b border-white/10 pb-2.5">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#ff2d4d]/15 text-[#ff5a74]"><Receipt size={14} /></span>
-                    <span className="text-[12px] font-bold uppercase tracking-wider text-slate-200">Transaction Receipt</span>
+                <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3">
+                  <div className="mb-2 flex items-center gap-2 border-b border-white/10 pb-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-400"><Receipt size={12} /></span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-200">Transaction Receipt</span>
                   </div>
 
                   {/* Product + Total */}
-                  <div className="mb-2 flex items-center justify-between rounded-xl bg-white/[0.04] px-4 py-3 ring-1 ring-white/5">
+                  <div className="mb-1 flex items-center justify-between rounded-xl bg-white/[0.04] px-3.5 py-2.5 ring-1 ring-white/5">
                     <div>
-                      <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Product</div>
-                      <div className="mt-0.5 text-[14px] font-bold text-white">{qty} Item{qty > 1 ? 's' : ''}</div>
+                      <div className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Product</div>
+                      <div className="mt-0.5 text-[13px] font-bold text-white">{qty} Item{qty > 1 ? 's' : ''}</div>
                     </div>
-                    <div className="text-2xl font-black text-[#ff3b5c]">{formatPrice(o.totalUsd, currentRegion)}</div>
+                    <div className="text-[22px] font-black text-emerald-400">{formatPrice(o.totalUsd, currentRegion)}</div>
                   </div>
 
-                  <div className="px-1">
+                  <div className="px-0.5">
                     <ReceiptRow icon={Gamepad2} label="Game" value={o.gameName} />
-                    <ReceiptRow icon={Layers} label={isRoS ? 'Account' : isRoblox ? 'Username' : 'Game ID'} value={playerId} mono />
-                    {playerName && playerName !== playerId && <ReceiptRow icon={User} label="Player" value={playerName} />}
+                    <ReceiptRow icon={User} label={isRoS ? 'Account' : isRoblox ? 'Username' : 'Player'} value={playerName} />
                     <ReceiptRow icon={Gem} label={o.packageName || 'Item'} value={formatPrice(o.totalUsd, currentRegion)} accent />
                     <ReceiptRow icon={CreditCard} label="Payment Method" value={o.paymentMethod} />
                     <ReceiptRow icon={Clock} label="Date" value={dateStr} />
-                    <div className="flex items-center justify-between border-b border-white/[0.06] py-2.5">
-                      <span className="flex items-center gap-2 text-[12.5px] font-medium text-slate-400">
-                        <CheckCircle2 size={15} className={isSuccess ? 'text-emerald-400' : isProcessing ? 'text-amber-400' : 'text-rose-400'} /> Order Status
+                    <div className="flex items-center justify-between py-2">
+                      <span className="flex items-center gap-2 text-[12px] font-medium text-slate-400">
+                        <CheckCircle2 size={14} className={isSuccess ? 'text-emerald-400' : isProcessing ? 'text-amber-400' : 'text-rose-400'} /> Status
                       </span>
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] font-black uppercase tracking-wide ${isSuccess ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30' : isProcessing ? 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30' : 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30'}`}>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${isSuccess ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30' : isProcessing ? 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30' : 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30'}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${isSuccess ? 'bg-emerald-400' : isProcessing ? 'bg-amber-400' : 'bg-rose-400'}`} />
                         {statusLabel}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between gap-2 py-2.5">
-                      <span className="flex items-center gap-2 text-[12.5px] font-medium text-slate-400"><Hash size={15} className="text-[#ff5a74]" /> Reference</span>
+                    <div className="flex items-center justify-between gap-2 border-t border-dashed border-white/10 pt-2">
+                      <span className="flex items-center gap-2 text-[12px] font-medium text-slate-400"><Hash size={14} className="text-emerald-400" /> Reference</span>
                       <button
                         type="button"
                         onClick={() => handleCopyRef(o.ref)}
-                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-white/5 px-2.5 py-1 font-mono text-[12px] font-bold text-slate-200 ring-1 ring-white/10 transition-colors hover:bg-white/10"
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-white/5 px-2 py-0.5 font-mono text-[11.5px] font-bold text-slate-200 ring-1 ring-white/10 transition-colors hover:bg-white/10"
                         title="Copy reference"
                       >
                         {o.ref}
-                        {isRefCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} className="text-slate-400" />}
+                        {isRefCopied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} className="text-slate-400" />}
                       </button>
                     </div>
-                  </div>
-
-                  {/* Verification QR */}
-                  <div className="mt-1 flex flex-col items-center gap-2 border-t border-dashed border-white/10 pt-3.5">
-                    <div className="rounded-xl bg-white p-2 shadow-lg">
-                      {receiptQr
-                        ? <img src={receiptQr} alt="Verification QR" className="h-28 w-28" />
-                        : <div className="h-28 w-28 animate-pulse rounded bg-slate-200" />}
-                    </div>
-                    <span className="flex items-center gap-1.5 text-[10.5px] font-medium text-slate-400"><QrCode size={12} className="text-[#ff5a74]" /> Scan to verify this receipt</span>
                   </div>
                 </div>
 
                 {/* Processing live hint */}
                 {isProcessing && (
-                  <div className="mt-4 flex items-center justify-center gap-2 text-[11px] font-medium text-amber-300/90">
+                  <div className="mt-3 flex items-center justify-center gap-2 text-[10.5px] font-medium text-amber-300/90">
                     <span className="relative flex h-2 w-2">
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
                     </span>
-                    Live updates on — safe to close this tab, track it in Orders.
+                    Live updates on — safe to close, track in Orders.
                   </div>
                 )}
 
                 {/* Actions */}
-                <div className="mt-5 flex flex-col gap-2.5">
+                <div className="mt-4 flex flex-col gap-2">
                   {isSuccess && (
                     <button
                       type="button"
                       onClick={handleDownloadReceipt}
-                      className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-r from-[#ff2d4d] to-[#c10022] py-3 text-[13px] font-black uppercase tracking-wider text-white shadow-[0_8px_24px_rgba(255,45,77,0.4)] transition-transform hover:shadow-[0_10px_30px_rgba(255,45,77,0.6)] active:scale-95"
+                      className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-r from-emerald-500 to-emerald-600 py-2.5 text-[12.5px] font-black uppercase tracking-wider text-white shadow-[0_8px_22px_rgba(16,185,129,0.35)] transition-transform hover:shadow-[0_10px_28px_rgba(16,185,129,0.5)] active:scale-95"
                     >
-                      <Download size={16} /> Download Receipt
+                      <Download size={15} /> Download Receipt
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={handleCloseTab}
-                    className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#ff2d4d]/40 bg-transparent py-3 text-[13px] font-black uppercase tracking-wider text-slate-200 transition-colors hover:bg-[#ff2d4d]/10 active:scale-95"
+                    className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/15 bg-transparent py-2.5 text-[12.5px] font-black uppercase tracking-wider text-slate-200 transition-colors hover:bg-white/5 active:scale-95"
                   >
-                    <ArrowLeft size={16} className="text-[#ff5a74]" /> {isProcessing ? 'Return to Store' : 'Back to Store'}
+                    <ArrowLeft size={15} className="text-slate-400" /> {isProcessing ? 'Return to Store' : 'Back to Store'}
                   </button>
                 </div>
 
                 {/* Footer */}
-                <div className="mt-5 flex items-center justify-center gap-3">
-                  <span className="h-px w-10 bg-gradient-to-r from-transparent to-[#ff2d4d]/40" />
-                  <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500"><ShieldCheck size={12} className="text-[#ff5a74]" /> Secured by YuriGame Store • 100% Protected</span>
-                  <span className="h-px w-10 bg-gradient-to-l from-transparent to-[#ff2d4d]/40" />
+                <div className="mt-3 flex items-center justify-center gap-1.5 text-[9.5px] font-medium text-slate-500">
+                  <ShieldCheck size={11} className="text-emerald-400" /> Secured by YuriGame Store • 100% Protected
                 </div>
               </div>
             </div>

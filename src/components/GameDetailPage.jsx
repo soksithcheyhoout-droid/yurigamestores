@@ -1816,7 +1816,7 @@ export default function GameDetailPage({
           >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="no-scrollbar relative max-h-[90vh] w-full overflow-y-auto overflow-x-hidden rounded-t-3xl border-x border-t border-slate-800 bg-[#15161b] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-12px_50px_rgba(0,0,0,0.7)] animate-in slide-in-from-bottom duration-300 sm:my-auto sm:max-w-sm sm:rounded-3xl sm:border sm:p-6 sm:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] sm:slide-in-from-bottom-0 sm:zoom-in-95"
+            className="no-scrollbar relative max-h-[72vh] w-full overflow-y-auto overflow-x-hidden rounded-t-3xl border-x border-t border-slate-800 bg-[#15161b] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-12px_50px_rgba(0,0,0,0.7)] animate-in slide-in-from-bottom duration-300 sm:my-auto sm:max-h-[90vh] sm:max-w-sm sm:rounded-3xl sm:border sm:p-6 sm:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] sm:slide-in-from-bottom-0 sm:zoom-in-95"
           >
             {/* Mobile bottom-sheet drag handle */}
             <div className="mx-auto mb-2.5 h-1.5 w-10 shrink-0 rounded-full bg-slate-600/80 sm:hidden" aria-hidden="true" />

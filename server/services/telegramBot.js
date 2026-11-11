@@ -355,22 +355,33 @@ export async function notifyOrderToAdmins(order) {
   const autoDelivered = ['DELIVERED', 'COMPLETED', 'SUCCESS'].includes(statusUpper);
 
   if (isRoS) {
-    // RoS Legacy auto-delivers via Bay2Game — informational only, no Done/Cancel buttons.
-    statusHtml = autoDelivered
-      ? [
-          `⚡ <b>Payment Status:</b> 🟢 <b>PAID & CONFIRMED</b>`,
-          `🚀 <b>Fulfillment:</b> <b>Auto-delivered via provider</b>`,
-          `🕒 <b>Delivered At:</b> ${timeFormatted}`,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `✨ <i>Diamonds credited automatically to the RoS account.</i>`,
-        ].join('\n')
-      : [
-          `⚠️ <b>Order Status:</b> 🟠 <b>NEEDS ADMIN ATTENTION</b> (auto-delivery failed)`,
-          `🕒 <b>Received At:</b> ${timeFormatted}`,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `👇 <i>Admins: please top up this RoS account manually using the credentials above.</i>`,
-        ].join('\n');
-    inlineKeyboard = null;
+    if (autoDelivered) {
+      // Auto-delivered via provider — informational only, no buttons.
+      statusHtml = [
+        `⚡ <b>Payment Status:</b> 🟢 <b>PAID & CONFIRMED</b>`,
+        `🚀 <b>Fulfillment:</b> <b>Auto-delivered via provider</b>`,
+        `🕒 <b>Delivered At:</b> ${timeFormatted}`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `✨ <i>Diamonds credited automatically to the RoS account.</i>`,
+      ].join('\n');
+      inlineKeyboard = null;
+    } else {
+      // RoS Legacy auto-delivery failed → an admin tops up the account manually with the
+      // credentials above, then taps Approve to mark it completed (the customer's order screen
+      // flips from Pending to Success live). "Mark Failed" cancels the order instead.
+      statusHtml = [
+        `⚠️ <b>Order Status:</b> 🟠 <b>NEEDS ADMIN ATTENTION</b> (auto-delivery failed)`,
+        `🕒 <b>Received At:</b> ${timeFormatted}`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `👇 <i>Admins: top up this RoS account manually with the credentials above, then tap</i> <b>✅ Approve</b>.`,
+      ].join('\n');
+      inlineKeyboard = {
+        inline_keyboard: [[
+          { text: '✅ Approve (Mark Completed)', callback_data: `ros_done:${order.ref}` },
+          { text: '❌ Mark Failed', callback_data: `ros_cancel:${order.ref}` },
+        ]],
+      };
+    }
   } else if (isRoblox) {
     // Roblox fulfillment — informational only, no Done/Cancel buttons.
     statusHtml = autoDelivered

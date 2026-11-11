@@ -735,7 +735,11 @@ export default function GameDetailPage({
 
   // Live polling for manual orders (RoS Legacy and Roblox) status updates from Telegram Admins
   useEffect(() => {
-    if (stage !== 'completed' || !completedOrder?.ref || completedOrder.status !== 'PROCESSING') {
+    const pollStatusU = String(completedOrder.status || '').toUpperCase();
+    // Poll while PROCESSING, and for manual games (RoS Legacy) also while PENDING/FAILED, so an
+    // admin's Approve tap flips the order to Success live.
+    const pollable = pollStatusU === 'PROCESSING' || (isManualGame && (pollStatusU === 'PENDING' || pollStatusU === 'FAILED'));
+    if (stage !== 'completed' || !completedOrder?.ref || !pollable) {
       return;
     }
 
@@ -744,18 +748,20 @@ export default function GameDetailPage({
       try {
         const res = await fetch(`/api/order-status/${encodeURIComponent(orderRef)}`);
         const data = await res.json();
+        const next = String(data.status || '').toUpperCase();
 
-        if (data.success && data.status && data.status !== 'PROCESSING') {
-          if (data.status === 'COMPLETED' || data.status === 'DELIVERED') {
+        // Only react to a FINAL admin decision, so a pending/failed order keeps waiting for approval.
+        if (data.success && ['COMPLETED', 'DELIVERED', 'CANCELLED'].includes(next)) {
+          if (next === 'COMPLETED' || next === 'DELIVERED') {
             fireCelebration();
           }
 
           setCompletedOrder(prev => ({
             ...prev,
-            status: data.status,
+            status: next,
             handledBy: data.handledBy,
             handledAt: data.handledAtFormatted || data.handledAt,
-            providerReason: data.status === 'COMPLETED'
+            providerReason: (next === 'COMPLETED' || next === 'DELIVERED')
               ? `${isRoblox ? 'Robux' : 'Diamonds'} credited by Admin ${data.handledBy || ''}!`
               : 'Order cancelled by Admin.',
           }));
@@ -771,7 +777,7 @@ export default function GameDetailPage({
     const pollInterval = setInterval(checkOrderStatus, 1000);
 
     return () => clearInterval(pollInterval);
-  }, [stage, completedOrder?.ref, completedOrder?.status, isRoblox]);
+  }, [stage, completedOrder?.ref, completedOrder?.status, isRoblox, isManualGame]);
 
   const [isRefCopied, setIsRefCopied] = useState(false);
 
@@ -1862,8 +1868,12 @@ export default function GameDetailPage({
         {/* STAGE 4: ORDER COMPLETED / PROCESSING RECEIPT */}
         {stage === 'completed' && completedOrder && (() => {
           const o = completedOrder;
-          const isProcessing = o.status === 'PROCESSING';
-          const isFailed = o.status === 'FAILED' || o.status === 'CANCELLED';
+          const statusU = String(o.status || '').toUpperCase();
+          // RoS Legacy / manual orders waiting for an admin to top up & approve are shown as
+          // "in progress" (not failed) until the admin makes a final decision.
+          const awaitingAdmin = isManualGame && ['PROCESSING', 'PENDING', 'FAILED'].includes(statusU);
+          const isProcessing = statusU === 'PROCESSING' || awaitingAdmin;
+          const isFailed = !isProcessing && (statusU === 'FAILED' || statusU === 'CANCELLED');
           const isSuccess = !isProcessing && !isFailed;
           const playerName = o.verifiedPlayer || o.playerDetails?.username || o.playerDetails?.account || o.playerDetails?.userId || '—';
           const dateStr = new Date(o.timestamp || Date.now()).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });

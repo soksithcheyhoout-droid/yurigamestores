@@ -1811,12 +1811,12 @@ export default function GameDetailPage({
         {/* STAGE 2: BAKONG KHQR PAYMENT — popup modal over the order form */}
         {stage === 'payment' && (
           <div
-            className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/75 p-3 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4"
+            className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200"
             onClick={() => setStage('form')}
           >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative my-auto w-full max-w-md rounded-2xl border border-slate-800 bg-[#15161b] p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] animate-in zoom-in-95 duration-200 sm:p-6"
+            className="no-scrollbar relative my-auto max-h-[88vh] w-full max-w-[360px] overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-800 bg-[#15161b] p-4 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] animate-in zoom-in-95 duration-200 sm:max-w-sm sm:p-6"
           >
             <button
               type="button"

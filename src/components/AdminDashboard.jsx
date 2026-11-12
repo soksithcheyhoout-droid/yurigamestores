@@ -461,7 +461,7 @@ export default function AdminDashboard({ onBackToStore }) {
       });
       let data = null;
       try { data = await res.json(); } catch { }
-      setStage(res.ok && data?.success ? 'PASSWORD' : 'BLANK');
+      setStage(res.ok && data?.success ? 'REQUEST' : 'BLANK');
     } catch {
       setStage('BLANK');
     } finally {
@@ -470,17 +470,9 @@ export default function AdminDashboard({ onBackToStore }) {
   };
 
   // Step 1: request a Telegram possession challenge; no reusable PIN is sent.
-  const handleSubmitPassword = async (e) => {
+  const handleRequestOtp = async (e) => {
     e?.preventDefault();
     if (isLoggingIn) return;
-
-    // Read the password straight from the DOM input (source of truth) so a browser
-    // autofill or a controlled-input state desync can never send an empty/stale value.
-    const typedPassword = String(passwordRef.current?.value ?? passwordInput ?? '').trim();
-    if (!typedPassword) {
-      setAuthError('Please enter the admin password.');
-      return;
-    }
 
     setIsLoggingIn(true);
     setAuthError('');
@@ -488,7 +480,7 @@ export default function AdminDashboard({ onBackToStore }) {
       const res = await fetch('/api/admin/auth/login-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: adminToken, password: typedPassword })
+        body: JSON.stringify({ token: adminToken })
       });
       let data = null;
       try {
@@ -1573,7 +1565,7 @@ export default function AdminDashboard({ onBackToStore }) {
   if (!isAuthenticated) {
     // The panel is reached ONLY via a valid Telegram /admin link. A bare or invalid
     // /admin visit shows a blank screen — no form, no hint the panel exists.
-    if (stage !== 'PASSWORD' && stage !== 'OTP') {
+    if (stage !== 'REQUEST' && stage !== 'OTP') {
       if (stage === 'CHECKING') {
         return (
           <div className="min-h-screen bg-[#07080b] flex items-center justify-center">
@@ -1595,7 +1587,7 @@ export default function AdminDashboard({ onBackToStore }) {
         <div className="w-full max-w-md bg-[#0e1017] border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-2 bg-gradient-to-r from-transparent via-[#E3062F] to-transparent opacity-80" />
 
-          {stage === 'PASSWORD' ? (
+          {stage === 'REQUEST' ? (
             <>
               <div className="text-center mb-6">
                 <div className="inline-block mb-3 p-3 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
@@ -1605,13 +1597,13 @@ export default function AdminDashboard({ onBackToStore }) {
                   <ShieldCheck size={14} />
                   <span>Verified Telegram Link</span>
                 </div>
-                <h1 className="text-2xl font-black text-white m-0">Enter Admin Password</h1>
+                <h1 className="text-2xl font-black text-white m-0">Admin Verification</h1>
                 <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                  Step 1 of 2. Enter the admin password to receive a one-time code in your Telegram admin group.
+                  Step 1 of 2. Tap below to send a 6-digit one-time code to your Telegram admin group.
                 </p>
               </div>
 
-              <form onSubmit={handleSubmitPassword} className="flex flex-col gap-4">
+              <form onSubmit={handleRequestOtp} className="flex flex-col gap-4">
                 {authError && (
                   <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
                     <AlertCircle size={16} className="shrink-0" />
@@ -1619,44 +1611,20 @@ export default function AdminDashboard({ onBackToStore }) {
                   </div>
                 )}
 
-                <div className="relative">
-                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input
-                    ref={passwordRef}
-                    type={showPassword ? 'text' : 'password'}
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    name="admin-panel-password"
-                    autoComplete="off"
-                    placeholder="Admin password"
-                    autoFocus
-                    required
-                    className="w-full h-12 pl-10 pr-11 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 bg-transparent border-0 cursor-pointer p-0"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-
                 <button
                   type="submit"
-                  disabled={isLoggingIn || !passwordInput}
+                  disabled={isLoggingIn}
                   className="w-full h-12 rounded-xl bg-gradient-to-r from-[#E3062F] to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white font-black text-sm tracking-wide shadow-lg cursor-pointer transition-transform active:scale-[0.98] border-0 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isLoggingIn ? (
                     <>
                       <RefreshCw size={16} className="animate-spin" />
-                      <span>Checking...</span>
+                      <span>Sending code...</span>
                     </>
                   ) : (
                     <>
                       <Send size={16} />
-                      <span>Continue</span>
+                      <span>Send OTP to Telegram group</span>
                     </>
                   )}
                 </button>
@@ -1730,7 +1698,7 @@ export default function AdminDashboard({ onBackToStore }) {
                   <button
                     type="button"
                     onClick={() => {
-                      setStage('PASSWORD');
+                      setStage('REQUEST');
                       setAuthError('');
                       setOtpCode('');
                     }}

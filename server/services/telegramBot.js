@@ -758,7 +758,7 @@ async function handleIncomingMessage(msg) {
       `👉 <b>Direct Access URL:</b>`,
       `<code>${adminUrl}</code>`,
       ``,
-      `🔐 <i>This link is single-use, expires after 10 minutes, and creates a browser-bound HttpOnly session.</i>`,
+      `🔐 <i>This link expires after 30 minutes. After opening it you must enter the admin password, then a 6-digit OTP sent to this group.</i>`,
       ``,
       `🛠️ <b>Dashboard Control Features:</b>`,
       `1️⃣ <b>Products & Prices:</b> Add, Edit, Delete, Stock, Promos & custom diamond/robux icons`,
@@ -768,7 +768,7 @@ async function handleIncomingMessage(msg) {
       `5️⃣ <b>Slide Banners:</b> Add, change, and toggle promo hero banners`,
       `6️⃣ <b>Stock Control:</b> 1-click toggle Stock Open / Closed for each game`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `⚡ <i>Single-use link active for 10 minutes. Tap below to launch:</i>`,
+      `⚡ <i>Link active for 30 minutes. Tap below, then enter the admin password + OTP:</i>`,
     ].join('\n');
 
     await telegramRequest('sendMessage', {
@@ -853,37 +853,39 @@ export async function sendAdminLoginOtp(otpCode, ip = 'Unknown', userAgent = '')
     `⚠️ <i>Do NOT share this code with anyone. If you did not initiate this login, ignore it and review your admin security settings.</i>`
   ].join('\n');
 
-  // OTP codes are delivered to private registered admin chats first
-  const targets = [...new Set(adminIds.filter(Boolean))];
-  const results = await Promise.allSettled(
-    targets.map((chatId) =>
-      telegramRequest('sendMessage', {
-        chat_id: chatId,
-        text,
-        parse_mode: 'HTML',
-      })
-    )
-  );
-  let sentCount = results.filter((result) => result.status === 'fulfilled' && result.value?.ok === true).length;
-
-  // Fallback to Admin Supergroup if private DM is not started by the admin user
-  if (sentCount === 0 && groupId) {
+  // The 2FA OTP is delivered to the admin Telegram GROUP first, so any on-duty admin
+  // can read the code the moment the password step is passed.
+  let sentCount = 0;
+  if (groupId) {
     try {
       const groupRes = await telegramRequest('sendMessage', {
         chat_id: groupId,
-        text: `${text}\n\n<i>(Delivered to Admin Group as fallback)</i>`,
+        text,
         parse_mode: 'HTML',
       });
-      if (groupRes?.ok) {
-        sentCount++;
-      }
-    } catch (fallbackErr) {
-      console.warn('[Admin 2FA] Fallback group delivery failed:', fallbackErr?.message || fallbackErr);
+      if (groupRes?.ok) sentCount++;
+    } catch (groupErr) {
+      console.warn('[Admin 2FA] Group OTP delivery failed:', groupErr?.message || groupErr);
     }
   }
 
+  // Fallback to private registered admin DMs only if the group delivery failed.
+  const targets = [...new Set(adminIds.filter(Boolean))];
   if (sentCount === 0) {
-    throw new Error('Telegram rejected all configured OTP destinations. Please ensure the bot is started in private chat (/start) or the bot is in your Telegram admin group.');
+    const results = await Promise.allSettled(
+      targets.map((chatId) =>
+        telegramRequest('sendMessage', {
+          chat_id: chatId,
+          text,
+          parse_mode: 'HTML',
+        })
+      )
+    );
+    sentCount = results.filter((result) => result.status === 'fulfilled' && result.value?.ok === true).length;
+  }
+
+  if (sentCount === 0) {
+    throw new Error('Telegram rejected all configured OTP destinations. Please ensure the bot is in your Telegram admin group, or started in private chat (/start).');
   }
   return { sentCount, totalTargets: targets.length };
 }

@@ -63,6 +63,7 @@ import {
   getAdminFullConfig,
   loadAdminConfigFromDb,
   consumeAdminToken,
+  verifyAdminToken,
   createAdminSession,
   requestAdminOtp,
   verifyAdminOtp,
@@ -391,6 +392,20 @@ function verifyPassword(password, storedHash) {
   try {
     const computedHash = crypto.scryptSync(password, salt, 64).toString('hex');
     return crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(originalHash, 'hex'));
+  } catch {
+    return false;
+  }
+}
+
+// Admin control-panel password: second factor after the Telegram link, before the OTP.
+// Overridable via the ADMIN_PASSWORD env var on Railway.
+const ADMIN_PANEL_PASSWORD = String(process.env.ADMIN_PASSWORD || 'yuri@_yuri2026');
+function adminPanelPasswordMatches(input) {
+  const a = Buffer.from(String(input || ''), 'utf8');
+  const b = Buffer.from(ADMIN_PANEL_PASSWORD, 'utf8');
+  if (a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(a, b);
   } catch {
     return false;
   }
@@ -3128,10 +3143,34 @@ function getClientIp(req) {
   return getRequestIp(req);
 }
 
-// 2A. Step 1: Dispatch a Telegram possession challenge (no reusable browser PIN).
+// 2.0 Validate a Telegram one-click link (does NOT consume it). The page only reveals
+// the password step when this returns success; any bare/invalid /admin visit stays blank.
+app.post('/api/admin/auth/link', (req, res) => {
+  const { token } = req.body || {};
+  if (token && verifyAdminToken(token)) {
+    return res.json({ success: true });
+  }
+  return res.status(401).json({ success: false, error: 'Invalid or expired admin link.' });
+});
+
+// 2A. Step 1: Validate link + admin password, then dispatch the Telegram OTP to the admin group.
 app.post('/api/admin/auth/login-request', async (req, res) => {
   const clientIp = getClientIp(req);
   const userAgent = req.headers['user-agent'] || 'Web Browser';
+  const { token, password } = req.body || {};
+
+  // Must still hold a valid (unexpired) Telegram one-click link.
+  if (!token || !verifyAdminToken(token)) {
+    return res.status(401).json({
+      success: false,
+      error: 'Your admin link is invalid or expired. Send /admin in Telegram for a new link.'
+    });
+  }
+
+  // Must know the admin control-panel password.
+  if (!adminPanelPasswordMatches(password)) {
+    return res.status(401).json({ success: false, error: 'Incorrect admin password.' });
+  }
 
   try {
     const result = await requestAdminOtp(clientIp, userAgent, sendAdminLoginOtp);
@@ -3140,7 +3179,7 @@ app.post('/api/admin/auth/login-request', async (req, res) => {
       requireOtp: true,
       challengeId: result.challengeId,
       expiresInSeconds: result.expiresInSeconds,
-      message: 'A 6-digit verification code has been dispatched to registered Telegram admins.'
+      message: 'A 6-digit verification code has been dispatched to the Telegram admin group.'
     });
   } catch (err) {
     return res.status(503).json({
@@ -3220,25 +3259,14 @@ app.post('/api/admin/auth/logout', (req, res) => {
   return res.json({ success: true, message: 'Admin logged out successfully.' });
 });
 
-// 2F. Exchange a single-use Telegram link for a bound HttpOnly session.
+// 2F. (Retired) The old one-click link -> session path is disabled. Admin login now
+// ALWAYS requires link + password + Telegram OTP, so a leaked/shared link alone can
+// never create a session. Returns 410 so any stale client cannot bypass the factors.
 app.post('/api/admin/auth/verify', (req, res) => {
-  const { token } = req.body || {};
-  const oneClickEntry = token ? consumeAdminToken(token) : null;
-
-  if (oneClickEntry) {
-    const clientIp = getClientIp(req);
-    const userAgent = req.headers['user-agent'] || 'Web Browser';
-    const session = createAdminSession(clientIp, userAgent, oneClickEntry.adminUserId || 'telegram_admin');
-    setAdminSessionCookie(req, res, session.token, session.expiresAt);
-    return res.json({
-      success: true,
-      authenticated: true,
-      expiresAt: session.expiresAt,
-      message: 'Single-use Telegram link exchanged for a protected admin session.'
-    });
-  }
-
-  return res.status(401).json({ success: false, error: 'Invalid, expired, or already-used Telegram admin link.' });
+  return res.status(410).json({
+    success: false,
+    error: 'This login method is retired. Open your Telegram /admin link, then enter the admin password and the OTP.'
+  });
 });
 
 // 3. Full Admin Configuration

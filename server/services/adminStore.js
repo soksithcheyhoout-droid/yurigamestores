@@ -1014,7 +1014,7 @@ export function generateAdminToken(adminUserId = '') {
 
   const token = crypto.randomBytes(24).toString('hex');
 
-  const expiresAt = Date.now() + 10 * 60 * 1000; // one-click links expire after 10 minutes
+  const expiresAt = Date.now() + 30 * 60 * 1000; // one-click links expire after 30 minutes
 
   activeAdminTokens.set(token, {
 

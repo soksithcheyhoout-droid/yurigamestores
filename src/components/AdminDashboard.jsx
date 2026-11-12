@@ -113,7 +113,10 @@ function getFallbackBanner(slugOrCode) {
 
 export default function AdminDashboard({ onBackToStore }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginStep, setLoginStep] = useState('REQUEST'); // 'REQUEST' | 'OTP'
+  const [stage, setStage] = useState('CHECKING'); // CHECKING | BLANK | PASSWORD | OTP
+  const [adminToken, setAdminToken] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [challengeId, setChallengeId] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpTimer, setOtpTimer] = useState(300);
@@ -402,7 +405,8 @@ export default function AdminDashboard({ onBackToStore }) {
       try {
         window.history.replaceState({}, '', '/admin');
       } catch { }
-      verifyOneClickToken(token);
+      setAdminToken(token);
+      checkAdminLink(token);
     } else {
       verifyExistingSession();
     }
@@ -410,14 +414,14 @@ export default function AdminDashboard({ onBackToStore }) {
 
   // Timer countdown for Telegram OTP
   useEffect(() => {
-    if (!isAuthenticated && loginStep === 'OTP') {
+    if (!isAuthenticated && stage === 'OTP') {
       const interval = setInterval(() => {
         setOtpTimer((prev) => (prev > 0 ? prev - 1 : 0));
         setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, loginStep]);
+  }, [isAuthenticated, stage]);
 
   // Server verification of the bound HttpOnly session.
   const verifyExistingSession = async () => {
@@ -433,48 +437,39 @@ export default function AdminDashboard({ onBackToStore }) {
         fetchOrders();
       } else {
         setIsAuthenticated(false);
+        setStage('BLANK');
       }
     } catch {
       setIsAuthenticated(false);
+      setStage('BLANK');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Exchange the short-lived, single-use Telegram link for an HttpOnly session.
-  const verifyOneClickToken = async (token) => {
-    setIsLoggingIn(true);
+  // Validate the Telegram one-click link WITHOUT consuming it. Valid → reveal the
+  // password step; invalid/expired → stay blank so the panel remains hidden.
+  const checkAdminLink = async (token) => {
+    setStage('CHECKING');
     setAuthError('');
     try {
-      const res = await fetch('/api/admin/auth/verify', {
+      const res = await fetch('/api/admin/auth/link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token })
       });
       let data = null;
       try { data = await res.json(); } catch { }
-
-      if (res.ok && data?.success && data?.authenticated) {
-        setIsAuthenticated(true);
-        fetchFullConfig();
-        fetchOrders();
-      } else if (data?.error) {
-        setAuthError(data.error);
-      } else if (res.status === 502 || res.status === 503) {
-        setAuthError('Server is temporarily reloading. Please retry in a few seconds.');
-      } else {
-        setAuthError('One-click link is invalid, expired, or already used. Send /admin to the Telegram bot for a new link.');
-      }
+      setStage(res.ok && data?.success ? 'PASSWORD' : 'BLANK');
     } catch {
-      setAuthError('Connection error verifying the one-click Telegram link.');
+      setStage('BLANK');
     } finally {
-      setIsLoggingIn(false);
       setIsLoading(false);
     }
   };
 
   // Step 1: request a Telegram possession challenge; no reusable PIN is sent.
-  const handleRequestOtp = async (e) => {
+  const handleSubmitPassword = async (e) => {
     e?.preventDefault();
     if (isLoggingIn) return;
 
@@ -484,7 +479,7 @@ export default function AdminDashboard({ onBackToStore }) {
       const res = await fetch('/api/admin/auth/login-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify({ token: adminToken, password: passwordInput })
       });
       let data = null;
       try {
@@ -495,11 +490,12 @@ export default function AdminDashboard({ onBackToStore }) {
 
       if (res.ok && data?.success && data?.requireOtp) {
         setChallengeId(data.challengeId);
-        setLoginStep('OTP');
+        setStage('OTP');
         setOtpCode('');
         setOtpTimer(data.expiresInSeconds || 300);
         setResendCooldown(45);
-        showToast('Verification code dispatched to Telegram admins');
+        setPasswordInput('');
+        showToast('Verification code sent to the Telegram admin group');
       } else if (data?.error) {
         setAuthError(data.error);
       } else if (res.status === 502 || res.status === 503) {
@@ -509,7 +505,7 @@ export default function AdminDashboard({ onBackToStore }) {
       } else if (res.status === 429) {
         setAuthError('Too many attempts. Please wait a moment before trying again.');
       } else {
-        setAuthError(`Authentication failed (${res.status || 'Offline'}). Please retry.`);
+        setAuthError(`Login failed (${res.status || 'Offline'}). Please retry.`);
       }
     } catch {
       setAuthError(
@@ -806,7 +802,9 @@ export default function AdminDashboard({ onBackToStore }) {
     }).catch(() => { });
     sessionStorage.removeItem('yurigame_admin_token');
     setIsAuthenticated(false);
-    setLoginStep('REQUEST');
+    setStage('BLANK');
+    setAdminToken('');
+    setPasswordInput('');
     setOtpCode('');
     setChallengeId('');
     if (reason) {
@@ -1564,18 +1562,188 @@ export default function AdminDashboard({ onBackToStore }) {
   // RENDER: LOGIN SCREEN WITH TELEGRAM 2FA (No emojis, 100% SVG)
   // ========================================================
   if (!isAuthenticated) {
-    // Access is granted ONLY through the single-use Telegram /admin link.
-    // A bare /admin visit must reveal nothing: no login form, no hint the panel exists.
-    if (isLoggingIn) {
-      // Redeeming a one-click Telegram link — neutral, unbranded loader.
-      return (
-        <div className="min-h-screen bg-[#07080b] flex items-center justify-center">
-          <RefreshCw size={22} className="animate-spin text-slate-700" />
-        </div>
-      );
+    // The panel is reached ONLY via a valid Telegram /admin link. A bare or invalid
+    // /admin visit shows a blank screen — no form, no hint the panel exists.
+    if (stage !== 'PASSWORD' && stage !== 'OTP') {
+      if (stage === 'CHECKING') {
+        return (
+          <div className="min-h-screen bg-[#07080b] flex items-center justify-center">
+            <RefreshCw size={22} className="animate-spin text-slate-700" />
+          </div>
+        );
+      }
+      return <div className="min-h-screen bg-[#07080b]" />;
     }
-    // Nothing to redeem and no valid session → behave as if this page does not exist.
-    return <div className="min-h-screen bg-[#07080b]" />;
+
+    const formatTimer = (seconds) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    };
+
+    return (
+      <div className="min-h-screen bg-[#07080b] flex flex-col items-center justify-center p-4 text-slate-200 font-['Outfit']">
+        <div className="w-full max-w-md bg-[#0e1017] border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-2 bg-gradient-to-r from-transparent via-[#E3062F] to-transparent opacity-80" />
+
+          {stage === 'PASSWORD' ? (
+            <>
+              <div className="text-center mb-6">
+                <div className="inline-block mb-3 p-3 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
+                  <YuriGameLogo inverse />
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-black uppercase tracking-wider mb-2">
+                  <ShieldCheck size={14} />
+                  <span>Verified Telegram Link</span>
+                </div>
+                <h1 className="text-2xl font-black text-white m-0">Enter Admin Password</h1>
+                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                  Step 1 of 2. Enter the admin password to receive a one-time code in your Telegram admin group.
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmitPassword} className="flex flex-col gap-4">
+                {authError && (
+                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle size={16} className="shrink-0" />
+                    <span>{authError}</span>
+                  </div>
+                )}
+
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    placeholder="Admin password"
+                    autoFocus
+                    required
+                    className="w-full h-12 pl-10 pr-11 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 bg-transparent border-0 cursor-pointer p-0"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoggingIn || !passwordInput}
+                  className="w-full h-12 rounded-xl bg-gradient-to-r from-[#E3062F] to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white font-black text-sm tracking-wide shadow-lg cursor-pointer transition-transform active:scale-[0.98] border-0 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isLoggingIn ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      <span>Checking...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      <span>Continue</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="text-center mb-6">
+                <div className="inline-block mb-3 p-3 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
+                  <YuriGameLogo inverse />
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-black uppercase tracking-wider mb-2">
+                  <Smartphone size={14} />
+                  <span>Telegram 2FA Challenge</span>
+                </div>
+                <h1 className="text-2xl font-black text-white m-0">Enter Verification Code</h1>
+                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                  Step 2 of 2. A 6-digit one-time code was sent to your Telegram admin group. Enter it below to finish signing in.
+                </p>
+                <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 text-xs font-mono">
+                  <Clock size={13} className={otpTimer < 60 ? 'text-rose-400' : 'text-slate-400'} />
+                  <span>Expires in: {formatTimer(otpTimer)}</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 text-center">
+                    6-Digit Verification Code (OTP)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="000000"
+                    autoFocus
+                    required
+                    className="w-full h-14 px-4 rounded-xl bg-slate-900/90 border border-slate-700 text-white font-mono text-2xl tracking-[0.4em] text-center focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  />
+                </div>
+
+                {authError && (
+                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle size={16} className="shrink-0" />
+                    <span>{authError}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoggingIn || otpCode.length !== 6 || otpTimer === 0}
+                  className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-sm tracking-wide shadow-lg cursor-pointer transition-transform active:scale-[0.98] border-0 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isLoggingIn ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck size={18} />
+                      <span>Confirm &amp; Access Dashboard</span>
+                    </>
+                  )}
+                </button>
+
+                <div className="flex items-center justify-between pt-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStage('PASSWORD');
+                      setAuthError('');
+                      setOtpCode('');
+                    }}
+                    className="text-slate-400 hover:text-white flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0"
+                  >
+                    <ArrowLeft size={13} />
+                    <span>Back</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={resendCooldown > 0 || isLoggingIn}
+                    className="text-slate-400 hover:text-white flex items-center gap-1.5 bg-transparent border-0 cursor-pointer p-0 disabled:opacity-50"
+                  >
+                    <RefreshCw size={13} className={resendCooldown > 0 ? '' : 'text-emerald-400'} />
+                    <span>{resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}</span>
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+        </div>
+      </div>
+    );
   }
 
   const selectedGame = config?.games?.find((g) => g.id === selectedGameId) || config?.games?.[0];

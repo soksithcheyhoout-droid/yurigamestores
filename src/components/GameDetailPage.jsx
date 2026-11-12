@@ -125,6 +125,9 @@ export default function GameDetailPage({
   // Imported/custom provider games (anything beyond the 4 core games) use format-only verification.
   const _ffCore = isFreeFire;
   const isImportedGame = game?.provider === 'soratopup' && !isRoS && !isRoblox && !isMobileLegends && !_ffCore;
+  // RoS Angkor auto-delivers via a real provider lookup, so it must NOT fall back to
+  // format-only acceptance — a fake but numeric ID has to be rejected.
+  const isRosAngkor = game?.providerCode === 'rosangkor' || game?.id === 'rosangkor';
   const verificationButtonLabel = isRoblox
     ? 'Check Roblox username'
     : isRoS
@@ -154,7 +157,7 @@ export default function GameDetailPage({
   const isAccountVerified = Boolean(
     verifiedProfile?.verified === true ||
     (isManualGame && (verifiedProfile?.formatValid === true || verifiedProfile?.verified === true)) ||
-    (isImportedGame && (verifiedProfile?.formatValid === true || verifiedProfile?.verified === true)) ||
+    (isImportedGame && !isRosAngkor && (verifiedProfile?.formatValid === true || verifiedProfile?.verified === true)) ||
     (isRoS && formData.account && formData.password) ||
     (isRoblox && formData.userId && formData.userId.trim().length >= 3)
   );
@@ -418,7 +421,9 @@ export default function GameDetailPage({
       const providerGameCode = game.providerCode || game.id || 'ml';
       const result = await verifySoraPlayer(providerGameCode, fieldValues);
 
-      const allowFormatOnly = providerGameCode === 'roslegacy' || isImportedGame;
+      // RoS Angkor has a real provider lookup, so never accept format-only: a numeric but
+      // non-existent ID (or an API/IP error) must be rejected, not shown as "Verified Player".
+      const allowFormatOnly = (providerGameCode === 'roslegacy' || isImportedGame) && !isRosAngkor;
       if (!result.verified && (!allowFormatOnly || !result.formatValid)) {
         setFormError(result.message || 'Player account was not found on official game servers. Please double-check your ID.');
         setVerifiedProfile(null);

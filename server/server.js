@@ -3364,38 +3364,6 @@ function sanitizeUploadPayload(body = {}, prefix = 'img') {
   return clone;
 }
 
-// TEMP explorer for RosAngkor (remove after wiring). Calls go through the Fixie proxy.
-app.get('/api/debug/rosangkor', async (req, res) => {
-  if (req.query.k !== 'yg_diag_8731') return res.status(404).json({ error: 'not found' });
-  const out = {
-    configured: rosangkorConfigured(),
-    proxySet: Boolean(process.env.ROSANGKOR_PROXY_URL),
-    keySet: Boolean(process.env.ROSANGKOR_API_KEY),
-    baseUrl: process.env.ROSANGKOR_BASE_URL || '(default)',
-  };
-  const paths = String(req.query.paths || '/me,/balance,/topups,/topups/products,/prices,/topups/prices').split(',');
-  for (const p of paths) {
-    try {
-      const r = await rosangkorRequest(p.trim());
-      out[p.trim()] = { status: r.status, payload: r.payload };
-    } catch (e) {
-      out[p.trim()] = { error: e.message };
-    }
-  }
-  // Safe POST probe to reveal required create-order fields (empty body -> validation error, no order created).
-  if (req.query.postprobe) {
-    let bodyObj = {};
-    try { bodyObj = req.query.body ? JSON.parse(Buffer.from(String(req.query.body), 'base64').toString('utf8')) : {}; } catch { bodyObj = {}; }
-    try {
-      const r = await rosangkorRequest(String(req.query.postprobe), { method: 'POST', body: bodyObj, form: req.query.form === '1' });
-      out[`POST ${req.query.postprobe}`] = { status: r.status, payload: r.payload, sent: bodyObj, form: req.query.form === '1' };
-    } catch (e) {
-      out[`POST ${req.query.postprobe}`] = { error: e.message };
-    }
-  }
-  return res.json(out);
-});
-
 // 4a. Provider catalog — list ALL Bay2Game games for the admin "Add Game" picker.
 app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {
   try {

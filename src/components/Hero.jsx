@@ -138,7 +138,6 @@ export default function Hero({ onSelectGame }) {
   const [direction, setDirection] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   const [isOpeningSlide, setIsOpeningSlide] = useState(false);
-  const [stageRatio, setStageRatio] = useState(null);
   const touchStartX = useRef(null);
   const didSwipe = useRef(false);
 
@@ -319,10 +318,7 @@ export default function Hero({ onSelectGame }) {
             </div>
           </div>
 
-          <div
-            className="topbar-promo-stage"
-            style={stageRatio ? { aspectRatio: String(stageRatio), maxHeight: 'none' } : undefined}
-          >
+          <div className="topbar-promo-stage">
             <article
               className="topbar-promo-card"
               aria-roledescription="slide"
@@ -376,16 +372,6 @@ export default function Hero({ onSelectGame }) {
                         loading="eager"
                         fetchPriority="high"
                         draggable="false"
-                        onLoad={(event) => {
-                          const { naturalWidth, naturalHeight } = event.currentTarget;
-                          if (naturalWidth > 0 && naturalHeight > 0) {
-                            const ratio = naturalWidth / naturalHeight;
-                            // Card takes the shape of whatever image the admin uploads,
-                            // so it always fills edge-to-edge (no crop, no gaps).
-                            // Clamp only guards against a pathological non-banner upload.
-                            setStageRatio(Math.min(4, Math.max(1.5, ratio)));
-                          }
-                        }}
                         onError={(event) => {
                           const currentSrc = event.currentTarget.src;
                           const fb = getFallbackBannerForSlide(activeSlide);

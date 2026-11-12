@@ -1960,6 +1960,12 @@ input:focus-visible {
     border-radius: 18px;
   }
 
+  /* Phones: fill the frame edge-to-edge (no blurred-fill gaps, slight crop is fine). */
+  .topbar-promo-image {
+    object-fit: cover;
+    object-position: center;
+  }
+
   .topbar-promo-navigation {
     min-height: 46px;
     grid-template-columns: minmax(0, 1fr) auto;

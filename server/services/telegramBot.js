@@ -730,11 +730,14 @@ async function handleIncomingMessage(msg) {
       return;
     }
 
-    // Strict Security Rule: Never post one-click admin tokens or PINs into groups!
-    if (msg.chat?.type !== 'private') {
+    // The admin link may be generated in a private DM with the bot OR inside the
+    // official admin supergroup (set via TELEGRAM_GROUP_ID). Never in any other group.
+    const isPrivateChat = msg.chat?.type === 'private';
+    const isTrustedGroup = groupId && String(chatId) === String(groupId);
+    if (!isPrivateChat && !isTrustedGroup) {
       await telegramRequest('sendMessage', {
         chat_id: chatId,
-        text: `⚠️ <b>Security Notice</b>\n\nAdmin links can only be generated in a private direct message.\nPlease message this bot directly in private chat.`,
+        text: `⚠️ <b>Security Notice</b>\n\nAdmin links can only be generated in a private direct message with this bot, or inside the official YuriGame admin group.`,
         parse_mode: 'HTML',
       });
       return;

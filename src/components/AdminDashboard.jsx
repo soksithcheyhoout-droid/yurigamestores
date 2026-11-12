@@ -117,6 +117,7 @@ export default function AdminDashboard({ onBackToStore }) {
   const [adminToken, setAdminToken] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const passwordRef = useRef(null);
   const [challengeId, setChallengeId] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpTimer, setOtpTimer] = useState(300);
@@ -473,13 +474,21 @@ export default function AdminDashboard({ onBackToStore }) {
     e?.preventDefault();
     if (isLoggingIn) return;
 
+    // Read the password straight from the DOM input (source of truth) so a browser
+    // autofill or a controlled-input state desync can never send an empty/stale value.
+    const typedPassword = String(passwordRef.current?.value ?? passwordInput ?? '').trim();
+    if (!typedPassword) {
+      setAuthError('Please enter the admin password.');
+      return;
+    }
+
     setIsLoggingIn(true);
     setAuthError('');
     try {
       const res = await fetch('/api/admin/auth/login-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: adminToken, password: passwordInput })
+        body: JSON.stringify({ token: adminToken, password: typedPassword })
       });
       let data = null;
       try {
@@ -1613,9 +1622,12 @@ export default function AdminDashboard({ onBackToStore }) {
                 <div className="relative">
                   <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
+                    ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
+                    name="admin-panel-password"
+                    autoComplete="off"
                     placeholder="Admin password"
                     autoFocus
                     required

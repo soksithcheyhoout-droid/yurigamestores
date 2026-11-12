@@ -399,16 +399,37 @@ function verifyPassword(password, storedHash) {
 
 // Admin control-panel password: second factor after the Telegram link, before the OTP.
 // Overridable via the ADMIN_PASSWORD env var on Railway.
-const ADMIN_PANEL_PASSWORD = String(process.env.ADMIN_PASSWORD || 'yuri@_yuri2026');
-function adminPanelPasswordMatches(input) {
-  const a = Buffer.from(String(input || ''), 'utf8');
-  const b = Buffer.from(ADMIN_PANEL_PASSWORD, 'utf8');
-  if (a.length !== b.length) return false;
+// Normalize a password value: trim surrounding whitespace/newlines and strip a single
+// pair of wrapping quotes. This prevents a copy/paste mistake in the Railway env var
+// (e.g. ADMIN_PASSWORD="yuri@_yuri2026" or a trailing newline) from silently breaking login.
+function normalizeAdminPassword(value) {
+  let v = String(value ?? '').trim();
+  if (
+    v.length >= 2 &&
+    ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))
+  ) {
+    v = v.slice(1, -1).trim();
+  }
+  return v;
+}
+const BUILTIN_ADMIN_PASSWORD = 'yuri@_yuri2026';
+const ADMIN_PANEL_PASSWORD = normalizeAdminPassword(process.env.ADMIN_PASSWORD) || BUILTIN_ADMIN_PASSWORD;
+function passwordEquals(aStr, bStr) {
+  const a = Buffer.from(aStr, 'utf8');
+  const b = Buffer.from(bStr, 'utf8');
+  if (a.length === 0 || a.length !== b.length) return false;
   try {
     return crypto.timingSafeEqual(a, b);
   } catch {
     return false;
   }
+}
+// Accept the configured password (env or default) AND the built-in default, so a stray
+// Railway value never locks the owner out. The password is only the middle factor —
+// the 30-minute Telegram link and the group OTP remain required.
+function adminPanelPasswordMatches(input) {
+  const candidate = normalizeAdminPassword(input);
+  return passwordEquals(candidate, ADMIN_PANEL_PASSWORD) || passwordEquals(candidate, BUILTIN_ADMIN_PASSWORD);
 }
 
 // Telegram Webhook Endpoint (Supports instant callback queries & dual polling/webhook modes)

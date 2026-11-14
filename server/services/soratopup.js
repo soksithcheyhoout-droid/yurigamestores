@@ -2,6 +2,7 @@
 // Auth: api_key passed as a query param (GET) or body field (POST).
 // Endpoints used: /profile, /categories, /products?game_code=, /create_order (POST), /check_order?reference=
 import { createRosAngkorTopup } from './rosangkor.js';
+import { getProviderCredential } from './providerCredentials.js';
 
 const DEFAULT_BASE_URL = 'https://api.bay2game.xyz/api';
 // Roblox (robuxsend) is NOT sold by Bay2Game, so it keeps using the legacy SoraTopup provider.
@@ -156,9 +157,10 @@ function getConfig(provider = 'bay2game') {
   const rawBaseUrl = isSora
     ? (process.env.SORATOPUP_BASE_URL || SORATOPUP_DEFAULT_BASE_URL).trim()
     : (process.env.BAY2GAME_BASE_URL || DEFAULT_BASE_URL).trim();
+  // Admin-panel override (DB) wins over the env var, so keys can be rotated without a redeploy.
   const apiKey = isSora
-    ? (process.env.SORATOPUP_API_KEY || '').trim()
-    : (process.env.BAY2GAME_API_KEY || '').trim();
+    ? (getProviderCredential('soratopup', 'apiKey') || process.env.SORATOPUP_API_KEY || '').trim()
+    : (getProviderCredential('bay2game', 'apiKey') || process.env.BAY2GAME_API_KEY || '').trim();
 
   if (!apiKey) {
     throw new SoraTopupError(`${isSora ? 'Roblox provider (SoraTopup)' : 'Game provider (Bay2Game)'} is not configured.`, {
@@ -189,6 +191,64 @@ function getConfig(provider = 'bay2game') {
     apiKey,
     auth: isSora ? 'bearer' : 'query',
   };
+}
+
+// Live health/validation ping for a top-up provider (hits /profile). Optionally test an override
+// key/baseUrl so the admin panel can validate a NEW key before saving it. Never throws.
+export async function pingTopupProvider(provider = 'bay2game', override = {}) {
+  const isSora = String(provider || '').toLowerCase() === 'soratopup';
+  const baseUrl = String(
+    override.baseUrl ||
+    (isSora
+      ? (getProviderCredential('soratopup', 'baseUrl') || process.env.SORATOPUP_BASE_URL || SORATOPUP_DEFAULT_BASE_URL)
+      : (getProviderCredential('bay2game', 'baseUrl') || process.env.BAY2GAME_BASE_URL || DEFAULT_BASE_URL))
+  ).trim().replace(/\/+$/, '');
+  const apiKey = String(
+    override.apiKey ||
+    (isSora
+      ? (getProviderCredential('soratopup', 'apiKey') || process.env.SORATOPUP_API_KEY)
+      : (getProviderCredential('bay2game', 'apiKey') || process.env.BAY2GAME_API_KEY)) || ''
+  ).trim();
+
+  if (!apiKey) return { ok: false, configured: false, message: 'No API key set.' };
+
+  let parsed;
+  try {
+    parsed = new URL(`${baseUrl}/profile`);
+    if (parsed.protocol !== 'https:') return { ok: false, configured: true, message: 'Base URL must use HTTPS.' };
+  } catch {
+    return { ok: false, configured: true, message: 'Base URL is invalid.' };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const headers = { Accept: 'application/json' };
+    if (isSora) headers.Authorization = `Bearer ${apiKey}`;
+    else parsed.searchParams.set('api_key', apiKey);
+    const response = await fetch(parsed.toString(), { headers, signal: controller.signal });
+    const text = await response.text();
+    let payload = {};
+    try { payload = text ? JSON.parse(text) : {}; } catch { payload = {}; }
+    const logicalError = payload?.status === 'error' || payload?.status === 'failed' || payload?.ok === false;
+    if (!response.ok || logicalError) {
+      return { ok: false, configured: true, status: response.status, message: payload?.message || payload?.error || `HTTP ${response.status}` };
+    }
+    const user = payload?.user || payload || {};
+    return {
+      ok: true,
+      configured: true,
+      account: cleanString(user.username, 80) || cleanString(user.name, 80) || '',
+      balance: Number(user.balance ?? 0),
+      accountStatus: cleanString(user.status, 40) || '',
+      currency: 'USD',
+      message: 'Connected',
+    };
+  } catch (err) {
+    return { ok: false, configured: true, message: err.name === 'AbortError' ? 'Request timed out.' : (err.message || 'Request failed.') };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function providerRequest(path, { provider = 'bay2game', method = 'GET', body, headers = {}, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {

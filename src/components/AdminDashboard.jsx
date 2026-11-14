@@ -151,6 +151,14 @@ export default function AdminDashboard({ onBackToStore }) {
   const [isLoading, setIsLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState('');
 
+  // API & Providers panel
+  const [providerStatus, setProviderStatus] = useState([]);
+  const [providersLoading, setProvidersLoading] = useState(false);
+  const [providersCheckedAt, setProvidersCheckedAt] = useState('');
+  const [providerInputs, setProviderInputs] = useState({}); // { [id]: { apiKey, proxyUrl } }
+  const [providerSavingId, setProviderSavingId] = useState('');
+  const [providerMsg, setProviderMsg] = useState({}); // { [id]: { ok, text } }
+
   // Selected Game for Products Tab
   const [selectedGameId, setSelectedGameId] = useState('robuxsend');
 
@@ -318,6 +326,58 @@ export default function AdminDashboard({ onBackToStore }) {
   const getAuthHeaders = () => ({
     'Content-Type': 'application/json',
   });
+
+  // ---- API & Providers panel ----
+  const fetchProviderStatus = async () => {
+    setProvidersLoading(true);
+    try {
+      const res = await fetch('/api/admin/providers/status', { headers: getAuthHeaders(), cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setProviderStatus(Array.isArray(data.providers) ? data.providers : []);
+        setProvidersCheckedAt(data.checkedAt || new Date().toISOString());
+      } else {
+        showToast(data.error || 'Could not load provider status.');
+      }
+    } catch {
+      showToast('Connection error loading provider status.');
+    } finally {
+      setProvidersLoading(false);
+    }
+  };
+
+  const saveProviderCreds = async (providerId) => {
+    const input = providerInputs[providerId] || {};
+    const body = {};
+    if (input.apiKey && input.apiKey.trim()) body.apiKey = input.apiKey.trim();
+    if (input.proxyUrl && input.proxyUrl.trim()) body.proxyUrl = input.proxyUrl.trim();
+    if (Object.keys(body).length === 0) {
+      setProviderMsg((m) => ({ ...m, [providerId]: { ok: false, text: 'Enter a new key (or proxy) first.' } }));
+      return;
+    }
+    setProviderSavingId(providerId);
+    setProviderMsg((m) => ({ ...m, [providerId]: null }));
+    try {
+      const res = await fetch(`/api/admin/providers/${encodeURIComponent(providerId)}/credentials`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setProviderMsg((m) => ({ ...m, [providerId]: { ok: true, text: data.message || 'Saved and live.' } }));
+        setProviderInputs((p) => ({ ...p, [providerId]: {} }));
+        showToast('Key validated and saved.');
+        fetchProviderStatus();
+      } else {
+        setProviderMsg((m) => ({ ...m, [providerId]: { ok: false, text: data.error || 'This key does not work.' } }));
+      }
+    } catch {
+      setProviderMsg((m) => ({ ...m, [providerId]: { ok: false, text: 'Connection error while validating the key.' } }));
+    } finally {
+      setProviderSavingId('');
+    }
+  };
 
   const isSoraSupportedGame = (gameId) => {
     const clean = String(gameId || '').toLowerCase();
@@ -792,6 +852,12 @@ export default function AdminDashboard({ onBackToStore }) {
     if (!isAuthenticated || activeTab !== 'orders') return;
     const interval = setInterval(() => fetchOrders(), 5000);
     return () => clearInterval(interval);
+  }, [isAuthenticated, activeTab]);
+
+  // Load live provider status when the API & Providers tab is opened.
+  useEffect(() => {
+    if (!isAuthenticated || activeTab !== 'providers') return;
+    fetchProviderStatus();
   }, [isAuthenticated, activeTab]);
 
   // Handle Logout (optionally showing reason)
@@ -1973,6 +2039,18 @@ export default function AdminDashboard({ onBackToStore }) {
           >
             <Send size={15} />
             <span>7. Telegram Bot & Alerts</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('providers')}
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${activeTab === 'providers'
+                ? 'bg-[#E3062F] text-white shadow-lg'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+          >
+            <Activity size={15} />
+            <span>8. API Keys & Status</span>
           </button>
         </div>
       </div>
@@ -4053,6 +4131,133 @@ export default function AdminDashboard({ onBackToStore }) {
         {/* ========================================================= */}
         {/* TAB 6: TELEGRAM BOT & SYSTEM ALERTS (Option 6)            */}
         {/* ========================================================= */}
+        {activeTab === 'providers' && (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-lg font-black text-white">API Keys & Provider Status</h2>
+                <p className="text-xs text-slate-400 mt-0.5 max-w-2xl leading-relaxed">
+                  Live health of every top-up provider. If a key stops working you'll see the exact error here, and you can paste a new key — it's checked against the provider first and only saved if it actually works. Saved keys go live immediately (no redeploy).
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {providersCheckedAt && (
+                  <span className="text-[10px] text-slate-500">Checked {new Date(providersCheckedAt).toLocaleTimeString()}</span>
+                )}
+                <button
+                  type="button"
+                  onClick={fetchProviderStatus}
+                  disabled={providersLoading}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 border-0 cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw size={14} className={providersLoading ? 'animate-spin' : ''} />
+                  <span>Re-check all</span>
+                </button>
+              </div>
+            </div>
+
+            {providersLoading && providerStatus.length === 0 ? (
+              <div className="flex items-center justify-center py-16 text-slate-500">
+                <RefreshCw size={20} className="animate-spin" />
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {providerStatus.map((p) => {
+                  const input = providerInputs[p.id] || {};
+                  const msg = providerMsg[p.id];
+                  return (
+                    <div key={p.id} className="rounded-2xl border border-slate-800 bg-[#0e1017] p-4 sm:p-5">
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="flex items-start gap-2.5">
+                          <span className={`mt-1 flex h-2.5 w-2.5 rounded-full ${p.ok ? 'bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/60' : 'bg-rose-500 shadow-[0_0_8px] shadow-rose-500/60'}`} />
+                          <div>
+                            <div className="text-sm font-black text-white">{p.label}</div>
+                            <div className={`text-xs mt-0.5 ${p.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              {p.ok ? 'Working' : 'Not working'}
+                              {p.account ? ` — ${p.account}` : ''}
+                              {(typeof p.balance === 'number' && p.ok) ? ` • Balance ${p.currency === 'USD' || !p.currency ? '$' : `${p.currency} `}${Number(p.balance).toFixed(2)}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${p.ok ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'}`}>
+                          {p.ok ? 'Online' : 'Error'}
+                        </span>
+                      </div>
+
+                      {!p.ok && p.message && (
+                        <div className="mt-3 p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
+                          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                          <span>{p.message}</span>
+                        </div>
+                      )}
+
+                      <div className="mt-3 grid gap-1.5 text-[11px]">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-slate-500">Current key:</span>
+                          <code className="text-slate-300 bg-slate-900 px-1.5 py-0.5 rounded font-mono">{p.keyMasked || '— none —'}</code>
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${p.keySource === 'admin' ? 'bg-sky-500/15 text-sky-300' : p.keySource === 'env' ? 'bg-slate-700 text-slate-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                            {p.keySource === 'admin' ? 'set in panel' : p.keySource === 'env' ? 'from Railway' : 'missing'}
+                          </span>
+                        </div>
+                        {p.id === 'rosangkor' && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-slate-500">Proxy:</span>
+                            <code className="text-slate-300 bg-slate-900 px-1.5 py-0.5 rounded font-mono">{p.proxyMasked || '— none —'}</code>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${p.proxySource === 'admin' ? 'bg-sky-500/15 text-sky-300' : p.proxySource === 'env' ? 'bg-slate-700 text-slate-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                              {p.proxySource === 'admin' ? 'set in panel' : p.proxySource === 'env' ? 'from Railway' : 'missing'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {p.editable ? (
+                        <div className="mt-3.5 pt-3.5 border-t border-slate-800/80 grid gap-2">
+                          <input
+                            type="text"
+                            value={input.apiKey || ''}
+                            onChange={(e) => setProviderInputs((prev) => ({ ...prev, [p.id]: { ...prev[p.id], apiKey: e.target.value } }))}
+                            placeholder="Paste new API key"
+                            autoComplete="off"
+                            className="w-full h-10 px-3 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-emerald-500"
+                          />
+                          {p.id === 'rosangkor' && (
+                            <input
+                              type="text"
+                              value={input.proxyUrl || ''}
+                              onChange={(e) => setProviderInputs((prev) => ({ ...prev, [p.id]: { ...prev[p.id], proxyUrl: e.target.value } }))}
+                              placeholder="Proxy URL (optional) — http://user:pass@host:port"
+                              autoComplete="off"
+                              className="w-full h-10 px-3 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-emerald-500"
+                            />
+                          )}
+                          {msg && (
+                            <div className={`text-xs flex items-start gap-1.5 ${msg.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              {msg.ok ? <Check size={14} className="shrink-0 mt-0.5" /> : <AlertCircle size={14} className="shrink-0 mt-0.5" />}
+                              <span>{msg.text}</span>
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => saveProviderCreds(p.id)}
+                            disabled={providerSavingId === p.id}
+                            className="justify-self-start px-4 h-10 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white text-xs font-black flex items-center gap-2 border-0 cursor-pointer disabled:opacity-50"
+                          >
+                            {providerSavingId === p.id ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                            <span>{providerSavingId === p.id ? 'Validating…' : 'Validate & Save'}</span>
+                          </button>
+                          <p className="text-[10px] text-slate-500">The key is tested against the provider first — only saved if it works, then live immediately.</p>
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-[10px] text-slate-500">Managed via Railway environment variable (view-only here).</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'telegram' && (
           <div className="max-w-3xl mx-auto bg-[#0e1017] p-6 sm:p-8 rounded-2xl border border-slate-800 animate-in fade-in duration-200">
             <div className="mb-6 pb-4 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">

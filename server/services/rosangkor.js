@@ -4,27 +4,43 @@
 // Use undici's OWN fetch + ProxyAgent together so the dispatcher is compatible
 // (Node's global fetch uses a separate internal undici and rejects this dispatcher).
 import { fetch as undiciFetch, ProxyAgent } from 'undici';
+import { getProviderCredential } from './providerCredentials.js';
 
-const BASE_URL = (process.env.ROSANGKOR_BASE_URL || 'https://api.rosangkor.com/v1').replace(/\/+$/, '');
-const API_KEY = process.env.ROSANGKOR_API_KEY || '';
-const PROXY_URL = process.env.ROSANGKOR_PROXY_URL || '';
+const DEFAULT_BASE_URL = 'https://api.rosangkor.com/v1';
 const REQUEST_TIMEOUT_MS = 20_000;
 
-let _dispatcher = null;
-function getDispatcher() {
-  if (!PROXY_URL) return undefined; // no proxy configured -> direct (will fail IP allowlist)
-  if (!_dispatcher) _dispatcher = new ProxyAgent(PROXY_URL);
-  return _dispatcher;
+// Credentials are read dynamically so the admin panel can rotate the key/proxy at runtime.
+// Admin-panel override (DB) wins over the env var.
+function getBaseUrl() {
+  return (getProviderCredential('rosangkor', 'baseUrl') || process.env.ROSANGKOR_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+}
+function getApiKey() {
+  return getProviderCredential('rosangkor', 'apiKey') || process.env.ROSANGKOR_API_KEY || '';
+}
+function getProxyUrl() {
+  return getProviderCredential('rosangkor', 'proxyUrl') || process.env.ROSANGKOR_PROXY_URL || '';
+}
+
+// One ProxyAgent per distinct proxy URL; rebuilt automatically when the proxy changes.
+const _dispatchers = new Map();
+function dispatcherFor(proxyUrl) {
+  if (!proxyUrl) return undefined; // no proxy -> direct (will fail the IP allowlist)
+  if (!_dispatchers.has(proxyUrl)) _dispatchers.set(proxyUrl, new ProxyAgent(proxyUrl));
+  return _dispatchers.get(proxyUrl);
 }
 
 export function rosangkorConfigured() {
-  return Boolean(API_KEY && PROXY_URL && BASE_URL);
+  return Boolean(getApiKey() && getProxyUrl() && getBaseUrl());
 }
 
-// Low-level request. Returns { status, ok, payload }.
-export async function rosangkorRequest(path, { method = 'GET', body, form = false } = {}) {
-  const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
-  const headers = { Accept: 'application/json', 'X-API-Key': API_KEY };
+// Low-level request. Returns { status, ok, payload }. Credentials default to the live config but
+// can be overridden per-call (used by the admin panel to validate a new key/proxy before saving).
+export async function rosangkorRequest(path, { method = 'GET', body, form = false, apiKey, proxyUrl, baseUrl } = {}) {
+  const key = (apiKey !== undefined ? apiKey : getApiKey());
+  const base = (baseUrl || getBaseUrl()).replace(/\/+$/, '');
+  const proxy = (proxyUrl !== undefined ? proxyUrl : getProxyUrl());
+  const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  const headers = { Accept: 'application/json', 'X-API-Key': key };
   let outBody;
   if (body) {
     if (form) {
@@ -42,7 +58,7 @@ export async function rosangkorRequest(path, { method = 'GET', body, form = fals
       method,
       headers,
       body: outBody,
-      dispatcher: getDispatcher(),
+      dispatcher: dispatcherFor(proxy),
       signal: controller.signal,
     });
     const text = await res.text();
@@ -117,4 +133,30 @@ export async function getRosAngkorTopupStatus(orderId) {
     return { ok: false, error: r.payload?.error || 'order_not_found', message: r.payload?.message || 'Order not found.' };
   }
   return r.payload; // { ok, order_id, code, status, diamonds, delivered_at, ... }
+}
+
+// Live health/validation ping (hits GET /me). Optionally test an override key/proxy before it is
+// saved. Never throws — returns { ok, configured, account, balance, currency, message }.
+export async function pingRosAngkor(override = {}) {
+  const key = (override.apiKey !== undefined ? String(override.apiKey || '') : getApiKey()).trim();
+  const proxy = (override.proxyUrl !== undefined ? String(override.proxyUrl || '') : getProxyUrl()).trim();
+  const base = (override.baseUrl || getBaseUrl());
+  if (!key) return { ok: false, configured: false, message: 'No RoS Angkor API key set.' };
+  if (!proxy) return { ok: false, configured: false, message: 'No proxy URL set (RoS Angkor requires a static-IP proxy).' };
+  try {
+    const r = await rosangkorRequest('/me', { apiKey: key, proxyUrl: proxy, baseUrl: base });
+    if (!r.ok || !r.payload?.ok) {
+      return { ok: false, configured: true, status: r.status, message: r.payload?.message || r.payload?.error || `HTTP ${r.status}` };
+    }
+    return {
+      ok: true,
+      configured: true,
+      account: r.payload.name || r.payload.id || '',
+      balance: Number(r.payload.balance ?? 0),
+      currency: r.payload.currency || 'USD',
+      message: 'Connected',
+    };
+  } catch (err) {
+    return { ok: false, configured: true, message: err.message || 'Request failed.' };
+  }
 }

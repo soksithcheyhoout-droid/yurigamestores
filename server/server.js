@@ -43,6 +43,7 @@ import {
   normalizeOrderQuantity,
   resolveSoraPackage,
   SoraTopupError,
+  pingTopupProvider,
 } from './services/soratopup.js';
 import {
   startTelegramBotPolling,
@@ -56,6 +57,7 @@ import {
   sendAdminLoginSuccessAlert,
   sendTestTelegramPing,
   handleTelegramWebhookUpdate,
+  pingTelegramBot,
 } from './services/telegramBot.js';
 import {
   getPublicSiteConfig,
@@ -94,7 +96,12 @@ import {
   getDefaultGameImageForId,
   getDefaultBannerForSlug,
 } from './services/adminStore.js';
-import { checkRosAngkorPlayer } from './services/rosangkor.js';
+import { checkRosAngkorPlayer, pingRosAngkor } from './services/rosangkor.js';
+import {
+  getProviderCredential,
+  setProviderCredentials,
+  loadProviderCredentials,
+} from './services/providerCredentials.js';
 
 import {
   createConcurrencyLimiter,
@@ -3364,6 +3371,94 @@ function sanitizeUploadPayload(body = {}, prefix = 'img') {
   return clone;
 }
 
+// ===== Admin: provider API key health & control =====
+function maskSecret(value) {
+  const s = String(value || '');
+  if (!s) return '';
+  if (s.length <= 8) return `${s.slice(0, 2)}••••`;
+  return `${s.slice(0, 6)}••••${s.slice(-4)}`;
+}
+// Active value = admin-panel override (DB) when set, otherwise the env var. Never returns the raw secret to callers beyond masking.
+function activeProviderValue(provider, field, envName) {
+  const override = getProviderCredential(provider, field);
+  if (override) return { value: override, source: 'admin' };
+  const env = String(process.env[envName] || '').trim();
+  if (env) return { value: env, source: 'env' };
+  return { value: '', source: 'missing' };
+}
+
+// Live status of every provider API (runs real checks against each upstream).
+app.get('/api/admin/providers/status', requireAdminAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const [bay2game, rosangkor, soratopup, telegram] = await Promise.all([
+    pingTopupProvider('bay2game').catch((e) => ({ ok: false, configured: true, message: e?.message || 'error' })),
+    pingRosAngkor().catch((e) => ({ ok: false, configured: true, message: e?.message || 'error' })),
+    pingTopupProvider('soratopup').catch((e) => ({ ok: false, configured: true, message: e?.message || 'error' })),
+    pingTelegramBot().catch((e) => ({ ok: false, configured: true, message: e?.message || 'error' })),
+  ]);
+
+  const b2gKey = activeProviderValue('bay2game', 'apiKey', 'BAY2GAME_API_KEY');
+  const rosKey = activeProviderValue('rosangkor', 'apiKey', 'ROSANGKOR_API_KEY');
+  const rosProxy = activeProviderValue('rosangkor', 'proxyUrl', 'ROSANGKOR_PROXY_URL');
+  const soraKey = activeProviderValue('soratopup', 'apiKey', 'SORATOPUP_API_KEY');
+
+  return res.json({
+    success: true,
+    checkedAt: new Date().toISOString(),
+    providers: [
+      { id: 'bay2game', label: 'Bay2Game — Mobile Legends / Free Fire / RoS Legacy', editable: true, fields: ['apiKey'], keyMasked: maskSecret(b2gKey.value), keySource: b2gKey.source, ...bay2game },
+      { id: 'rosangkor', label: 'RoS Angkor — Direct Diamonds', editable: true, fields: ['apiKey', 'proxyUrl'], keyMasked: maskSecret(rosKey.value), keySource: rosKey.source, proxyMasked: maskSecret(rosProxy.value), proxySource: rosProxy.source, ...rosangkor },
+      { id: 'soratopup', label: 'SoraTopup — Roblox (Robux)', editable: true, fields: ['apiKey'], keyMasked: maskSecret(soraKey.value), keySource: soraKey.source, ...soratopup },
+      { id: 'telegram', label: 'Telegram Bot — order alerts & admin login', editable: false, fields: [], keySource: String(process.env.TELEGRAM_BOT_TOKEN || '').trim() ? 'env' : 'missing', ...telegram },
+    ],
+  });
+});
+
+// Change a provider's key/proxy. Validates LIVE against the upstream first; only saves if it works.
+app.post('/api/admin/providers/:provider/credentials', requireAdminAuth, async (req, res) => {
+  const provider = String(req.params.provider || '').toLowerCase();
+  const apiKey = String(req.body?.apiKey || '').trim();
+  const proxyUrl = String(req.body?.proxyUrl || '').trim();
+  const baseUrl = String(req.body?.baseUrl || '').trim();
+
+  try {
+    if (provider === 'bay2game' || provider === 'soratopup') {
+      if (!apiKey) return res.status(400).json({ success: false, error: 'API key is required.' });
+      const check = await pingTopupProvider(provider, { apiKey, baseUrl: baseUrl || undefined });
+      if (!check.ok) {
+        return res.status(400).json({ success: false, error: `This API key does not work: ${check.message}`, check });
+      }
+      setProviderCredentials(provider, baseUrl ? { apiKey, baseUrl } : { apiKey });
+      return res.json({ success: true, message: 'Key validated against the provider and saved — it is now live.', check });
+    }
+
+    if (provider === 'rosangkor') {
+      if (!apiKey && !proxyUrl && !baseUrl) {
+        return res.status(400).json({ success: false, error: 'Provide an API key and/or proxy URL to update.' });
+      }
+      // Validate with the new value(s), falling back to the current config for anything not provided.
+      const check = await pingRosAngkor({
+        apiKey: apiKey || undefined,
+        proxyUrl: proxyUrl || undefined,
+        baseUrl: baseUrl || undefined,
+      });
+      if (!check.ok) {
+        return res.status(400).json({ success: false, error: `These settings do not work: ${check.message}`, check });
+      }
+      const fields = {};
+      if (apiKey) fields.apiKey = apiKey;
+      if (proxyUrl) fields.proxyUrl = proxyUrl;
+      if (baseUrl) fields.baseUrl = baseUrl;
+      setProviderCredentials('rosangkor', fields);
+      return res.json({ success: true, message: 'Validated against RoS Angkor and saved — it is now live.', check });
+    }
+
+    return res.status(400).json({ success: false, error: 'This provider cannot be edited here.' });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err?.message || 'Validation failed.' });
+  }
+});
+
 // 4a. Provider catalog — list ALL Bay2Game games for the admin "Add Game" picker.
 app.get('/api/admin/provider-catalog', requireAdminAuth, async (req, res) => {
   try {
@@ -3953,6 +4048,7 @@ export const httpServer = app.listen(PORT, '0.0.0.0', async () => {
   // Load the durable admin config (imported games, prices, logos) from MySQL so it survives redeploys.
   // Runs even if the schema step above hiccuped, so imported games are always restored.
   await loadAdminConfigFromDb().catch((e) => console.warn('[Admin Store] DB config load skipped:', e.message));
+  await loadProviderCredentials().catch((e) => console.warn('[Provider Credentials] Load skipped:', e.message));
   markAdminConfigReady();
   if (process.env.SORA_STARTUP_SYNC_DISABLED !== 'true') {
     syncConfiguredPackagesWithSora()

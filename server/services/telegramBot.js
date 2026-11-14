@@ -79,6 +79,22 @@ export function getTelegramConfig() {
   };
 }
 
+// Live health check for the Telegram bot token (getMe). Never throws.
+export async function pingTelegramBot(tokenOverride) {
+  const token = String(tokenOverride || process.env.TELEGRAM_BOT_TOKEN || '').trim();
+  if (!token) return { ok: false, configured: false, message: 'No bot token set.' };
+  try {
+    const res = await fetch(`${TELEGRAM_API_BASE}/bot${token}/getMe`);
+    const data = await res.json().catch(() => ({}));
+    if (data?.ok && data.result) {
+      return { ok: true, configured: true, account: `@${data.result.username}`, message: 'Connected' };
+    }
+    return { ok: false, configured: true, message: data?.description || `getMe failed (HTTP ${res.status})` };
+  } catch (err) {
+    return { ok: false, configured: true, message: err.message || 'Request failed.' };
+  }
+}
+
 async function telegramRequest(method, payload = {}) {
   const { botToken } = getTelegramConfig();
   if (!botToken) return null;
